@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # ALL MKT - Digital Asset Management System
 
 Um sistema completo de gerenciamento de ativos digitais (DAM) para projetos imobiliários, desenvolvido em Next.js com Tailwind CSS v4 e tema escuro.
@@ -135,3 +136,6 @@ Este projeto é propriedade da ALL MKT.
 ---
 
 **Desenvolvido para ALL MKT** - Sistema de Gerenciamento de Ativos Digitais
+=======
+# all-mkt
+>>>>>>> 10e5e4b95fe0e7f58da7ae6ccc8e915871766a72
