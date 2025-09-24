@@ -1,11 +1,21 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from '../contexts/hooks/usePermissions';
+import { useConfig } from '../contexts/ConfigContext';
 import { LogOut } from 'lucide-react';
 
 export function UserProfile() {
-  const { user, signOut } = useAuth();
+  const { user, signOut, loading } = useAuth();
   const { isViewer, isEditor, isAdmin } = usePermissions();
+  const { systemSettings } = useConfig();
+
+  const handleSignOut = useCallback(async () => {
+    try {
+      await signOut();
+    } catch (error) {
+      console.error('[UserProfile] Erro ao realizar logout', error);
+    }
+  }, [signOut]);
 
   const getRoleLabel = () => {
     if (isAdmin()) return 'Administrador';
@@ -34,14 +44,28 @@ export function UserProfile() {
         <p className="text-sm font-medium text-foreground truncate">
           {user.name}
         </p>
-        <p className={`text-xs ${getRoleColor()}`}>
-          {getRoleLabel()}
-        </p>
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className={'text-xs ' + getRoleColor()}>
+            {getRoleLabel()}
+          </span>
+          {systemSettings.twoFactor && (
+            <span className="text-[10px] uppercase tracking-wide text-primary font-semibold">
+              2FA ativo
+            </span>
+          )}
+          {!systemSettings.multiSessions && (
+            <span className="text-[10px] uppercase tracking-wide text-yellow-400">
+              Sessão única
+            </span>
+          )}
+        </div>
       </div>
       <button
-        onClick={signOut}
-        className="text-muted-foreground hover:text-foreground transition-colors ml-2"
+        onClick={handleSignOut}
+        className="text-muted-foreground hover:text-foreground transition-colors ml-2 disabled:opacity-50"
         title="Sair"
+        type="button"
+        disabled={loading}
       >
         <LogOut className="h-4 w-4" />
       </button>

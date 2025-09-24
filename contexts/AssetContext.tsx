@@ -4,6 +4,8 @@ import { useAuth } from './AuthContext';
 import { Asset, Campaign, Project } from '../types';
 import { toast } from 'sonner';
 import { v4 as uuidv4 } from 'uuid';
+import { useConfig } from './ConfigContext';
+import { DEFAULT_SETTINGS } from '../lib/settings';
 
 // Dashboard statistics interface
 interface DashboardStats {
@@ -54,6 +56,7 @@ const AssetContext = createContext<AssetContextType | undefined>(undefined);
 
 export function AssetProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
+  const { systemSettings } = useConfig();
   const [assets, setAssets] = useState<Asset[]>([]);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -74,7 +77,10 @@ export function AssetProvider({ children }: { children: ReactNode }) {
     // Storage calculation (convert bytes to GB)
     const totalSizeBytes = currentAssets.reduce((sum, asset) => sum + asset.size, 0);
     const storageUsed = totalSizeBytes / (1024 * 1024 * 1024); // Convert to GB
-    const storageLimit = 100; // 100GB limit for demo
+    const configuredLimit = Number(systemSettings.storageLimitGb);
+    const storageLimit = Number.isFinite(configuredLimit) && configuredLimit > 0
+      ? configuredLimit
+      : DEFAULT_SETTINGS.storageLimitGb;
     
     // Assets by type
     const assetsByType = currentAssets.reduce((acc, asset) => {
@@ -207,18 +213,58 @@ export function AssetProvider({ children }: { children: ReactNode }) {
 
       if (error) throw error;
 
-      const transformedCampaigns: Campaign[] = data.map(item => ({
-        id: item.id,
-        name: item.name,
-        description: item.description || '',
-        color: item.color,
-        status: item.status as Campaign['status'],
-        startDate: item.start_date || undefined,
-        endDate: item.end_date || undefined,
-        createdAt: item.created_at,
-        createdBy: item.created_by,
-        tags: []
-      }));
+      const shouldUpdateStatus = user && (user.role === 'admin' || user.role === 'editor');
+      const statusUpdates: Array<{ id: string; status?: string; color?: string }> = [];
+
+      const transformedCampaigns: Campaign[] = data.map(item => {
+        const normalizedStart = normalizeDateString(item.start_date);
+        const normalizedEnd = normalizeDateString(item.end_date);
+        const computedStatus = computeCampaignStatus(normalizedStart, normalizedEnd);
+        const statusForDb = computedStatus === 'expiring' ? 'active' : computedStatus;
+        const derivedColor = statusColors[computedStatus] ?? statusColors.active;
+
+        if (shouldUpdateStatus) {
+          const needsStatusUpdate = statusForDb !== item.status;
+          const needsColorUpdate = derivedColor !== item.color;
+          if (needsStatusUpdate || needsColorUpdate) {
+            statusUpdates.push({
+              id: item.id,
+              status: needsStatusUpdate ? statusForDb : undefined,
+              color: needsColorUpdate ? derivedColor : undefined,
+            });
+          }
+        }
+
+        return {
+          id: item.id,
+          name: item.name,
+          description: item.description || '',
+          color: derivedColor,
+          status: computedStatus as Campaign['status'],
+          startDate: normalizedStart,
+          endDate: normalizedEnd,
+          createdAt: item.created_at,
+          createdBy: item.created_by,
+          tags: []
+        };
+      });
+
+      if (statusUpdates.length > 0 && supabase && shouldUpdateStatus) {
+        const updatedAt = new Date().toISOString();
+        try {
+          await Promise.all(statusUpdates.map(update => {
+            const payload: Record<string, any> = { updated_at: updatedAt };
+            if (update.status !== undefined) payload.status = update.status;
+            if (update.color !== undefined) payload.color = update.color;
+            return supabase
+              .from('campaigns')
+              .update(payload)
+              .eq('id', update.id);
+          }));
+        } catch (statusError) {
+          console.error('[AssetContext] Não foi possível atualizar status automaticamente.', statusError);
+        }
+      }
 
       setCampaigns(transformedCampaigns);
     } catch (error) {
@@ -449,12 +495,77 @@ export function AssetProvider({ children }: { children: ReactNode }) {
   };
 
   // Mock implementations for campaigns and projects
+  const normalizeDateString = (value?: string | null) => {
+    if (!value) return undefined;
+    return value.includes('T') ? value.split('T')[0] : value;
+  };
+
+  const statusColors: Record<Campaign['status'], string> = {
+    active: '#dc2626',
+    inactive: '#2563eb',
+    expiring: '#facc15',
+    archived: '#6b7280'
+  };
+
+  const computeCampaignStatus = (start?: string | null, end?: string | null): Campaign['status'] => {
+    const normalizedStart = start ? normalizeDateString(start) : undefined;
+    const normalizedEnd = end ? normalizeDateString(end) : undefined;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const startDate = normalizedStart ? new Date(`${normalizedStart}T00:00:00`) : null;
+    const endDate = normalizedEnd ? new Date(`${normalizedEnd}T00:00:00`) : null;
+
+    if (startDate && today < startDate) {
+      return 'inactive';
+    }
+
+    if (endDate && today > endDate) {
+      return 'archived';
+    }
+
+    if (endDate) {
+      const diffDays = Math.floor((endDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+      if (diffDays >= 0 && diffDays <= 2) {
+        return 'expiring';
+      }
+    }
+
+    return 'active';
+  };
+
+  const mapCampaignToDb = (payload: Partial<Campaign>) => {
+    const mapped: Record<string, any> = {};
+
+    if (payload.name !== undefined) mapped.name = payload.name;
+    if (payload.description !== undefined) mapped.description = payload.description || null;
+    if (payload.startDate !== undefined) mapped.start_date = payload.startDate ? normalizeDateString(payload.startDate) : null;
+    if (payload.endDate !== undefined) mapped.end_date = payload.endDate ? normalizeDateString(payload.endDate) : null;
+    if (payload.createdBy !== undefined) mapped.created_by = payload.createdBy;
+
+    const shouldRecomputeStatus = payload.status !== undefined || payload.startDate !== undefined || payload.endDate !== undefined;
+
+    if (shouldRecomputeStatus) {
+      const statusToUse: Campaign['status'] = payload.status ?? computeCampaignStatus(payload.startDate, payload.endDate);
+      const statusForDb = statusToUse === 'expiring' ? 'active' : statusToUse;
+      const colorForStatus = statusColors[statusToUse] ?? statusColors.active;
+      mapped.status = statusForDb;
+      mapped.color = colorForStatus;
+    }
+
+    return mapped;
+  };
+
   const createCampaign = async (campaign: Omit<Campaign, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'>) => {
     if (!user) throw new Error('Usuário não encontrado');
 
     if (!isConfigured) {
+      const status = computeCampaignStatus(campaign.startDate, campaign.endDate);
       const newCampaign: Campaign = {
         ...campaign,
+        status,
+        color: statusColors[status],
         id: uuidv4(),
         createdAt: new Date().toISOString(),
         createdBy: user.id,
@@ -468,12 +579,10 @@ export function AssetProvider({ children }: { children: ReactNode }) {
     if (!supabase) throw new Error('Supabase não configurado');
 
     try {
+      const payload = mapCampaignToDb({ ...campaign, createdBy: user.id });
       const { error } = await supabase
         .from('campaigns')
-        .insert({
-          ...campaign,
-          created_by: user.id
-        });
+        .insert(payload);
 
       if (error) throw error;
 
@@ -488,9 +597,16 @@ export function AssetProvider({ children }: { children: ReactNode }) {
 
   const updateCampaign = async (id: string, updates: Partial<Campaign>) => {
     if (!isConfigured) {
-      setCampaigns(prev => prev.map(campaign => 
-        campaign.id === id ? { ...campaign, ...updates } : campaign
-      ));
+      setCampaigns(prev => prev.map(campaign => {
+        if (campaign.id !== id) return campaign;
+        const merged = { ...campaign, ...updates } as Campaign;
+        const status = computeCampaignStatus(merged.startDate, merged.endDate);
+        return {
+          ...merged,
+          status,
+          color: statusColors[status]
+        };
+      }));
       toast.success('Campanha atualizada com sucesso! (Modo desenvolvimento)');
       return;
     }
@@ -498,9 +614,11 @@ export function AssetProvider({ children }: { children: ReactNode }) {
     if (!supabase) throw new Error('Supabase não configurado');
 
     try {
+      const mappedUpdates = mapCampaignToDb(updates);
+      mappedUpdates.updated_at = new Date().toISOString();
       const { error } = await supabase
         .from('campaigns')
-        .update(updates)
+        .update(mappedUpdates)
         .eq('id', id);
 
       if (error) throw error;

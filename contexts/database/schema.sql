@@ -83,6 +83,24 @@ CREATE TABLE public.shared_links (
   created_by UUID REFERENCES public.users(id) ON DELETE CASCADE NOT NULL
 );
 
+-- System settings table
+CREATE TABLE public.system_settings (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  company_name TEXT,
+  admin_email TEXT,
+  email_notifications BOOLEAN NOT NULL DEFAULT true,
+  system_notifications BOOLEAN NOT NULL DEFAULT true,
+  two_factor BOOLEAN NOT NULL DEFAULT false,
+  multi_sessions BOOLEAN NOT NULL DEFAULT true,
+  auto_backup BOOLEAN NOT NULL DEFAULT true,
+  dark_mode BOOLEAN NOT NULL DEFAULT true,
+  compact_sidebar BOOLEAN NOT NULL DEFAULT false,
+  storage_limit_gb INTEGER NOT NULL DEFAULT 100,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_by UUID REFERENCES public.users(id) ON DELETE SET NULL
+);
+
 -- Create indexes for better performance
 CREATE INDEX idx_assets_category ON public.assets(category_type, category_id);
 CREATE INDEX idx_assets_uploaded_by ON public.assets(uploaded_by);
@@ -106,6 +124,7 @@ CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON public.users FOR EACH RO
 CREATE TRIGGER update_campaigns_updated_at BEFORE UPDATE ON public.campaigns FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_projects_updated_at BEFORE UPDATE ON public.projects FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_assets_updated_at BEFORE UPDATE ON public.assets FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_system_settings_updated_at BEFORE UPDATE ON public.system_settings FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- Function to create user profile on signup
 CREATE OR REPLACE FUNCTION public.handle_new_user()
@@ -128,6 +147,7 @@ ALTER TABLE public.campaigns ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.projects ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.assets ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.shared_links ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.system_settings ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies for users
 CREATE POLICY "Users can view their own profile" ON public.users
@@ -245,6 +265,29 @@ CREATE POLICY "Link creators and admins can manage shared links" ON public.share
     EXISTS (
       SELECT 1 FROM public.users
       WHERE id = auth.uid() AND role = 'admin'
+    )
+  );
+
+-- RLS Policies for system settings
+CREATE POLICY "Admins can manage system settings" ON public.system_settings
+  FOR ALL USING (
+    EXISTS (
+      SELECT 1 FROM public.users
+      WHERE id = auth.uid() AND role = 'admin'
+    )
+  )
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM public.users
+      WHERE id = auth.uid() AND role = 'admin'
+    )
+  );
+
+CREATE POLICY "Authenticated users can view system settings" ON public.system_settings
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM public.users
+      WHERE id = auth.uid()
     )
   );
 

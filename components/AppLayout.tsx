@@ -4,6 +4,8 @@ import { AppSidebar } from './AppSidebar';
 import { UserProfile } from './UserProfile';
 import { Separator } from './ui/separator';
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from './ui/breadcrumb';
+import { useConfig } from '../contexts/ConfigContext';
+import Head from 'next/head';
 
 interface AppLayoutProps {
   currentPage: string;
@@ -23,11 +25,21 @@ const pageLabels: Record<string, string> = {
 };
 
 export function AppLayout({ currentPage, onPageChange, children }: AppLayoutProps) {
+  const { systemSettings } = useConfig();
+  const companyName = systemSettings.companyName || 'ALL MKT';
+  const adminEmail = systemSettings.adminEmail;
+  const sidebarStyle = systemSettings.compactSidebar
+    ? ({ '--sidebar-width': '13rem' } as React.CSSProperties)
+    : undefined;
+
   return (
-    <SidebarProvider defaultOpen={true}>
+    <SidebarProvider defaultOpen={true} style={sidebarStyle}>
       <AppSidebar currentPage={currentPage} onPageChange={onPageChange} />
       
       <SidebarInset>
+        <Head>
+          <title>{companyName} DAM</title>
+        </Head>
         {/* Header fixo */}
         <header className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-2 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4">
           <div className="flex items-center gap-2">
@@ -42,7 +54,7 @@ export function AppLayout({ currentPage, onPageChange, children }: AppLayoutProp
                     e.preventDefault();
                     onPageChange('dashboard');
                   }}>
-                    ALL MKT
+                    {companyName}
                   </BreadcrumbLink>
                 </BreadcrumbItem>
                 <BreadcrumbSeparator className="hidden md:block" />
@@ -55,6 +67,11 @@ export function AppLayout({ currentPage, onPageChange, children }: AppLayoutProp
 
           {/* Lado direito do header */}
           <div className="ml-auto flex items-center gap-2">
+            {adminEmail && (
+              <span className="hidden md:inline-flex text-xs text-muted-foreground mr-3">
+                Suporte: <a href={`mailto:${adminEmail}`} className="ml-1 underline offset-2">{adminEmail}</a>
+              </span>
+            )}
             <UserProfile />
           </div>
         </header>

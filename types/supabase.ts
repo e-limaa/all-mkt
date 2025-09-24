@@ -179,6 +179,56 @@ export interface Database {
           uploaded_by?: string
         }
       }
+      system_settings: {
+        Row: {
+          id: string
+          company_name: string | null
+          admin_email: string | null
+          email_notifications: boolean
+          system_notifications: boolean
+          two_factor: boolean
+          multi_sessions: boolean
+          auto_backup: boolean
+          dark_mode: boolean
+          compact_sidebar: boolean
+          storage_limit_gb: number
+          created_at: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          id?: string
+          company_name?: string | null
+          admin_email?: string | null
+          email_notifications?: boolean
+          system_notifications?: boolean
+          two_factor?: boolean
+          multi_sessions?: boolean
+          auto_backup?: boolean
+          dark_mode?: boolean
+          compact_sidebar?: boolean
+          storage_limit_gb?: number
+          created_at?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          id?: string
+          company_name?: string | null
+          admin_email?: string | null
+          email_notifications?: boolean
+          system_notifications?: boolean
+          two_factor?: boolean
+          multi_sessions?: boolean
+          auto_backup?: boolean
+          dark_mode?: boolean
+          compact_sidebar?: boolean
+          storage_limit_gb?: number
+          created_at?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+      }
       shared_links: {
         Row: {
           id: string

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+﻿import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { User as SupabaseUser, Session } from '@supabase/supabase-js';
 import { Database } from '../types/supabase';
@@ -38,11 +38,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const isConfigured = isSupabaseConfigured();
+  const clearAuthState = () => {
+    setUser(null);
+    setSupabaseUser(null);
+    setSession(null);
+  };
+
+  const purgeStoredSession = () => {
+    if (typeof window === "undefined") return;
+    try {
+      const storageKey = (supabase as any)?.auth?.storageKey as string | undefined;
+      if (storageKey) {
+        window.localStorage.removeItem(storageKey);
+        window.localStorage.removeItem(`${storageKey}-global`);
+      }
+    } catch (error) {
+      console.warn("[Auth] Não foi possível limpar a sessão armazenada localmente.", error);
+    }
+  };
+
 
   useEffect(() => {
     if (!isConfigured) {
       // Modo de desenvolvimento - usar dados mockados
-      console.log('🔧 Modo de desenvolvimento: usando dados mockados');
+      console.log('ðŸ”§ Modo de desenvolvimento: usando dados mockados');
       setUser(mockUser);
       setLoading(false);
       return;
@@ -172,27 +191,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = async () => {
     if (!isConfigured) {
-      // Modo de desenvolvimento
-      setUser(null);
-      toast.success('Logout realizado com sucesso! (Modo desenvolvimento)');
+      clearAuthState();
+      toast.success("Logout realizado com sucesso! (Modo desenvolvimento)");
       return;
     }
 
-    if (!supabase) throw new Error('Supabase não configurado');
+    if (!supabase) {
+      clearAuthState();
+      toast.success("Logout realizado com sucesso!");
+      return;
+    }
 
+    setLoading(true);
     try {
-      setLoading(true);
-      const { error } = await supabase.auth.signOut();
+      const { error } = await supabase.auth.signOut({ scope: 'global' });
       if (error) throw error;
-      
-      setUser(null);
-      setSupabaseUser(null);
-      setSession(null);
-      toast.success('Logout realizado com sucesso!');
+      toast.success("Logout realizado com sucesso!");
     } catch (error: any) {
-      toast.error(error.message);
-      throw error;
+      console.error("[Auth] Falha ao realizar logout", error);
+      toast.error(error?.message ?? "Não foi possível finalizar a sessão.");
     } finally {
+      purgeStoredSession();
+      clearAuthState();
       setLoading(false);
     }
   };

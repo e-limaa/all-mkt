@@ -1,6 +1,7 @@
 import React from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from '../contexts/hooks/usePermissions';
+import { useConfig } from '../contexts/ConfigContext';
 import { Permission } from '../types/enums';
 import { 
   BarChart3, 
@@ -32,8 +33,10 @@ interface AppSidebarProps {
 
 export function AppSidebar({ currentPage, onPageChange }: AppSidebarProps) {
   const { user } = useAuth();
-  const { hasPermission, isViewer } = usePermissions();
+  const { hasPermission } = usePermissions();
   const { state } = useSidebar();
+  const { systemSettings } = useConfig();
+  const compactSidebar = systemSettings.compactSidebar;
 
   const navigationItems = [
     // Dashboard - disponível para Admin e Editor, mas NÃO para Viewer
@@ -94,7 +97,7 @@ export function AppSidebar({ currentPage, onPageChange }: AppSidebarProps) {
   ];
 
   return (
-    <Sidebar collapsible="icon" className="border-sidebar-border">
+    <Sidebar collapsible="icon" className="border-sidebar-border" data-compact={compactSidebar ? 'true' : 'false'}>
       <SidebarHeader className="border-b border-sidebar-border">
         <div className="flex items-center justify-center px-2 py-3 p-[16px]">
           <Frame1000005813 />
@@ -102,9 +105,9 @@ export function AppSidebar({ currentPage, onPageChange }: AppSidebarProps) {
       </SidebarHeader>
 
       <SidebarContent>
-        <SidebarGroup className="p-[8px] px-[8px] py-[2px] px-[8px] py-[16px]">
+        <SidebarGroup className={`p-[8px] px-[8px] py-[16px] ${compactSidebar ? 'pt-3 pb-3' : ''}`}>
           <SidebarGroupContent>
-            <SidebarMenu className="sidebar-menu-gap space-y-2">
+            <SidebarMenu className={`sidebar-menu-gap ${compactSidebar ? 'space-y-1.5' : 'space-y-2'}`}>
               {navigationItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = currentPage === item.href;
@@ -115,7 +118,7 @@ export function AppSidebar({ currentPage, onPageChange }: AppSidebarProps) {
                       onClick={() => onPageChange(item.href)}
                       isActive={isActive}
                       tooltip={state === "collapsed" ? item.label : undefined}
-                      className="w-full justify-start px-[8px] m-[1px] sidebar-menu-button"
+                      className={`w-full justify-start px-[8px] m-[1px] sidebar-menu-button cursor-pointer ${compactSidebar ? 'py-[6px]' : ''}`}
                     >
                       <Icon className="h-4 w-4" />
                       <span className="text-[14px]">{item.label}</span>

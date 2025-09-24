@@ -9,7 +9,7 @@ export interface Campaign {
   description?: string;
   startDate: string;
   endDate?: string;
-  status: 'planning' | 'active' | 'paused' | 'completed';
+  status: 'active' | 'inactive' | 'archived' | 'expiring';
   budget?: number;
   targetAudience?: string;
   goals?: string;
@@ -163,14 +163,20 @@ export interface UserInvitation {
 }
 
 export interface SystemSettings {
-  siteName: string;
-  logoUrl?: string;
-  primaryColor: string;
-  allowPublicSharing: boolean;
-  maxFileSize: number;
-  allowedFileTypes: string[];
-  requireLoginForDownload: boolean;
-  maxSharedLinkDuration: number;
+  id: string;
+  companyName: string;
+  adminEmail: string;
+  emailNotifications: boolean;
+  systemNotifications: boolean;
+  twoFactor: boolean;
+  multiSessions: boolean;
+  autoBackup: boolean;
+  darkMode: boolean;
+  compactSidebar: boolean;
+  storageLimitGb: number;
+  createdAt: string;
+  updatedAt: string;
+  updatedBy?: string | null;
 }
 
 // Dashboard types

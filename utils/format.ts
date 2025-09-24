@@ -1,7 +1,18 @@
 // Utility functions for formatting data
 export function formatDate(date: Date | string): string {
-  const d = typeof date === 'string' ? new Date(date) : date;
-  
+  let d: Date;
+  if (typeof date === 'string') {
+    const trimmed = date.trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+      const [year, month, day] = trimmed.split('-').map(Number);
+      d = new Date(year, (month || 1) - 1, day || 1);
+    } else {
+      d = new Date(trimmed);
+    }
+  } else {
+    d = date;
+  }
+
   // Check if date is valid
   if (isNaN(d.getTime())) {
     return 'Data inválida';

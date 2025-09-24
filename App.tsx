@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Toaster } from './components/ui/sonner';
-import { ConfigProvider } from './contexts/ConfigContext';
+import { ConfigProvider, useConfig } from './contexts/ConfigContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { AssetProvider } from './contexts/AssetContext';
 import { LoginScreen } from './components/LoginScreen';
@@ -16,7 +16,7 @@ import { PermissionGuard, usePermissions } from './contexts/hooks/usePermissions
 import { Permission } from './types/enums';
 import { Card, CardContent } from './components/ui/card';
 import { Alert, AlertDescription } from './components/ui/alert';
-import { ShieldX, AlertTriangle } from 'lucide-react';
+import { ShieldX, AlertTriangle, BellOff, MailX } from 'lucide-react';
 import { isSupabaseConfigured } from './lib/supabase';
 
 interface MaterialFilters {
@@ -69,15 +69,27 @@ function DevelopmentModeAlert() {
 
 function AppContent() {
   const { user } = useAuth();
-  const { isViewer } = usePermissions();
+  const { isViewer, isAdmin } = usePermissions();
+  const { systemSettings } = useConfig();
   const [navigationState, setNavigationState] = useState<NavigationState>({
     page: 'dashboard'
   });
 
   // Garantir que o tema escuro seja aplicado
   useEffect(() => {
-    document.documentElement.classList.add('dark');
-  }, []);
+    if (systemSettings.darkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [systemSettings.darkMode]);
+
+  useEffect(() => {
+    const baseTitle = systemSettings.companyName
+      ? `${systemSettings.companyName} DAM`
+      : 'ALL MKT - Digital Asset Management';
+    document.title = baseTitle;
+  }, [systemSettings.companyName]);
 
   // Redirecionar visualizadores para materiais ao entrar
   useEffect(() => {
@@ -90,6 +102,14 @@ function AppContent() {
     return (
       <>
         <DevelopmentModeAlert />
+        {!systemSettings.emailNotifications && (
+          <Alert className="border-yellow-500/40 bg-yellow-500/10 mb-4">
+            <MailX className="h-4 w-4 text-yellow-500" />
+            <AlertDescription className="text-yellow-100">
+              Notificações por email estão desativadas pelo administrador.
+            </AlertDescription>
+          </Alert>
+        )}
         <LoginScreen />
       </>
     );
@@ -142,11 +162,27 @@ function AppContent() {
           >
             <>
               <DevelopmentModeAlert />
+              {isAdmin() && !systemSettings.emailNotifications && (
+                <Alert className="border-blue-500/40 bg-blue-500/10 mb-4">
+                  <MailX className="h-4 w-4 text-blue-200" />
+                  <AlertDescription className="text-blue-100">
+                    Emails automáticos estão desativados. Ative-os nas Configurações para avisos de upload e compartilhamento.
+                  </AlertDescription>
+                </Alert>
+              )}
+              {isAdmin() && !systemSettings.systemNotifications && (
+                <Alert className="border-red-500/40 bg-red-500/10 mb-4">
+                  <BellOff className="h-4 w-4 text-red-300" />
+                  <AlertDescription className="text-red-200">
+                    Alertas do sistema estão desativados. Nenhum aviso será exibido aos usuários.
+                  </AlertDescription>
+                </Alert>
+              )}
               <Dashboard />
             </>
           </PermissionGuard>
         );
-        
+
       case 'materials':
         return (
           <PermissionGuard 
@@ -229,6 +265,22 @@ function AppContent() {
           >
             <>
               <DevelopmentModeAlert />
+              {isAdmin() && !systemSettings.emailNotifications && (
+                <Alert className="border-blue-500/40 bg-blue-500/10 mb-4">
+                  <MailX className="h-4 w-4 text-blue-200" />
+                  <AlertDescription className="text-blue-100">
+                    O envio de emails automáticos está desativado. Atualize esta configuração para reativar convites e avisos.
+                  </AlertDescription>
+                </Alert>
+              )}
+              {isAdmin() && !systemSettings.systemNotifications && (
+                <Alert className="border-red-500/40 bg-red-500/10 mb-4">
+                  <BellOff className="h-4 w-4 text-red-300" />
+                  <AlertDescription className="text-red-200">
+                    Alertas na interface estão desativados. Toques de sucesso ou erro não serão exibidos aos usuários.
+                  </AlertDescription>
+                </Alert>
+              )}
               <Settings />
             </>
           </PermissionGuard>
@@ -281,11 +333,19 @@ export default function App() {
   return (
     <ConfigProvider>
       <AuthProvider>
-        <div className="h-screen bg-background text-foreground dark">
-          <AppContent />
-          <Toaster />
-        </div>
+        <AppFrame />
       </AuthProvider>
     </ConfigProvider>
+  );
+}
+
+function AppFrame() {
+  const { systemSettings } = useConfig();
+
+  return (
+    <div className="h-screen bg-background text-foreground">
+      <AppContent />
+      {systemSettings.systemNotifications && <Toaster />}
+    </div>
   );
 }

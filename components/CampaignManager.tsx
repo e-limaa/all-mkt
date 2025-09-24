@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -30,8 +30,8 @@ import {
   TrendingUp,
   Clock,
   PlayCircle,
-  PauseCircle,
   StopCircle,
+  AlertTriangle,
   Megaphone
 } from 'lucide-react';
 import { Campaign } from '../types';
@@ -39,14 +39,16 @@ import { formatDate } from '../utils/format';
 import { useAssets } from '../contexts/AssetContext';
 import { usePermissions } from '../contexts/hooks/usePermissions';
 import { Permission } from '../types/enums';
+import { useAuth } from '../contexts/AuthContext';
 
 const getStatusBadge = (status: string) => {
   const badges = {
-    ativa: { label: 'Ativa', variant: 'default' as const, icon: PlayCircle },
-    pausada: { label: 'Pausada', variant: 'secondary' as const, icon: PauseCircle },
-    finalizada: { label: 'Finalizada', variant: 'outline' as const, icon: StopCircle }
+    active: { label: 'Ativa', variant: 'default' as const, icon: PlayCircle },
+    expiring: { label: 'Expirando', variant: 'secondary' as const, icon: AlertTriangle },
+    inactive: { label: 'Agendada', variant: 'secondary' as const, icon: Clock },
+    archived: { label: 'Encerrada', variant: 'outline' as const, icon: StopCircle }
   };
-  return badges[status as keyof typeof badges] || badges.ativa;
+  return badges[status as keyof typeof badges] || badges.active;
 };
 
 interface CampaignManagerProps {
@@ -54,8 +56,9 @@ interface CampaignManagerProps {
 }
 
 export function CampaignManager({ onNavigateToMaterials }: CampaignManagerProps) {
-  const { campaigns, assets } = useAssets();
+  const { campaigns, assets, createCampaign, updateCampaign, deleteCampaign } = useAssets();
   const { hasPermission, isViewer } = usePermissions();
+  const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -74,33 +77,58 @@ export function CampaignManager({ onNavigateToMaterials }: CampaignManagerProps)
     return matchesSearch && matchesStatus;
   });
 
-  const handleCreateCampaign = (campaignData: Partial<Campaign>) => {
+  const handleCreateCampaign = async (campaignData: Partial<Campaign>) => {
     if (!canCreateCampaigns) {
       toast.error('Você não possui permissão para criar campanhas');
       return;
     }
-    // Simular criação de campanha
-    toast.success(`Campanha "${campaignData.name}" criada com sucesso!`);
-    setIsCreateOpen(false);
+    try {
+      await createCampaign({
+        name: campaignData.name || '',
+        description: campaignData.description,
+        startDate: campaignData.startDate || new Date().toISOString().split('T')[0],
+        endDate: campaignData.endDate,
+        status: (campaignData.status || 'inactive') as Campaign['status'],
+        tags: campaignData.tags || [],
+        createdBy: user?.id || 'system'
+      });
+      setIsCreateOpen(false);
+    } catch (error) {
+      console.error('[CampaignManager] Erro ao criar campanha', error);
+    }
   };
 
-  const handleUpdateCampaign = (updatedCampaign: Campaign) => {
+  const handleUpdateCampaign = async (updatedCampaign: Campaign) => {
     if (!canEditCampaigns) {
       toast.error('Você não possui permissão para editar campanhas');
       return;
     }
-    // Simular atualização
-    setEditingCampaign(null);
-    toast.success(`Campanha "${updatedCampaign.name}" atualizada com sucesso!`);
+    try {
+      await updateCampaign(updatedCampaign.id, {
+        name: updatedCampaign.name,
+        description: updatedCampaign.description,
+        startDate: updatedCampaign.startDate,
+        endDate: updatedCampaign.endDate,
+        status: updatedCampaign.status,
+        createdBy: updatedCampaign.createdBy,
+        tags: updatedCampaign.tags
+      });
+      setEditingCampaign(null);
+    } catch (error) {
+      console.error('[CampaignManager] Erro ao atualizar campanha', error);
+    }
   };
 
-  const handleDeleteCampaign = (campaignId: string) => {
+  const handleDeleteCampaign = async (campaignId: string) => {
     if (!canDeleteCampaigns) {
       toast.error('Você não possui permissão para excluir campanhas');
       return;
     }
-    const campaign = campaigns.find(c => c.id === campaignId);
-    toast.success(`Campanha "${campaign?.name}" removida com sucesso!`);
+    try {
+      await deleteCampaign(campaignId);
+    } catch (error) {
+      console.error('[CampaignManager] Erro ao excluir campanha', error);
+    }
   };
 
   const getCampaignAssets = (campaignId: string) => {
@@ -127,10 +155,10 @@ export function CampaignManager({ onNavigateToMaterials }: CampaignManagerProps)
   const getStats = () => {
     const totalCampaigns = campaigns.length;
     const activeCampaigns = campaigns.filter(c => c.status === 'active').length;
-    const pausedCampaigns = campaigns.filter(c => c.status === 'paused').length;
-    const finishedCampaigns = campaigns.filter(c => c.status === 'completed').length;
+    const scheduledCampaigns = campaigns.filter(c => c.status === 'inactive').length;
+    const archivedCampaigns = campaigns.filter(c => c.status === 'archived').length;
     
-    return { totalCampaigns, activeCampaigns, pausedCampaigns, finishedCampaigns };
+    return { totalCampaigns, activeCampaigns, scheduledCampaigns, archivedCampaigns };
   };
 
   const stats = getStats();
@@ -174,7 +202,7 @@ export function CampaignManager({ onNavigateToMaterials }: CampaignManagerProps)
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         <Card className="bg-card/50 backdrop-blur-sm border-border/50">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total de Campanhas</CardTitle>
@@ -200,21 +228,31 @@ export function CampaignManager({ onNavigateToMaterials }: CampaignManagerProps)
 
         <Card className="bg-card/50 backdrop-blur-sm border-border/50">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pausadas</CardTitle>
-            <PauseCircle className="h-4 w-4 text-yellow-500" />
+            <CardTitle className="text-sm font-medium">Expirando</CardTitle>
+            <AlertTriangle className="h-4 w-4 text-yellow-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-foreground">{stats.pausedCampaigns}</div>
+            <div className="text-2xl font-bold text-foreground">{stats.expiringCampaigns}</div>
           </CardContent>
         </Card>
 
         <Card className="bg-card/50 backdrop-blur-sm border-border/50">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Finalizadas</CardTitle>
+            <CardTitle className="text-sm font-medium">Agendadas</CardTitle>
+            <Clock className="h-4 w-4 text-blue-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-foreground">{stats.scheduledCampaigns}</div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-card/50 backdrop-blur-sm border-border/50">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Encerradas</CardTitle>
             <StopCircle className="h-4 w-4 text-gray-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-foreground">{stats.finishedCampaigns}</div>
+            <div className="text-2xl font-bold text-foreground">{stats.archivedCampaigns}</div>
           </CardContent>
         </Card>
       </div>
@@ -240,9 +278,10 @@ export function CampaignManager({ onNavigateToMaterials }: CampaignManagerProps)
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todos os status</SelectItem>
-                  <SelectItem value="ativa">Ativas</SelectItem>
-                  <SelectItem value="pausada">Pausadas</SelectItem>
-                  <SelectItem value="finalizada">Finalizadas</SelectItem>
+                  <SelectItem value="expiring">Expirando</SelectItem>
+                  <SelectItem value="active">Ativas</SelectItem>
+                  <SelectItem value="inactive">Agendadas</SelectItem>
+                  <SelectItem value="archived">Encerradas</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -352,9 +391,9 @@ export function CampaignManager({ onNavigateToMaterials }: CampaignManagerProps)
                 {/* Actions */}
                 <div className="flex gap-2 pt-2">
                   <Button 
-                    variant="outline" 
+                    variant="default" 
                     size="sm" 
-                    className="flex-1 bg-card hover:bg-accent border-border"
+                    className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground"
                     onClick={() => handleViewMaterials(campaign)}
                     disabled={campaignAssets.length === 0}
                   >
@@ -430,20 +469,55 @@ function CampaignForm({
   const [formData, setFormData] = useState({
     name: campaign?.name || '',
     description: campaign?.description || '',
-    startDate: campaign?.startDate ? new Date(campaign.startDate).toISOString().split('T')[0] : '',
-    endDate: campaign?.endDate ? new Date(campaign.endDate).toISOString().split('T')[0] : '',
-    status: campaign?.status || 'ativa',
-    color: campaign?.color || '#dc2626',
+    startDate: campaign?.startDate || '',
+    endDate: campaign?.endDate || '',
     createdBy: campaign?.createdBy || ''
   });
 
+  useEffect(() => {
+    setFormData({
+      name: campaign?.name || '',
+      description: campaign?.description || '',
+      startDate: campaign?.startDate || '',
+      endDate: campaign?.endDate || '',
+      createdBy: campaign?.createdBy || ''
+    });
+  }, [campaign]);
+
+  const determineStatus = (start?: string, end?: string): Campaign['status'] => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const startDate = start ? new Date(`${start}T00:00:00`) : undefined;
+    const endDate = end ? new Date(`${end}T00:00:00`) : undefined;
+
+    if (startDate && today < startDate) {
+      return 'inactive';
+    }
+
+    if (endDate && today > endDate) {
+      return 'archived';
+    }
+
+    if (endDate) {
+      const diffDays = Math.floor((endDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+      if (diffDays >= 0 && diffDays <= 2) {
+        return 'expiring';
+      }
+    }
+
+    return 'active';
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const computedStatus = determineStatus(formData.startDate, formData.endDate);
     onSubmit({
-      ...formData,
-      status: formData.status as 'planning' | 'active' | 'paused' | 'completed',
-      startDate: new Date(formData.startDate).toISOString(),
-      endDate: formData.endDate ? new Date(formData.endDate).toISOString() : undefined,
+      name: formData.name,
+      description: formData.description,
+      status: computedStatus,
+      startDate: formData.startDate,
+      endDate: formData.endDate || undefined,
       createdBy: formData.createdBy || 'Usuário Atual',
     });
   };
@@ -495,39 +569,6 @@ function CampaignForm({
             value={formData.endDate}
             onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
             className="bg-input-background border-border"
-          />
-        </div>
-      </div>
-
-      <div>
-        <Label htmlFor="status" className="mb-2">Status</Label>
-        <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value as any })}>
-          <SelectTrigger className="bg-input-background border-border">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="ativa">Ativa</SelectItem>
-            <SelectItem value="pausada">Pausada</SelectItem>
-            <SelectItem value="finalizada">Finalizada</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div>
-        <Label htmlFor="color" className="mb-2">Cor da Campanha</Label>
-        <div className="flex gap-2">
-          <Input
-            id="color"
-            type="color"
-            value={formData.color}
-            onChange={(e) => setFormData({ ...formData, color: e.target.value })}
-            className="w-16 h-10 p-1 bg-input-background border-border"
-          />
-          <Input
-            value={formData.color}
-            onChange={(e) => setFormData({ ...formData, color: e.target.value })}
-            placeholder="#dc2626"
-            className="flex-1 bg-input-background border-border"
           />
         </div>
       </div>

@@ -31,6 +31,7 @@ No painel **Table Editor**, você deve ver:
 - projects
 - assets
 - shared_links
+- system_settings
 
 ## 3. Configuração do Storage
 
@@ -176,6 +177,63 @@ Configure backups automáticos:
 - `category_type`: campaign | project
 - `category_id`: ID da categoria
 - `metadata`: JSONB com metadados extras
+
+### System Settings
+- `id`: UUID (chave primária)
+- `company_name`: Nome exibido no topo do sistema
+- `admin_email`: Email para alertas administrativos
+- `email_notifications`: Habilita notificações por email
+- `system_notifications`: Habilita alertas do sistema na interface
+- `two_factor`: Indica se a autenticação em duas etapas está ativa
+- `multi_sessions`: Permite sessões simultâneas para o mesmo usuário
+- `auto_backup`: Controla o agendamento de backups
+- `dark_mode`: Define o tema padrão como escuro
+- `compact_sidebar`: Usa a navegação lateral compacta por padrão
+- `storage_limit_gb`: Limite de armazenamento em GB
+- `created_at` / `updated_at`: Datas de auditoria
+- `updated_by`: Referência ao usuário que fez a última alteração
+
+> Caso o seu projeto tenha sido configurado antes desta atualização, execute o SQL abaixo no Supabase para criar a nova tabela:
+
+```sql
+create table if not exists public.system_settings (
+  id uuid primary key default gen_random_uuid(),
+  company_name text,
+  admin_email text,
+  email_notifications boolean not null default true,
+  system_notifications boolean not null default true,
+  two_factor boolean not null default false,
+  multi_sessions boolean not null default true,
+  auto_backup boolean not null default true,
+  dark_mode boolean not null default true,
+  compact_sidebar boolean not null default false,
+  storage_limit_gb integer not null default 100,
+  created_at timestamptz not null default timezone('utc', now()),
+  updated_at timestamptz not null default timezone('utc', now()),
+  updated_by uuid references public.users (id) on delete set null
+);
+
+alter table public.system_settings enable row level security;
+
+create policy if not exists "Admins can manage system settings" on public.system_settings
+  for all using (
+    exists (
+      select 1 from public.users where id = auth.uid() and role = 'admin'
+    )
+  )
+  with check (
+    exists (
+      select 1 from public.users where id = auth.uid() and role = 'admin'
+    )
+  );
+
+create policy if not exists "Authenticated users can view system settings" on public.system_settings
+  for select using (
+    exists (
+      select 1 from public.users where id = auth.uid()
+    )
+  );
+```
 
 ## 9. Troubleshooting
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -262,26 +262,60 @@ export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCa
       return;
     }
 
-    // Simular criação de ZIP e download
     const selectedAssetsData = assets.filter(asset => selectedAssets.includes(asset.id));
-    const totalSize = selectedAssetsData.reduce((sum, asset) => sum + asset.size, 0);
-    
-    toast.promise(
-      new Promise((resolve) => {
-        // Simular processo de criação do ZIP
-        setTimeout(() => {
-          resolve(true);
-        }, 2000);
-      }),
-      {
-        loading: `Preparando ${selectedAssets.length} materiais para download...`,
-        success: `Download em massa iniciado! ${formatFileSize(totalSize)} em ${selectedAssets.length} arquivos`,
-        error: 'Erro ao preparar download em massa'
-      }
-    );
+    const assetsWithUrl = selectedAssetsData.filter(asset => Boolean(asset.url));
 
-    // Limpar seleção após download
-    setSelectedAssets([]);
+    if (assetsWithUrl.length === 0) {
+      toast.error('Os materiais selecionados não possuem arquivos disponíveis para download.');
+      return;
+    }
+
+    const totalSize = assetsWithUrl.reduce((sum, asset) => sum + asset.size, 0);
+    const downloadPromise = (async () => {
+      const { default: JSZip } = await import('jszip');
+      const zip = new JSZip();
+
+      for (const asset of assetsWithUrl) {
+        if (!asset.url) {
+          continue;
+        }
+
+        const response = await fetch(asset.url);
+        if (!response.ok) {
+          throw new Error(`Não foi possível baixar ${asset.name || 'um dos materiais.'}`);
+        }
+
+        const buffer = await response.arrayBuffer();
+        const hasExtension = asset.name?.includes('.');
+        const extension = asset.format ? `.${asset.format.replace(/^\./, '')}` : '';
+        const filename = hasExtension ? asset.name : `${asset.name || `material-${asset.id}`}${extension}`;
+        zip.file(filename, buffer);
+      }
+
+      const blob = await zip.generateAsync({ type: 'blob' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      const timestamp = new Date().toISOString().replace(/[:T]/g, '-').split('.')[0];
+      link.download = `materiais-${timestamp}.zip`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    })();
+
+    toast.promise(downloadPromise, {
+      loading: `Preparando ${assetsWithUrl.length} materiais para download...`,
+      success: `Download em massa iniciado! ${formatFileSize(totalSize)} em ${assetsWithUrl.length} arquivos`,
+      error: (error) => error instanceof Error ? error.message : 'Erro ao preparar download em massa'
+    });
+
+    try {
+      await downloadPromise;
+      setSelectedAssets([]);
+    } catch (error) {
+      console.error('[AssetManager] Erro no download em massa', error);
+    }
   };
 
   // Função de exclusão em massa
@@ -440,21 +474,63 @@ export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCa
 
     const [errors, setErrors] = useState<Record<string, string>>({});
 
+    const fileInputRef = useRef<HTMLInputElement | null>(null);
+    const [isDragActive, setIsDragActive] = useState(false);
+
+    const processSelectedFile = (file: File) => {
+      setFormData((prev) => ({
+        ...prev,
+        file,
+        name: file.name.split('.').slice(0, -1).join('.') || file.name,
+      }));
+
+      setErrors((prev) => {
+        const next = { ...prev };
+        delete next.file;
+        return next;
+      });
+    };
+
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      if (e.target.files && e.target.files[0]) {
-        const file = e.target.files[0];
-        setFormData({ 
-          ...formData, 
-          file,
-          name: file.name.split('.').slice(0, -1).join('.') // Auto-populate name without extension
-        });
-        
-        // Clear file error when file is selected
-        const newErrors = { ...errors };
-        delete newErrors.file;
-        setErrors(newErrors);
+      const file = e.target.files?.[0];
+      if (file) {
+        processSelectedFile(file);
       }
     };
+
+    const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
+      event.preventDefault();
+      event.stopPropagation();
+      setIsDragActive(true);
+    };
+
+    const handleDragLeave = (event: React.DragEvent<HTMLDivElement>) => {
+      event.preventDefault();
+      event.stopPropagation();
+      setIsDragActive(false);
+    };
+
+    const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
+      event.preventDefault();
+      event.stopPropagation();
+      setIsDragActive(false);
+      const file = event.dataTransfer?.files?.[0];
+      if (file) {
+        processSelectedFile(file);
+      }
+    };
+
+    const handleSelectAreaClick = () => {
+      fileInputRef.current?.click();
+    };
+
+    const handleSelectAreaKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        fileInputRef.current?.click();
+      }
+    };
+
 
     const handleCategoryTypeChange = (categoryType: string) => {
       setFormData({ 
@@ -566,16 +642,43 @@ export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCa
         {/* File Upload */}
         <div>
           <Label htmlFor="file" className="mb-2">Arquivo *</Label>
-          <Input
-            id="file"
-            type="file"
-            onChange={handleFileChange}
-            accept="image/*,video/*,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.zip,.rar"
-            className={`bg-input-background border-border ${errors.file ? 'border-red-500' : ''}`}
-          />
+          <div
+            onDragOver={handleDragOver}
+            onDragEnter={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            onClick={handleSelectAreaClick}
+            onKeyDown={handleSelectAreaKeyDown}
+            role="button"
+            tabIndex={0}
+            className={`relative flex flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed p-6 text-center transition-colors cursor-pointer ${isDragActive ? 'border-primary bg-primary/10' : errors.file ? 'border-red-500/60' : 'border-border bg-input-background/40'}`}
+          >
+            <Upload className="w-10 h-10 text-primary" />
+            <div className="text-sm font-medium">Arraste e solte o arquivo aqui</div>
+            <div className="text-xs text-muted-foreground">ou clique para selecionar</div>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              Escolher arquivo
+            </Button>
+            <input
+              ref={fileInputRef}
+              id="file"
+              type="file"
+              onChange={handleFileChange}
+              accept="image/*,video/*,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.zip,.rar"
+              className="hidden"
+            />
+            {formData.file && (
+              <p className="text-xs text-muted-foreground">
+                Arquivo selecionado: <span className="font-medium">{formData.file.name}</span>
+              </p>
+            )}
+          </div>
           {errors.file && <p className="text-xs text-red-500 mt-1">{errors.file}</p>}
         </div>
-
         {/* Material Name */}
         <div>
           <Label htmlFor="name" className="mb-2">Nome do Material *</Label>
@@ -742,7 +845,7 @@ export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCa
 
         {/* Action Buttons */}
         <div className="flex gap-2 pt-4">
-          <Button type="submit" disabled={!formData.file} className="flex-1">
+          <Button type="submit" disabled={!formData.file} className="flex-1 cursor-pointer">
             Enviar Material
           </Button>
           <Button type="button" variant="outline" onClick={onClose}>
@@ -1275,3 +1378,6 @@ export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCa
     </>
   );
 }
+
+
+
