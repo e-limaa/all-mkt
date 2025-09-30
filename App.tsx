@@ -49,19 +49,20 @@ function AccessDenied() {
 
 // Development Mode Alert
 function DevelopmentModeAlert() {
-  const isConfigured = isSupabaseConfigured();
-  
-  if (isConfigured) return null;
-  
+  const [show, setShow] = useState(false);
+
+  useEffect(() => {
+    setShow(!isSupabaseConfigured());
+  }, []);
+
+  if (!show) return null;
+
   return (
     <Alert className="border-yellow-500/50 bg-yellow-500/10 mb-6">
       <AlertTriangle className="h-4 w-4 text-yellow-500" />
       <AlertDescription className="text-yellow-200">
-        <strong>Modo de Desenvolvimento:</strong> O Supabase não está configurado. 
-        Usando dados mockados para demonstração. 
-        Configure as variáveis de ambiente para usar dados reais.
-        <br />
-        <strong>Login de teste:</strong> admin@allmkt.com / admin
+        <strong>Configuração obrigatória:</strong> não foi possível acessar o Supabase. 
+        Verifique as variáveis de ambiente e reinicie o aplicativo para continuar.
       </AlertDescription>
     </Alert>
   );

@@ -28,39 +28,7 @@ import { Database } from "../types/supabase";
 import { supabase, isSupabaseConfigured } from "../lib/supabase";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
-
-const mockUsers = [
-  {
-    id: "1",
-    name: "Admin User",
-    email: "admin@allmkt.com",
-    role: UserRole.ADMIN,
-    avatar_url:
-      "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face",
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: "2",
-    name: "Editor User",
-    email: "editor@allmkt.com",
-    role: UserRole.EDITOR,
-    avatar_url:
-      "https://images.unsplash.com/photo-1494790108755-2616b172e554?w=100&h=100&fit=crop&crop=face",
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: "3",
-    name: "Viewer User",
-    email: "viewer@allmkt.com",
-    role: UserRole.VIEWER,
-    avatar_url:
-      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&crop=face",
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-];
+import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 
 type UserRow = Database["public"]["Tables"]["users"]["Row"];
 
@@ -130,14 +98,15 @@ export function UserManager() {
 
   useEffect(() => {
     if (!configured) {
-      setUsers(mockUsers);
+      setUsers([]);
+      toast.error('Supabase não configurado. Verifique as variáveis de ambiente.');
       setLoading(false);
       return;
     }
 
     const loadUsers = async () => {
       if (!supabase) {
-        setUsers(mockUsers);
+        setUsers([]);
         setLoading(false);
         return;
       }
@@ -157,7 +126,7 @@ export function UserManager() {
       } catch (error: any) {
         console.error("[UserManager] Falha ao carregar usuarios", error);
         toast.error(error.message ?? "Nao foi possivel carregar os usuarios");
-        setUsers(mockUsers);
+        setUsers([]);
       } finally {
         setLoading(false);
       }
@@ -167,11 +136,10 @@ export function UserManager() {
   }, [configured]);
 
   const stats = useMemo(() => {
-    const source = configured ? users : mockUsers;
-    const total = source.length;
-    const admins = source.filter((u) => u.role === UserRole.ADMIN).length;
-    const editors = source.filter((u) => u.role === UserRole.EDITOR).length;
-    const viewers = source.filter((u) => u.role === UserRole.VIEWER).length;
+    const total = users.length;
+    const admins = users.filter((u) => u.role === UserRole.ADMIN).length;
+    const editors = users.filter((u) => u.role === UserRole.EDITOR).length;
+    const viewers = users.filter((u) => u.role === UserRole.VIEWER).length;
 
     return {
       total,
@@ -180,7 +148,18 @@ export function UserManager() {
       editors,
       viewers,
     };
-  }, [configured, users]);
+  }, [users]);
+
+  if (!configured) {
+    return (
+      <Alert variant="destructive">
+        <AlertTitle>Supabase não configurado</AlertTitle>
+        <AlertDescription>
+          Configure as variáveis de ambiente do Supabase e reinicie o servidor para gerenciar usuários.
+        </AlertDescription>
+      </Alert>
+    );
+  }
 
   const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = event.target;
@@ -218,8 +197,8 @@ export function UserManager() {
   };
 
   const refreshUsers = async () => {
-    if (!configured || !supabase) {
-      return;
+    if (!supabase) {
+      throw new Error('Supabase não configurado.');
     }
 
     const { data, error } = await supabase
@@ -344,8 +323,6 @@ export function UserManager() {
     }
   };
 
-  const listToRender = configured ? users : mockUsers;
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -357,7 +334,7 @@ export function UserManager() {
           <p className="text-muted-foreground mt-1">Gerencie usuarios e permissoes do sistema</p>
         </div>
 
-        <Button className="bg-primary hover:bg-primary/90" onClick={openCreateDialog} disabled={!isAdmin && configured}>
+        <Button className="bg-primary hover:bg-primary/90" onClick={openCreateDialog} disabled={!isAdmin}>
           <Users className="w-4 h-4 mr-2" />
           Novo Usuario
         </Button>
@@ -425,11 +402,11 @@ export function UserManager() {
         <CardContent className="p-0">
           {loading ? (
             <div className="p-6 text-sm text-muted-foreground">Carregando usuarios...</div>
-          ) : listToRender.length === 0 ? (
+          ) : users.length === 0 ? (
             <div className="p-6 text-sm text-muted-foreground">Nenhum usuario encontrado. Crie o primeiro usuario para comecar.</div>
           ) : (
             <div className="space-y-0">
-              {listToRender.map((user) => {
+              {users.map((user) => {
                 const roleBadge = getRoleBadge(user.role);
                 const roleIcon = getRoleIcon(user.role);
                 const initials = user.name

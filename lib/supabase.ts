@@ -1,115 +1,114 @@
-import { createClient } from '@supabase/supabase-js'
-import { Database } from '../types/supabase'
+import { createClient } from '@supabase/supabase-js';
+import { Database } from '../types/supabase';
 
-// Usa variaveis de ambiente para desenvolvimento e producao
-const rawSupabaseUrl = typeof window !== 'undefined'
-  ? (window as any).ENV?.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || 'YOUR_SUPABASE_URL_HERE'
-  : process.env.NEXT_PUBLIC_SUPABASE_URL || 'YOUR_SUPABASE_URL_HERE'
+type SupabaseEnv = {
+  url: string;
+  anonKey: string;
+};
 
-const rawSupabaseAnonKey = typeof window !== 'undefined'
-  ? (window as any).ENV?.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'YOUR_SUPABASE_ANON_KEY_HERE'
-  : process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'YOUR_SUPABASE_ANON_KEY_HERE'
+const readServerEnv = (): SupabaseEnv => ({
+  url: process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL ?? '',
+  anonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? process.env.SUPABASE_ANON_KEY ?? '',
+});
 
-const supabaseUrl = rawSupabaseUrl.trim()
-const supabaseAnonKey = rawSupabaseAnonKey.trim()
+const readBrowserEnv = (): SupabaseEnv => ({
+  url:
+    (typeof window !== 'undefined' ? (window as any).ENV?.NEXT_PUBLIC_SUPABASE_URL : undefined) ??
+    (process.env.NEXT_PUBLIC_SUPABASE_URL as string | undefined) ??
+    '',
+  anonKey:
+    (typeof window !== 'undefined' ? (window as any).ENV?.NEXT_PUBLIC_SUPABASE_ANON_KEY : undefined) ??
+    (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string | undefined) ??
+    '',
+});
+
+const getSupabaseEnv = (): SupabaseEnv => (typeof window === 'undefined' ? readServerEnv() : readBrowserEnv());
+
+const initialEnv = getSupabaseEnv();
+const hasValidConfig = Boolean(initialEnv.url && initialEnv.anonKey && initialEnv.url.startsWith('https://'));
 
 if (process.env.NODE_ENV !== 'production') {
-  const redactedKey = supabaseAnonKey.length > 8
-    ? `${supabaseAnonKey.slice(0, 4)}...${supabaseAnonKey.slice(-4)}`
-    : supabaseAnonKey
-  console.log('[Supabase] URL:', supabaseUrl)
-  console.log('[Supabase] ANON KEY:', redactedKey)
+  const redactedKey = initialEnv.anonKey.length > 8
+    ? `${initialEnv.anonKey.slice(0, 4)}...${initialEnv.anonKey.slice(-4)}`
+    : initialEnv.anonKey;
+  console.log('[Supabase] URL:', initialEnv.url || '(não configurado)');
+  console.log('[Supabase] ANON KEY:', redactedKey || '(não configurado)');
 }
 
-// Verifica se as credenciais sao validas (nao sao os placeholders)
-const isValidConfig = supabaseUrl.startsWith('https://') && supabaseAnonKey.length > 50
+export const supabase = hasValidConfig
+  ? createClient<Database>(initialEnv.url, initialEnv.anonKey, {
+      auth: {
+        autoRefreshToken: true,
+        persistSession: true,
+        detectSessionInUrl: true,
+      },
+    })
+  : null;
 
-// Cria o cliente apenas se as credenciais forem validas
-export const supabase = isValidConfig ? createClient<Database>(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: true
-  }
-}) : null
-
-// Funcao para verificar se o Supabase esta configurado
-export const isSupabaseConfigured = () => isValidConfig
+export const isSupabaseConfigured = () => {
+  const env = getSupabaseEnv();
+  return Boolean(env.url && env.anonKey && env.url.startsWith('https://'));
+};
 
 const getAbsoluteStorageUrl = (publicUrl: string): string => {
   if (publicUrl.startsWith('http')) {
-    return publicUrl
+    return publicUrl;
   }
 
   try {
-    const baseUrl = new URL(supabaseUrl).origin
-    return `${baseUrl}${publicUrl}`
+    const baseUrl = new URL(supabaseUrl).origin;
+    return `${baseUrl}${publicUrl}`;
   } catch {
-    return publicUrl
+    return publicUrl;
   }
-}
+};
 
-// Helper para upload de arquivos
 export const uploadFile = async (file: File, bucket: string, path: string) => {
-  if (!supabase) throw new Error('Supabase nao configurado. Verifique as variaveis de ambiente.')
-  
-  const { data, error } = await supabase.storage
-    .from(bucket)
-    .upload(path, file, {
-      cacheControl: '3600',
-      upsert: false
-    })
+  if (!supabase) throw new Error('Supabase não configurado. Verifique as variáveis de ambiente.');
 
-  if (error) throw error
-  return data
-}
+  const { data, error } = await supabase.storage.from(bucket).upload(path, file, {
+    cacheControl: '3600',
+    upsert: false,
+  });
 
-// Helper para obter URL publica de arquivo
+  if (error) throw error;
+  return data;
+};
+
 export const getPublicUrl = (bucket: string, path: string) => {
-  if (!supabase) throw new Error('Supabase nao configurado. Verifique as variaveis de ambiente.')
-  const { data } = supabase.storage
-    .from(bucket)
-    .getPublicUrl(path)
+  if (!supabase) throw new Error('Supabase não configurado. Verifique as variáveis de ambiente.');
+  const { data } = supabase.storage.from(bucket).getPublicUrl(path);
 
   if (!data?.publicUrl) {
-    return ''
+    return '';
   }
 
-  return getAbsoluteStorageUrl(data.publicUrl)
-}
+  return getAbsoluteStorageUrl(data.publicUrl);
+};
 
-// Helper para download de arquivos
 export const downloadFile = async (bucket: string, path: string) => {
-  if (!supabase) throw new Error('Supabase nao configurado. Verifique as variaveis de ambiente.')
-  
-  const { data, error } = await supabase.storage
-    .from(bucket)
-    .download(path)
+  if (!supabase) throw new Error('Supabase não configurado. Verifique as variáveis de ambiente.');
 
-  if (error) throw error
-  return data
-}
+  const { data, error } = await supabase.storage.from(bucket).download(path);
 
-// Helper para listar arquivos
+  if (error) throw error;
+  return data;
+};
+
 export const listFiles = async (bucket: string, path?: string) => {
-  if (!supabase) throw new Error('Supabase nao configurado. Verifique as variaveis de ambiente.')
-  
-  const { data, error } = await supabase.storage
-    .from(bucket)
-    .list(path)
+  if (!supabase) throw new Error('Supabase não configurado. Verifique as variáveis de ambiente.');
 
-  if (error) throw error
-  return data
-}
+  const { data, error } = await supabase.storage.from(bucket).list(path);
 
-// Helper para deletar arquivos
+  if (error) throw error;
+  return data;
+};
+
 export const deleteFile = async (bucket: string, path: string) => {
-  if (!supabase) throw new Error('Supabase nao configurado. Verifique as variaveis de ambiente.')
-  
-  const { data, error } = await supabase.storage
-    .from(bucket)
-    .remove([path])
+  if (!supabase) throw new Error('Supabase não configurado. Verifique as variáveis de ambiente.');
 
-  if (error) throw error
-  return data
-}
+  const { data, error } = await supabase.storage.from(bucket).remove([path]);
+
+  if (error) throw error;
+  return data;
+};

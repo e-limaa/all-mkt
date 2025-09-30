@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import Link from "next/link";
 import { useAuth } from "../contexts/AuthContext";
 import { useConfig } from "../contexts/ConfigContext";
 import {
@@ -12,7 +13,7 @@ import { Input } from "./ui/input";
 import { Button } from "./ui/button";
 import { Label } from "./ui/label";
 import { Alert, AlertDescription } from "./ui/alert";
-import { Loader2, LogIn } from "lucide-react";
+import { Loader2, LogIn, MailCheck } from "lucide-react";
 import Frame1000005813 from "../imports/Frame1000005813";
 
 export function LoginScreen() {
@@ -111,28 +112,32 @@ export function LoginScreen() {
               </Button>
             </form>
 
-            <div className="mt-6 text-sm text-center text-muted-foreground">
-              <p className="mb-2">Credenciais de demonstração:</p>
-              <div className="space-y-1 text-xs">
-                <p>
-                  <strong>Admin:</strong> admin@allmkt.com
-                </p>
-                <p>
-                  <strong>Editor:</strong> editor@allmkt.com
-                </p>
-                <p>
-                  <strong>Viewer:</strong> viewer@allmkt.com
-                </p>
-                <p>
-                  <strong>Senha:</strong> 123456
+            <div className="mt-6 space-y-3">
+              <Button asChild variant="outline" className="w-full" disabled={loading}>
+                <Link href="/forgot-password">
+                  <MailCheck className="h-4 w-4" />
+                  Esqueci minha senha
+                </Link>
+              </Button>
+              <p className="text-center text-sm text-muted-foreground">
+                Novo por aqui?{" "}
+                <Link className="font-semibold text-primary underline-offset-4 hover:underline" href="/signup">
+                  Crie sua conta
+                </Link>
+              </p>
+            </div>
+
+            {systemSettings.adminEmail && (
+              <div className="mt-6 text-sm text-center text-muted-foreground">
+                <p className="mb-2">Precisa de ajuda? </p>
+                <p className="text-xs">
+                  <a className="underline" href={`mailto:${systemSettings.adminEmail}`}>
+                    Contate o administrador
+                  </a>
+                  .
                 </p>
               </div>
-              {systemSettings.adminEmail && (
-                <p className="mt-4 text-xs">
-                  Precisa de ajuda? <a className="underline" href={`mailto:${systemSettings.adminEmail}`}>Contate o administrador</a>.
-                </p>
-              )}
-            </div>
+            )}
           </CardContent>
         </Card>
       </div>

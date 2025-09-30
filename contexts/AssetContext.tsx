@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, ReactNode } from 'react';
 import { supabase, isSupabaseConfigured, uploadFile, getPublicUrl, deleteFile } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 import { Asset, Campaign, Project } from '../types';
@@ -6,8 +6,11 @@ import { toast } from 'sonner';
 import { v4 as uuidv4 } from 'uuid';
 import { useConfig } from './ConfigContext';
 import { DEFAULT_SETTINGS } from '../lib/settings';
+import { Database } from '../types/supabase';
 
 // Dashboard statistics interface
+type SharedLinkRow = Database['public']['Tables']['shared_links']['Row'];
+
 interface DashboardStats {
   totalAssets: number;
   downloadCount: number;
@@ -49,7 +52,7 @@ interface AssetContextType {
   updateProject: (id: string, updates: Partial<Project>) => Promise<void>;
   deleteProject: (id: string) => Promise<void>;
   refreshData: () => Promise<void>;
-  sharedLinks: any[]; // Adicionado para build funcionar
+  sharedLinks: SharedLinkRow[];
 }
 
 const AssetContext = createContext<AssetContextType | undefined>(undefined);
@@ -61,75 +64,77 @@ export function AssetProvider({ children }: { children: ReactNode }) {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(false);
+  const [sharedLinks, setSharedLinks] = useState<SharedLinkRow[]>([]);
+  const [userCount, setUserCount] = useState(0);
+  const [activeSharedLinksCount, setActiveSharedLinksCount] = useState(0);
 
   const isConfigured = isSupabaseConfigured();
 
   // Calculate dashboard statistics based on current data
-  const calculateDashboardStats = (
-    currentAssets: Asset[], 
-    currentCampaigns: Campaign[], 
-    currentProjects: Project[]
-  ): DashboardStats => {
-    // Basic counts
-    const totalAssets = currentAssets.length;
-    const downloadCount = currentAssets.reduce((sum, asset) => sum + (asset.downloadCount || 0), 0);
-    
-    // Storage calculation (convert bytes to GB)
-    const totalSizeBytes = currentAssets.reduce((sum, asset) => sum + asset.size, 0);
-    const storageUsed = totalSizeBytes / (1024 * 1024 * 1024); // Convert to GB
+  const dashboardStats = useMemo<DashboardStats>(() => {
+    const totalAssets = assets.length;
+    const downloadCount = assets.reduce((sum, asset) => sum + (asset.downloadCount || 0), 0);
+
+    const totalSizeBytes = assets.reduce((sum, asset) => sum + asset.size, 0);
+    const storageUsed = totalSizeBytes / (1024 * 1024 * 1024);
     const configuredLimit = Number(systemSettings.storageLimitGb);
     const storageLimit = Number.isFinite(configuredLimit) && configuredLimit > 0
       ? configuredLimit
       : DEFAULT_SETTINGS.storageLimitGb;
-    
-    // Assets by type
-    const assetsByType = currentAssets.reduce((acc, asset) => {
-      acc[asset.type] = (acc[asset.type] || 0) + 1;
-      return acc;
-    }, { image: 0, video: 0, document: 0, archive: 0 });
 
-    // Assets by campaign
+    const assetsByType: Record<Asset['type'], number> = {
+      image: 0,
+      video: 0,
+      document: 0,
+      archive: 0,
+    };
+    assets.forEach((asset) => {
+      assetsByType[asset.type] = (assetsByType[asset.type] || 0) + 1;
+    });
+
     const assetsByCampaign: Record<string, number> = {};
-    currentAssets.forEach(asset => {
+    assets.forEach(asset => {
       if (asset.categoryType === 'campaign' && asset.categoryName) {
         assetsByCampaign[asset.categoryName] = (assetsByCampaign[asset.categoryName] || 0) + 1;
       }
     });
 
-    // Assets by project
     const assetsByProject: Record<string, number> = {};
-    currentAssets.forEach(asset => {
+    assets.forEach(asset => {
       if (asset.categoryType === 'project' && asset.categoryName) {
         assetsByProject[asset.categoryName] = (assetsByProject[asset.categoryName] || 0) + 1;
       }
     });
 
-    // Recent activity (mock data based on current assets)
-    const recentActivity = currentAssets.slice(0, 10).map(asset => ({
+    const recentActivity = assets.slice(0, 10).map(asset => ({
       id: asset.id,
       type: 'upload' as const,
       userName: asset.uploadedBy,
       assetName: asset.name,
       categoryName: asset.categoryName,
-      timestamp: asset.uploadedAt
+      timestamp: asset.uploadedAt,
     }));
 
     return {
       totalAssets,
       downloadCount,
-      totalUsers: 5, // Mock value
-      activeSharedLinks: 12, // Mock value
+      totalUsers: userCount,
+      activeSharedLinks: activeSharedLinksCount,
       storageUsed,
       storageLimit,
       assetsByType,
       assetsByCampaign,
       assetsByProject,
-      recentActivity
+      recentActivity,
     };
-  };
-
-  // Memoized dashboard stats
-  const dashboardStats = calculateDashboardStats(assets, campaigns, projects);
+  }, [
+    assets,
+    campaigns,
+    projects,
+    userCount,
+    activeSharedLinksCount,
+    systemSettings.storageLimitGb,
+  ]);
 
   useEffect(() => {
     if (user) {
@@ -144,7 +149,9 @@ export function AssetProvider({ children }: { children: ReactNode }) {
       await Promise.all([
         fetchAssets(),
         fetchCampaigns(),
-        fetchProjects()
+        fetchProjects(),
+        fetchSharedLinks(),
+        fetchUserCount(),
       ]);
     } catch (error) {
       console.error('Error refreshing data:', error);
@@ -301,6 +308,46 @@ export function AssetProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       console.error('Error fetching projects:', error);
       toast.error('Erro ao carregar projetos');
+    }
+  };
+
+  const fetchSharedLinks = async () => {
+    if (!supabase) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('shared_links')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      const rows = data ?? [];
+      setSharedLinks(rows);
+      setActiveSharedLinksCount(rows.filter((link) => link.is_active).length);
+    } catch (error) {
+      console.error('Error fetching shared links:', error);
+      toast.error('Erro ao carregar links compartilhados');
+      setSharedLinks([]);
+      setActiveSharedLinksCount(0);
+    }
+  };
+
+  const fetchUserCount = async () => {
+    if (!supabase) return;
+
+    try {
+      const { count, error } = await supabase
+        .from('users')
+        .select('id', { count: 'exact', head: true });
+
+      if (error) throw error;
+
+      setUserCount(count ?? 0);
+    } catch (error) {
+      console.error('Error fetching user count:', error);
+      toast.error('Erro ao carregar estatísticas de usuários');
+      setUserCount(0);
     }
   };
 
@@ -757,7 +804,7 @@ export function AssetProvider({ children }: { children: ReactNode }) {
     return 'archive';
   };
 
-  const value = {
+  const value: AssetContextType = {
     assets,
     campaigns,
     projects,
@@ -773,7 +820,7 @@ export function AssetProvider({ children }: { children: ReactNode }) {
     updateProject,
     deleteProject,
     refreshData,
-    sharedLinks: []
+    sharedLinks,
   };
 
   return (

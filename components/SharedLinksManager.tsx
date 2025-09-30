@@ -9,6 +9,18 @@ import { formatDate } from '../utils/format';
 export function SharedLinksManager() {
   const { sharedLinks } = useAssets();
 
+  const activeLinks = sharedLinks.filter((link) => {
+    if (!link.is_active) return false;
+    if (!link.expires_at) return true;
+    return new Date(link.expires_at) > new Date();
+  });
+
+  const totalDownloads = sharedLinks.reduce((sum, link) => sum + (link.download_count ?? 0), 0);
+  const downloadEnabledCount = sharedLinks.filter((link) => {
+    if (link.max_downloads == null) return true;
+    return link.download_count < link.max_downloads;
+  }).length;
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -48,7 +60,7 @@ export function SharedLinksManager() {
             <ExternalLink className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{sharedLinks.filter(link => !link.expiresAt || link.expiresAt > new Date()).length}</div>
+            <div className="text-2xl font-bold">{activeLinks.length}</div>
             <p className="text-xs text-muted-foreground">Não expirados</p>
           </CardContent>
         </Card>
@@ -59,9 +71,7 @@ export function SharedLinksManager() {
             <BarChart3 className="h-4 w-4 text-blue-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {sharedLinks.reduce((sum, link) => sum + link.accessCount, 0)}
-            </div>
+            <div className="text-2xl font-bold">{totalDownloads}</div>
             <p className="text-xs text-muted-foreground">Visualizações</p>
           </CardContent>
         </Card>
@@ -72,9 +82,7 @@ export function SharedLinksManager() {
             <Download className="h-4 w-4 text-purple-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {sharedLinks.filter(link => link.downloadEnabled).length}
-            </div>
+            <div className="text-2xl font-bold">{downloadEnabledCount}</div>
             <p className="text-xs text-muted-foreground">Permitem download</p>
           </CardContent>
         </Card>
@@ -97,38 +105,34 @@ export function SharedLinksManager() {
               >
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-2">
-                    <h3 className="font-medium truncate">{link.name}</h3>
-                    <Badge variant={link.isPublic ? 'default' : 'secondary'}>
-                      {link.isPublic ? 'Público' : 'Privado'}
+                    <h3 className="font-medium truncate">Token {link.token.slice(0, 8)}...</h3>
+                    <Badge variant={link.is_active ? 'default' : 'secondary'}>
+                      {link.is_active ? 'Ativo' : 'Inativo'}
                     </Badge>
-                    {link.downloadEnabled && (
+                    {link.max_downloads != null && (
                       <Badge variant="outline">
                         <Download className="w-3 h-3 mr-1" />
-                        Download
+                        {link.download_count}/{link.max_downloads}
                       </Badge>
                     )}
                   </div>
                   
-                  {link.description && (
-                    <p className="text-sm text-muted-foreground mb-2">{link.description}</p>
-                  )}
-                  
                   <div className="flex items-center gap-4 text-xs text-muted-foreground">
                     <span className="flex items-center gap-1">
                       <Calendar className="w-3 h-3" />
-                      Criado em {formatDate(link.createdAt)}
+                      Criado em {formatDate(link.created_at)}
                     </span>
-                    {link.expiresAt && (
+                    {link.expires_at && (
                       <span className="flex items-center gap-1">
                         <Calendar className="w-3 h-3" />
-                        Expira em {formatDate(link.expiresAt)}
+                        Expira em {formatDate(link.expires_at)}
                       </span>
                     )}
                     <span className="flex items-center gap-1">
                       <BarChart3 className="w-3 h-3" />
-                      {link.accessCount} acessos
+                      {link.download_count} downloads
                     </span>
-                    <span>{link.assetIds.length} materiais</span>
+                    <span>ID do material: {link.asset_id}</span>
                   </div>
                 </div>
 

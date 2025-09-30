@@ -1,21 +1,10 @@
-﻿import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { User as SupabaseUser, Session } from '@supabase/supabase-js';
 import { Database } from '../types/supabase';
 import { toast } from 'sonner';
 
 type User = Database['public']['Tables']['users']['Row'];
-
-// Mock user for development
-const mockUser: User = {
-  id: 'mock-user-id',
-  email: 'admin@allmkt.com',
-  name: 'Admin Development',
-  avatar_url: null,
-  role: 'admin',
-  created_at: new Date().toISOString(),
-  updated_at: new Date().toISOString()
-};
 
 interface AuthContextType {
   user: User | null;
@@ -38,6 +27,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const isConfigured = isSupabaseConfigured();
+
   const clearAuthState = () => {
     setUser(null);
     setSupabaseUser(null);
@@ -45,7 +35,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const purgeStoredSession = () => {
-    if (typeof window === "undefined") return;
+    if (typeof window === 'undefined') return;
     try {
       const storageKey = (supabase as any)?.auth?.storageKey as string | undefined;
       if (storageKey) {
@@ -53,16 +43,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         window.localStorage.removeItem(`${storageKey}-global`);
       }
     } catch (error) {
-      console.warn("[Auth] Não foi possível limpar a sessão armazenada localmente.", error);
+      console.warn('[Auth] Não foi possível limpar a sessão armazenada localmente.', error);
     }
   };
 
-
   useEffect(() => {
     if (!isConfigured) {
-      // Modo de desenvolvimento - usar dados mockados
-      console.log('ðŸ”§ Modo de desenvolvimento: usando dados mockados');
-      setUser(mockUser);
+      console.error('[Auth] Supabase não configurado. Verifique suas variáveis de ambiente.');
       setLoading(false);
       return;
     }
@@ -72,7 +59,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setSupabaseUser(session?.user ?? null);
@@ -83,17 +69,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     });
 
-    // Listen for auth changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setSession(session);
       setSupabaseUser(session?.user ?? null);
-      
+
       if (session?.user) {
         await fetchUserProfile(session.user.id);
       } else {
-        setUser(null);
+        clearAuthState();
         setLoading(false);
       }
     });
@@ -104,14 +89,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const fetchUserProfile = async (userId: string) => {
     if (!supabase) return;
     try {
-      console.log('[Auth] Buscando perfil do usuário na tabela users:', userId);
       const { data, error } = await supabase
         .from('users')
         .select('*')
         .eq('id', userId)
         .single();
       if (error) throw error;
-      console.log('[Auth] Perfil encontrado:', data);
       setUser(data);
     } catch (error) {
       console.error('[Auth] Erro ao buscar perfil do usuário:', error);
@@ -121,36 +104,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const signIn = async (email: string, password: string) => {
-    if (!isConfigured) {
-      // Modo de desenvolvimento - simular login
-      setLoading(true);
-      setTimeout(() => {
-        if (email === 'admin@allmkt.com' && password === 'admin') {
-          setUser(mockUser);
-          toast.success('Login realizado com sucesso! (Modo desenvolvimento)');
-        } else {
-          toast.error('Email ou senha inválidos. Use: admin@allmkt.com / admin');
-        }
-        setLoading(false);
-      }, 1000);
-      return;
+  const ensureConfigured = () => {
+    if (!isConfigured || !supabase) {
+      const message = 'Supabase não está configurado. Configure as variáveis de ambiente.';
+      toast.error(message);
+      throw new Error(message);
     }
+  };
 
-    if (!supabase) throw new Error('Supabase não configurado');
+  const signIn = async (email: string, password: string) => {
+    ensureConfigured();
 
     try {
       setLoading(true);
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      const { error } = await supabase!.auth.signInWithPassword({ email, password });
 
       if (error) throw error;
       toast.success('Login realizado com sucesso!');
     } catch (error: any) {
-      const message = error.message === 'Invalid login credentials' 
-        ? 'Email ou senha inválidos' 
+      const message = error.message === 'Invalid login credentials'
+        ? 'Email ou senha inválidos'
         : error.message;
       toast.error(message);
       throw error;
@@ -160,22 +133,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signUp = async (email: string, password: string, name: string) => {
-    if (!isConfigured) {
-      toast.error('Cadastro não disponível no modo de desenvolvimento');
-      return;
-    }
-
-    if (!supabase) throw new Error('Supabase não configurado');
+    ensureConfigured();
 
     try {
       setLoading(true);
-      const { error } = await supabase.auth.signUp({
+      const { error } = await supabase!.auth.signUp({
         email,
         password,
         options: {
-          data: {
-            name: name,
-          },
+          data: { name },
         },
       });
 
@@ -190,26 +156,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
-    if (!isConfigured) {
-      clearAuthState();
-      toast.success("Logout realizado com sucesso! (Modo desenvolvimento)");
-      return;
-    }
-
-    if (!supabase) {
-      clearAuthState();
-      toast.success("Logout realizado com sucesso!");
-      return;
-    }
+    ensureConfigured();
 
     setLoading(true);
     try {
-      const { error } = await supabase.auth.signOut({ scope: 'global' });
+      const { error } = await supabase!.auth.signOut({ scope: 'global' });
       if (error) throw error;
-      toast.success("Logout realizado com sucesso!");
+      toast.success('Logout realizado com sucesso!');
     } catch (error: any) {
-      console.error("[Auth] Falha ao realizar logout", error);
-      toast.error(error?.message ?? "Não foi possível finalizar a sessão.");
+      console.error('[Auth] Falha ao realizar logout', error);
+      toast.error(error?.message ?? 'Não foi possível finalizar a sessão.');
     } finally {
       purgeStoredSession();
       clearAuthState();
@@ -218,54 +174,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const updateProfile = async (updates: Partial<User>) => {
-    if (!isConfigured) {
-      // Modo de desenvolvimento - simular atualização
-      if (user) {
-        setUser({ ...user, ...updates });
-        toast.success('Perfil atualizado com sucesso! (Modo desenvolvimento)');
-      }
-      return;
-    }
+    ensureConfigured();
 
-    if (!supabase) throw new Error('Supabase não configurado');
+    if (!user) throw new Error('Usuário não encontrado');
 
-    try {
-      if (!user) throw new Error('Usuário não encontrado');
-      
-      const { error } = await supabase
-        .from('users')
-        .update(updates)
-        .eq('id', user.id);
+    const { error } = await supabase!
+      .from('users')
+      .update(updates)
+      .eq('id', user.id);
 
-      if (error) throw error;
-
-      setUser({ ...user, ...updates });
-      toast.success('Perfil atualizado com sucesso!');
-    } catch (error: any) {
+    if (error) {
       toast.error(error.message);
       throw error;
     }
+
+    setUser({ ...user, ...updates });
+    toast.success('Perfil atualizado com sucesso!');
   };
 
   const resetPassword = async (email: string) => {
-    if (!isConfigured) {
-      toast.error('Recuperação de senha não disponível no modo de desenvolvimento');
-      return;
-    }
+    ensureConfigured();
 
-    if (!supabase) throw new Error('Supabase não configurado');
+    const { error } = await supabase!.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
 
-    try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
-      });
-
-      if (error) throw error;
-      toast.success('Email de recuperação enviado!');
-    } catch (error: any) {
+    if (error) {
       toast.error(error.message);
       throw error;
     }
+
+    toast.success('Email de recuperação enviado!');
   };
 
   const value = {
@@ -280,11 +219,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     resetPassword,
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {
