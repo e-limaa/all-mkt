@@ -6,6 +6,14 @@ import { toast } from 'sonner';
 
 type User = Database['public']['Tables']['users']['Row'];
 
+interface UpdateProfileOptions {
+  name?: string;
+  email?: string;
+  newPassword?: string;
+  avatarFile?: File | null;
+  removeAvatar?: boolean;
+}
+
 interface AuthContextType {
   user: User | null;
   supabaseUser: SupabaseUser | null;
@@ -14,7 +22,7 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, name: string) => Promise<void>;
   signOut: () => Promise<void>;
-  updateProfile: (updates: Partial<User>) => Promise<void>;
+  updateProfile: (options: UpdateProfileOptions) => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
 }
 
@@ -173,22 +181,87 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const updateProfile = async (updates: Partial<User>) => {
-    ensureConfigured();
-
+  const updateProfile = async ({
+    name,
+    email,
+    newPassword,
+    avatarFile,
+    removeAvatar,
+  }: UpdateProfileOptions) => {
     if (!user) throw new Error('Usuário não encontrado');
 
-    const { error } = await supabase!
-      .from('users')
-      .update(updates)
-      .eq('id', user.id);
-
-    if (error) {
-      toast.error(error.message);
-      throw error;
+    if (!isConfigured || !supabase) {
+      toast.error('Supabase não está configurado.');
+      throw new Error('Supabase não configurado');
     }
 
-    setUser({ ...user, ...updates });
+    const session = await supabase.auth.getSession();
+    const accessToken = session.data.session?.access_token;
+
+    if (!accessToken) {
+      toast.error('Sessão expirada. Faça login novamente.');
+      throw new Error('Sessão inválida');
+    }
+
+    let avatarPayload: { name: string; data: string } | undefined;
+    if (avatarFile) {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const result = reader.result as string;
+          const [, b64] = result.split(',');
+          resolve(b64 || '');
+        };
+        reader.onerror = () => reject(reader.error);
+        reader.readAsDataURL(avatarFile);
+      });
+      avatarPayload = { name: avatarFile.name, data: base64 };
+    }
+
+    const response = await fetch('/api/profile/update', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({
+        name,
+        email,
+        newPassword,
+        removeAvatar,
+        avatar: avatarPayload,
+      }),
+    });
+
+    const payload = await response.json();
+
+    if (!response.ok) {
+      const message = payload?.message || 'Erro ao atualizar perfil';
+      toast.error(message);
+      throw new Error(message);
+    }
+
+    setUser((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        name: payload.user.name,
+        email: payload.user.email,
+        avatar_url: payload.user.avatarUrl,
+      };
+    });
+
+    if (payload.supabaseUser) {
+      setSupabaseUser((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          email: payload.supabaseUser.email,
+          user_metadata: payload.supabaseUser.user_metadata,
+        };
+      });
+    }
+
     toast.success('Perfil atualizado com sucesso!');
   };
 

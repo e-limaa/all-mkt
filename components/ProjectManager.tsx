@@ -1,4 +1,4 @@
-﻿import React, { useState } from "react";
+﻿import React, { useRef, useState } from "react";
 import {
   Card,
   CardContent,
@@ -10,7 +10,6 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Badge } from "./ui/badge";
-import { Textarea } from "./ui/textarea";
 import {
   Select,
   SelectContent,
@@ -54,7 +53,6 @@ import {
   Upload,
   AlertCircle,
   ImageIcon,
-  Link,
   Clock,
 } from "lucide-react";
 import { Project } from "../types";
@@ -150,7 +148,7 @@ export function ProjectManager({
       let imageUrl = projectData.image;
       // Use o id do usuário autenticado para o caminho do arquivo
       const userId = user?.id || "";
-      if (projectData.imageType === "upload" && imageFile && userId) {
+      if (imageFile && userId) {
         const fileExt = imageFile.name.split(".").pop();
         const fileName = `${Date.now()}_${Math.random()
           .toString(36)
@@ -223,7 +221,6 @@ export function ProjectManager({
       createdAt,
       updatedAt,
       createdBy,
-      imageType,
       launchDate,
       ...safeUpdates
     } = updates as Record<string, unknown>;
@@ -343,7 +340,7 @@ export function ProjectManager({
                 Novo Empreendimento
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-md">
+            <DialogContent className="w-full max-w-3xl">
               <DialogHeader>
                 <DialogTitle>Criar Novo Empreendimento</DialogTitle>
                 <DialogDescription>
@@ -681,7 +678,7 @@ export function ProjectManager({
           open={!!editingProject}
           onOpenChange={() => setEditingProject(null)}
         >
-          <DialogContent className="max-w-md">
+          <DialogContent className="w-full max-w-3xl">
             <DialogHeader>
               <DialogTitle>Editar Empreendimento</DialogTitle>
               <DialogDescription>
@@ -704,6 +701,7 @@ export function ProjectManager({
 }
 
 // Project Form Component com validação obrigatória de imagem
+
 function ProjectForm({
   project,
   onSubmit,
@@ -711,15 +709,12 @@ function ProjectForm({
   project?: Project;
   onSubmit: (data: Partial<Project>, imageFile?: File) => void;
 }) {
-  // Use proper default values to avoid controlled/uncontrolled warnings
   const [formData, setFormData] = useState({
     name: project?.name || "",
-    description: project?.description || "",
     location: project?.location || "",
     status: project?.status || "vem-ai",
     color: project?.color || "#3b82f6",
     image: project?.image || "",
-    imageType: (project?.imageType || "url") as "upload" | "url",
     launchDate: project?.launchDate ? project.launchDate.split("T")[0] : "",
     createdBy: project?.createdBy || "Usuário Atual",
     projectPhase: project?.projectPhase || "",
@@ -727,6 +722,7 @@ function ProjectForm({
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [imageFile, setImageFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -739,20 +735,17 @@ function ProjectForm({
       newErrors.location = "Localização é obrigatória";
     }
 
-    // Validação obrigatória da imagem
-    if (formData.imageType === "upload" && !imageFile && !project?.image) {
+    const hasExistingImage = !!(
+      (project?.image && project.image.trim() !== "") ||
+      (formData.image &&
+        !formData.image.startsWith("blob:") &&
+        formData.image.trim() !== "")
+    );
+
+    if (!imageFile && !hasExistingImage) {
       newErrors.image = "Imagem é obrigatória";
-    } else if (formData.imageType === "url" && !formData.image.trim()) {
-      newErrors.image = "URL da imagem é obrigatória";
-    } else if (
-      formData.imageType === "url" &&
-      formData.image.trim() &&
-      !isValidUrl(formData.image)
-    ) {
-      newErrors.image = "URL da imagem é inválida";
     }
 
-    // Validação obrigatória da fase
     if (!formData.projectPhase) {
       newErrors.projectPhase = "Fase do empreendimento é obrigatória";
     }
@@ -761,47 +754,86 @@ function ProjectForm({
     return Object.keys(newErrors).length === 0;
   };
 
-  const isValidUrl = (string: string) => {
-    try {
-      new URL(string);
-      return true;
-    } catch (_) {
-      return false;
+  const handleImageFileChange = (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    if (!file.type.startsWith("image/")) {
+      setErrors((prev) => ({ ...prev, image: "Arquivo deve ser uma imagem" }));
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setErrors((prev) => ({
+        ...prev,
+        image: "Arquivo deve ter no máximo 5MB",
+      }));
+      return;
+    }
+
+    const previewUrl = URL.createObjectURL(file);
+    setImageFile(file);
+    setFormData((prev) => {
+      if (prev.image && prev.image.startsWith("blob:")) {
+        URL.revokeObjectURL(prev.image);
+      }
+      return { ...prev, image: previewUrl };
+    });
+    setErrors((prev) => {
+      const updated = { ...prev };
+      delete updated.image;
+      return updated;
+    });
+  };
+
+  const handleRemoveImage = () => {
+    if (!imageFile) {
+      return;
+    }
+
+    setImageFile(null);
+    setFormData((prev) => {
+      if (prev.image && prev.image.startsWith("blob:")) {
+        URL.revokeObjectURL(prev.image);
+      }
+      return { ...prev, image: project?.image || "" };
+    });
+    setErrors((prev) => {
+      const updated = { ...prev };
+      delete updated.image;
+      return updated;
+    });
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
     }
   };
 
-  const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (!file.type.startsWith("image/")) {
-        setErrors({ ...errors, image: "Arquivo deve ser uma imagem" });
-        return;
-      }
-      if (file.size > 5 * 1024 * 1024) {
-        // 5MB
-        setErrors({ ...errors, image: "Arquivo deve ter no máximo 5MB" });
-        return;
-      }
-      setImageFile(file);
-      setFormData({ ...formData, image: URL.createObjectURL(file) });
-      const newErrors = { ...errors };
-      delete newErrors.image;
-      setErrors(newErrors);
+  const handleImageAreaClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleImageAreaKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      handleImageAreaClick();
     }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    console.log("ðŸ“ Form submit - Form data:", formData);
+    console.log("📝 Form submit - Form data:", formData);
 
     if (!validateForm()) {
-      console.log("âŒ Form validation failed:", errors);
+      console.log("❌ Form validation failed:", errors);
       toast.error("Por favor, corrija os erros do formulário");
       return;
     }
 
-    // Envia o arquivo de imagem junto com os dados do projeto
     onSubmit(
       {
         ...formData,
@@ -810,14 +842,13 @@ function ProjectForm({
           | "lancamento"
           | "vendas"
           | "entregue",
-        projectPhase: (formData.projectPhase || undefined) as Project['projectPhase'] | undefined,
+        projectPhase: (formData.projectPhase || undefined) as Project["projectPhase"] | undefined,
         image: formData.image || "",
       },
       imageFile || undefined
     );
   };
 
-  // Função para obter as fases do empreendimento (igual ao AssetManager)
   const getProjectPhases = () => [
     { value: "vem-ai", label: "Vem Aí" },
     { value: "breve-lancamento", label: "Breve Lançamento" },
@@ -825,214 +856,192 @@ function ProjectForm({
   ];
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div>
-        <Label htmlFor="name" className="mb-2">
-          Nome do Empreendimento *
-        </Label>
-        <Input
-          id="name"
-          value={formData.name}
-          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-          placeholder="Ex: Residencial Vista Alegre"
-          className={`bg-input-background border-border ${
-            errors.name ? "border-red-500" : ""
-          }`}
-        />
-        {errors.name && (
-          <p className="text-xs text-red-500 mt-1">{errors.name}</p>
-        )}
-      </div>
-
-      <div>
-        <Label htmlFor="location" className="mb-2">
-          Localização *
-        </Label>
-        <Input
-          id="location"
-          value={formData.location}
-          onChange={(e) =>
-            setFormData({ ...formData, location: e.target.value })
-          }
-          placeholder="Ex: São Paulo - SP"
-          className={`bg-input-background border-border ${
-            errors.location ? "border-red-500" : ""
-          }`}
-        />
-        {errors.location && (
-          <p className="text-xs text-red-500 mt-1">{errors.location}</p>
-        )}
-      </div>
-
-      <div>
-        <Label htmlFor="description" className="mb-2">
-          Descrição
-        </Label>
-        <Textarea
-          id="description"
-          value={formData.description}
-          onChange={(e) =>
-            setFormData({ ...formData, description: e.target.value })
-          }
-          placeholder="Descreva o empreendimento..."
-          className="bg-input-background border-border resize-none"
-          rows={3}
-        />
-      </div>
-
-      <div>
-        <Label htmlFor="launchDate" className="mb-2">
-          Previsão de Lançamento
-        </Label>
-        <Input
-          id="launchDate"
-          type="date"
-          value={formData.launchDate}
-          onChange={(e) =>
-            setFormData({ ...formData, launchDate: e.target.value })
-          }
-          className="bg-input-background border-border"
-        />
-      </div>
-
-      {/* Select de Fase do Empreendimento */}
-      <div>
-        <Label htmlFor="projectPhase" className="mb-2">
-          Fase do Empreendimento *
-        </Label>
-        <Select
-          value={formData.projectPhase}
-          onValueChange={(value) =>
-            setFormData({ ...formData, projectPhase: value })
-          }
-        >
-          <SelectTrigger
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <div className="grid gap-4 md:grid-cols-2">
+        <div className="md:col-span-2">
+          <Label htmlFor="name" className="mb-2">
+            Nome do Empreendimento *
+          </Label>
+          <Input
+            id="name"
+            value={formData.name}
+            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+            placeholder="Ex: Residencial Vista Alegre"
             className={`bg-input-background border-border ${
-              errors.projectPhase ? "border-red-500" : ""
+              errors.name ? "border-red-500" : ""
             }`}
-          >
-            <SelectValue placeholder="Selecione a fase" />
-          </SelectTrigger>
-          <SelectContent>
-            {getProjectPhases().map((phase) => (
-              <SelectItem key={phase.value} value={phase.value}>
-                {phase.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        {errors.projectPhase && (
-          <p className="text-xs text-red-500 mt-1">{errors.projectPhase}</p>
-        )}
-      </div>
-
-      {/* Seção da Imagem Obrigatória */}
-      <div className="space-y-3">
-        <Label className="text-base">Imagem do Empreendimento *</Label>
-        <p className="text-xs text-muted-foreground">
-          A imagem será usada como miniatura nos cards. Ã‰ obrigatória para o
-          empreendimento aparecer na listagem.
-        </p>
-
-        <div className="flex gap-2">
-          <Button
-            type="button"
-            variant={formData.imageType === "upload" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setFormData({ ...formData, imageType: "upload" })}
-          >
-            <Upload className="w-4 h-4 mr-2" />
-            Upload
-          </Button>
-          <Button
-            type="button"
-            variant={formData.imageType === "url" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setFormData({ ...formData, imageType: "url" })}
-          >
-            <Link className="w-4 h-4 mr-2" />
-            URL
-          </Button>
+          />
+          {errors.name && (
+            <p className="text-xs text-red-500 mt-1">{errors.name}</p>
+          )}
         </div>
 
-        {formData.imageType === "upload" ? (
-          <div className="space-y-1">
-            <Input
-              type="file"
-              accept="image/*"
-              onChange={handleImageFileChange}
+        <div className="col-span-2 md:col-span-1">
+          <Label htmlFor="location" className="mb-2">
+            Localização *
+          </Label>
+          <Input
+            id="location"
+            value={formData.location}
+            onChange={(e) =>
+              setFormData({ ...formData, location: e.target.value })
+            }
+            placeholder="Ex: São Paulo - SP"
+            className={`bg-input-background border-border ${
+              errors.location ? "border-red-500" : ""
+            }`}
+          />
+          {errors.location && (
+            <p className="text-xs text-red-500 mt-1">{errors.location}</p>
+          )}
+        </div>
+
+        <div className="col-span-2 md:col-span-1">
+          <Label htmlFor="launchDate" className="mb-2">
+            Previsão de Lançamento
+          </Label>
+          <Input
+            id="launchDate"
+            type="date"
+            value={formData.launchDate}
+            onChange={(e) =>
+              setFormData({ ...formData, launchDate: e.target.value })
+            }
+            className="bg-input-background border-border"
+          />
+        </div>
+
+        <div className="col-span-2 md:col-span-1">
+          <Label htmlFor="projectPhase" className="mb-2">
+            Fase do Empreendimento *
+          </Label>
+          <Select
+            value={formData.projectPhase}
+            onValueChange={(value) =>
+              setFormData({ ...formData, projectPhase: value })
+            }
+          >
+            <SelectTrigger
               className={`bg-input-background border-border ${
-                errors.image ? "border-red-500" : ""
+                errors.projectPhase ? "border-red-500" : ""
               }`}
-            />
-            <p className="text-xs text-muted-foreground">
-              JPG, PNG ou WebP até 5MB
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-1">
+            >
+              <SelectValue placeholder="Selecione a fase" />
+            </SelectTrigger>
+            <SelectContent>
+              {getProjectPhases().map((phase) => (
+                <SelectItem key={phase.value} value={phase.value}>
+                  {phase.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {errors.projectPhase && (
+            <p className="text-xs text-red-500 mt-1">{errors.projectPhase}</p>
+          )}
+        </div>
+
+        <div className="col-span-2 md:col-span-1">
+          <Label htmlFor="color" className="mb-2">
+            Cor do Projeto
+          </Label>
+          <div className="flex gap-2">
             <Input
-              placeholder="https://exemplo.com/imagem.jpg"
-              value={formData.image}
+              id="color"
+              type="color"
+              value={formData.color}
               onChange={(e) =>
-                setFormData({ ...formData, image: e.target.value })
+                setFormData({ ...formData, color: e.target.value })
               }
-              className={`bg-input-background border-border ${
-                errors.image ? "border-red-500" : ""
-              }`}
+              className="w-16 h-10 p-1 bg-input-background border-border"
             />
-            <p className="text-xs text-muted-foreground mt-1">
-              URL direta para imagem hospedada
-            </p>
+            <Input
+              value={formData.color}
+              onChange={(e) =>
+                setFormData({ ...formData, color: e.target.value })
+              }
+              placeholder="#3b82f6"
+              className="flex-1 bg-input-background border-border"
+            />
           </div>
-        )}
+        </div>
 
-        {errors.image && (
-          <Alert className="border-red-500/50 bg-red-500/10">
-            <AlertCircle className="h-4 w-4 text-red-500" />
-            <AlertDescription className="text-red-200">
-              {errors.image}
-            </AlertDescription>
-          </Alert>
-        )}
+        <div className="md:col-span-2 space-y-3">
+          <Label className="text-base">Imagem do Empreendimento *</Label>
+          <p className="text-xs text-muted-foreground">
+            A imagem será usada como miniatura nos cards. É obrigatória para o
+            empreendimento aparecer na listagem.
+          </p>
 
-        {/* Preview da imagem */}
-        {formData.image && !errors.image && (
-          <div className="mt-3">
-            <Label className="text-sm">Preview:</Label>
-            <div className="mt-1 w-full h-32 bg-muted rounded-lg overflow-hidden">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleImageFileChange}
+          />
+
+          <div
+            role="button"
+            tabIndex={0}
+            onClick={handleImageAreaClick}
+            onKeyDown={handleImageAreaKeyDown}
+            className="group relative flex h-48 w-full cursor-pointer items-center justify-center overflow-hidden rounded-lg border border-dashed border-border bg-muted transition-colors hover:border-primary"
+          >
+            {formData.image ? (
               <ImageWithFallback
                 src={formData.image}
                 alt="Preview"
-                className="w-full h-full object-cover"
+                className="absolute inset-0 h-full w-full object-cover"
               />
+            ) : (
+              <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                <ImageIcon className="h-10 w-10" />
+                <p className="text-sm font-medium">Clique para enviar imagem</p>
+                <p className="text-xs">JPG, PNG ou WebP até 5MB</p>
+              </div>
+            )}
+
+            <div className="absolute inset-x-3 bottom-3 flex gap-2 opacity-0 transition-opacity group-hover:opacity-100">
+              <Button
+                type="button"
+                className="flex-1 bg-black/70 text-white hover:bg-black"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  handleImageAreaClick();
+                }}
+              >
+                {formData.image ? "Trocar imagem" : "Enviar imagem"}
+              </Button>
+              {imageFile && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="border-white/40 bg-black/50 text-white hover:bg-black/70"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    handleRemoveImage();
+                  }}
+                >
+                  Remover
+                </Button>
+              )}
             </div>
           </div>
-        )}
-      </div>
 
-      <div>
-        <Label htmlFor="color" className="mb-2">
-          Cor do Projeto
-        </Label>
-        <div className="flex gap-2">
-          <Input
-            id="color"
-            type="color"
-            value={formData.color}
-            onChange={(e) =>
-              setFormData({ ...formData, color: e.target.value })
-            }
-            className="w-16 h-10 p-1 bg-input-background border-border"
-          />
-          <Input
-            value={formData.color}
-            onChange={(e) =>
-              setFormData({ ...formData, color: e.target.value })
-            }
-            placeholder="#3b82f6"
-            className="flex-1 bg-input-background border-border"
-          />
+          <p className="text-xs text-muted-foreground">
+            Recomendamos imagens com proporção 4:3 e pelo menos 1200×900 px.
+          </p>
+
+          {errors.image && (
+            <Alert className="border-red-500/50 bg-red-500/10">
+              <AlertCircle className="h-4 w-4 text-red-500" />
+              <AlertDescription className="text-red-200">
+                {errors.image}
+              </AlertDescription>
+            </Alert>
+          )}
         </div>
       </div>
 
@@ -1044,7 +1053,3 @@ function ProjectForm({
     </form>
   );
 }
-
-
-
-

@@ -16,7 +16,9 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 export default function SignupPage() {
-  const [form, setForm] = useState<SignupInput>({ email: '', password: '' });
+  const router = useRouter();
+  const [form, setForm] = useState<SignupInput>({ name: '', email: '', password: '' });
+  const [loadingProfile, setLoadingProfile] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
@@ -39,6 +41,25 @@ export default function SignupPage() {
       const emailRedirectTo = `${window.location.origin}/auth/callback`;
       const { error: signUpError } = await supabase.auth.signUp({
         email: validation.data.email,
+        options: {
+          emailRedirectTo,
+          data: {
+            name: validation.data.name,
+          },
+        },
+      });
+
+      if (signUpError) {
+        setError(signUpError.message);
+        return;
+      }
+
+      const { error: profileError } = await supabase.from('users').insert({
+        id: signUpData?.user?.id,
+        email: validation.data.email,
+        name: validation.data.name,
+        role: 'viewer',
+      });
         password: validation.data.password,
         options: {
           emailRedirectTo,
@@ -72,6 +93,20 @@ export default function SignupPage() {
     >
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="name">Nome</Label>
+            <Input
+              id="name"
+              type="text"
+              placeholder="Seu nome completo"
+              value={form.name}
+              onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
+              autoComplete="name"
+              disabled={loading}
+              required
+            />
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
             <Input

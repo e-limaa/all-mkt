@@ -185,15 +185,16 @@ export function AssetViewer({
       case 'image':
         return (
           <div className="w-full h-full bg-black/10 rounded-lg flex items-center justify-center relative overflow-hidden">
-            <div 
-              className="max-w-full max-h-full flex items-center justify-center"
-              style={{ transform: `scale(${imageZoom})` }}
-            >
+            <div className="w-full h-full flex items-center justify-center">
               <ImageWithFallback
                 src={asset.url}
                 alt={asset.name}
-                className="max-w-full max-h-full object-contain rounded-lg"
-                style={{ maxHeight: '100%', maxWidth: '100%' }}
+                draggable={false}
+                className="w-full h-full object-contain rounded-lg transition-transform duration-200 ease-out"
+                style={{
+                  transform: `scale(${imageZoom})`,
+                  transformOrigin: 'center center'
+                }}
               />
             </div>
             

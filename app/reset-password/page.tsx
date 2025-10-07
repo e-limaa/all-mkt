@@ -139,7 +139,7 @@ export default function ResetPasswordPage() {
 
       <p className="pt-2 text-center text-sm text-muted-foreground">
         Lembrou sua senha?{' '}
-        <Link className="font-semibold text-primary underline-offset-4 hover:underline" href="/login">
+        <Link className="font-semibold text-primary underline-offset-4 hover:underline" href="/">
           Voltar ao login
         </Link>
       </p>

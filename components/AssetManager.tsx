@@ -4,7 +4,6 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Badge } from './ui/badge';
-import { Textarea } from './ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { Alert, AlertDescription } from './ui/alert';
@@ -44,6 +43,9 @@ import { useAssets } from '../contexts/AssetContext';
 import { usePermissions, PermissionGuard } from '../contexts/hooks/usePermissions';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { AssetViewer } from './AssetViewer';
+import { Progress } from './ui/progress';
+import { cn } from './ui/utils';
+import { supabase, supabaseUrl } from '../lib/supabase';
 
 interface AssetManagerProps {
   initialFilters?: {
@@ -56,7 +58,7 @@ interface AssetManagerProps {
 }
 
 export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCampaigns }: AssetManagerProps) {
-  const { assets, campaigns, projects, uploadAsset, updateAsset, deleteAsset } = useAssets();
+  const { assets, campaigns, projects, updateAsset, deleteAsset, refreshData } = useAssets();
   const { hasPermission, isViewer, isEditor, isAdmin } = usePermissions();
   
   // Local state for filters
@@ -461,40 +463,274 @@ export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCa
   );
 
   // Enhanced upload form component with mandatory category selection
-  const UploadForm = ({ onClose, preSelectedCategory }: { onClose: () => void, preSelectedCategory?: any }) => {
+
+  const UploadForm = ({
+    onClose,
+    preSelectedCategory,
+  }: {
+    onClose: () => void;
+    preSelectedCategory?: AssetManagerProps['initialFilters'];
+  }) => {
+    const STORAGE_BUCKET = 'assets';
+
+    type UploadStatus = 'pending' | 'uploading' | 'success' | 'error';
+
+    interface UploadItem {
+      id: string;
+      file: File;
+      status: UploadStatus;
+      progress: number;
+      error?: string;
+      tempPath?: string;
+      publicUrl?: string;
+      mimeType: string;
+      extension: string;
+    }
+
     const [formData, setFormData] = useState({
-      file: null as File | null,
-      name: '',
-      description: '',
-      tags: '',
       categoryType: preSelectedCategory?.categoryType || '',
       categoryId: preSelectedCategory?.categoryId || '',
-      projectPhase: '' // For project-specific phase
+      projectPhase: ''
     });
 
+    const [items, setItems] = useState<UploadItem[]>([]);
     const [errors, setErrors] = useState<Record<string, string>>({});
+    const [isFinalizing, setIsFinalizing] = useState(false);
 
     const fileInputRef = useRef<HTMLInputElement | null>(null);
+    const uploadRequestsRef = useRef<Map<string, XMLHttpRequest>>(new Map());
+    const uploadedTempPathsRef = useRef<Set<string>>(new Set());
     const [isDragActive, setIsDragActive] = useState(false);
 
-    const processSelectedFile = (file: File) => {
-      setFormData((prev) => ({
-        ...prev,
-        file,
-        name: file.name.split('.').slice(0, -1).join('.') || file.name,
-      }));
+    useEffect(() => {
+      const requestMap = uploadRequestsRef.current;
+      const tempPathsSet = uploadedTempPathsRef.current;
 
-      setErrors((prev) => {
-        const next = { ...prev };
-        delete next.file;
-        return next;
-      });
+      return () => {
+        requestMap.forEach(request => {
+          try {
+            request.abort();
+          } catch {
+            /* noop */
+          }
+        });
+        requestMap.clear();
+
+        if (tempPathsSet.size === 0) {
+          tempPathsSet.clear();
+          return;
+        }
+
+        const pendingPaths = Array.from(tempPathsSet);
+        tempPathsSet.clear();
+
+        if (supabase) {
+          void supabase.storage.from(STORAGE_BUCKET).remove(pendingPaths);
+        }
+      };
+    }, []);
+
+    const availableProjects = projects.filter(project => project.image && project.image.trim() !== '');
+    const availableCampaigns = campaigns;
+
+    const getProjectPhases = () => [
+      { value: 'vem-ai', label: 'Vem Aí' },
+      { value: 'breve-lancamento', label: 'Breve Lançamento' },
+      { value: 'lancamento', label: 'Lançamento' }
+    ];
+
+    const generateId = () => (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
+
+    const normalizeFileName = (file: File) => {
+      const parts = file.name.split('.');
+      if (parts.length === 1) return file.name;
+      parts.pop();
+      return parts.join('.') || file.name;
     };
 
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (file) {
-        processSelectedFile(file);
+    const determineAssetType = (file: File): 'image' | 'video' | 'document' | 'archive' => {
+      const mime = file.type;
+      if (mime.startsWith('image/')) return 'image';
+      if (mime.startsWith('video/')) return 'video';
+      if (/pdf|text|presentation|word|sheet|document/i.test(mime)) return 'document';
+      return 'archive';
+    };
+
+    const encodeStoragePath = (path: string) =>
+      path
+        .split('/')
+        .map(segment => encodeURIComponent(segment))
+        .join('/');
+
+    const getAccessToken = async (): Promise<string | null> => {
+      if (!supabase) return null;
+      const { data } = await supabase.auth.getSession();
+      return data.session?.access_token ?? null;
+    };
+
+    const trackTempPath = (path?: string) => {
+      if (!path) return;
+      uploadedTempPathsRef.current.add(path);
+    };
+
+    const untrackTempPath = (path?: string) => {
+      if (!path) return;
+      uploadedTempPathsRef.current.delete(path);
+    };
+
+    const markItem = (id: string, updates: Partial<UploadItem>) => {
+      setItems(prev => prev.map(item => (item.id === id ? { ...item, ...updates } : item)));
+    };
+
+    const removeItem = async (id: string) => {
+      if (isFinalizing) return;
+
+      const target = items.find(item => item.id === id);
+      if (!target) return;
+
+      const activeUpload = uploadRequestsRef.current.get(id);
+      if (activeUpload) {
+        activeUpload.abort();
+      }
+      uploadRequestsRef.current.delete(id);
+
+      if (target.tempPath) {
+        if (supabase) {
+          try {
+            await supabase.storage.from(STORAGE_BUCKET).remove([target.tempPath]);
+          } finally {
+            untrackTempPath(target.tempPath);
+          }
+        } else {
+          untrackTempPath(target.tempPath);
+        }
+      }
+
+      setItems(prev => prev.filter(item => item.id !== id));
+    };
+
+    const startUpload = async (newItem: UploadItem) => {
+      markItem(newItem.id, { status: 'uploading', progress: 0, error: undefined });
+
+      if (!supabase || !supabaseUrl) {
+        setTimeout(() => {
+          markItem(newItem.id, {
+            status: 'success',
+            progress: 100,
+            tempPath: `dev/${newItem.id}-${newItem.file.name}`,
+            publicUrl: URL.createObjectURL(newItem.file),
+          });
+        }, 500);
+        return;
+      }
+
+      const accessToken = await getAccessToken();
+      if (!accessToken) {
+        markItem(newItem.id, {
+          status: 'error',
+          progress: 0,
+          error: 'Sessão expirada. Faça login novamente.',
+        });
+        return;
+      }
+
+      const sanitized = newItem.file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const tempPath = `temp-uploads/${newItem.id}-${sanitized}`;
+      const uploadUrl = `${supabaseUrl.replace(/\/$/, '')}/storage/v1/object/${encodeURIComponent(STORAGE_BUCKET)}/${encodeStoragePath(tempPath)}`;
+
+      try {
+        const xhr = new XMLHttpRequest();
+        uploadRequestsRef.current.set(newItem.id, xhr);
+
+        xhr.upload.onprogress = (event: ProgressEvent<EventTarget>) => {
+          if (!event.lengthComputable) {
+            markItem(newItem.id, { progress: 90 });
+            return;
+          }
+
+          const percent = Math.min(100, Math.round((event.loaded / event.total) * 100));
+          markItem(newItem.id, { progress: percent });
+        };
+
+        xhr.onerror = () => {
+          uploadRequestsRef.current.delete(newItem.id);
+          markItem(newItem.id, {
+            status: 'error',
+            progress: 0,
+            error: 'Falha ao enviar arquivo. Verifique sua conexão e tente novamente.',
+          });
+        };
+
+        xhr.onabort = () => {
+          uploadRequestsRef.current.delete(newItem.id);
+        };
+
+        xhr.onload = () => {
+          uploadRequestsRef.current.delete(newItem.id);
+
+          if (xhr.status >= 200 && xhr.status < 300) {
+            trackTempPath(tempPath);
+            const { data } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(tempPath);
+            markItem(newItem.id, {
+              status: 'success',
+              progress: 100,
+              tempPath,
+              publicUrl: data.publicUrl || '',
+            });
+            return;
+          }
+
+          const errorMessage = xhr.responseText || 'Falha ao enviar arquivo';
+          markItem(newItem.id, {
+            status: 'error',
+            progress: 0,
+            error: typeof errorMessage === 'string' ? errorMessage : 'Falha ao enviar arquivo',
+          });
+        };
+
+        xhr.open('POST', uploadUrl, true);
+        xhr.setRequestHeader('Authorization', `Bearer ${accessToken}`);
+        xhr.setRequestHeader('x-upsert', 'true');
+        xhr.setRequestHeader('Cache-Control', 'max-age=3600');
+        xhr.setRequestHeader('Content-Type', newItem.file.type || 'application/octet-stream');
+        xhr.send(newItem.file);
+      } catch (_error) {
+        uploadRequestsRef.current.delete(newItem.id);
+        markItem(newItem.id, {
+          status: 'error',
+          progress: 0,
+          error: 'Erro inesperado ao iniciar o upload.',
+        });
+      }
+    };
+
+    const addFiles = (fileList: FileList | File[]) => {
+      const files = Array.from(fileList);
+      if (!files.length) return;
+
+      const freshItems: UploadItem[] = files.map(file => ({
+        id: generateId(),
+        file,
+        status: 'pending',
+        progress: 0,
+        mimeType: file.type,
+        extension: file.name.split('.').pop()?.toLowerCase() || '',
+      }));
+
+      setItems(prev => [...prev, ...freshItems]);
+      setErrors(prev => {
+        const next = { ...prev };
+        delete next.files;
+        return next;
+      });
+
+      freshItems.forEach(startUpload);
+    };
+
+    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+      if (event.target.files) {
+        addFiles(event.target.files);
+        event.target.value = '';
       }
     };
 
@@ -514,9 +750,8 @@ export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCa
       event.preventDefault();
       event.stopPropagation();
       setIsDragActive(false);
-      const file = event.dataTransfer?.files?.[0];
-      if (file) {
-        processSelectedFile(file);
+      if (event.dataTransfer?.files?.length) {
+        addFiles(event.dataTransfer.files);
       }
     };
 
@@ -525,52 +760,62 @@ export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCa
     };
 
     const handleSelectAreaKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
-      if (event.key === "Enter" || event.key === " ") {
+      if (event.key === 'Enter' || event.key === ' ') {
         event.preventDefault();
         fileInputRef.current?.click();
       }
     };
 
-
     const handleCategoryTypeChange = (categoryType: string) => {
-      setFormData({ 
-        ...formData, 
-        categoryType, 
-        categoryId: '', // Reset category selection
-        projectPhase: '' // Reset project phase
-      });
+      setFormData(prev => ({
+        ...prev,
+        categoryType,
+        categoryId: '',
+        projectPhase: ''
+      }));
 
-      // Clear category-related errors
-      const newErrors = { ...errors };
-      delete newErrors.categoryType;
-      delete newErrors.categoryId;
-      delete newErrors.projectPhase;
-      setErrors(newErrors);
+      setErrors(prev => {
+        const next = { ...prev };
+        delete next.categoryType;
+        delete next.categoryId;
+        delete next.projectPhase;
+        return next;
+      });
     };
 
     const handleCategoryIdChange = (categoryId: string) => {
-      setFormData({ 
-        ...formData, 
+      setFormData(prev => ({
+        ...prev,
         categoryId,
-        projectPhase: formData.categoryType === 'project' ? '' : formData.projectPhase // Reset phase if project changes
-      });
+        projectPhase: prev.categoryType === 'project' ? '' : prev.projectPhase
+      }));
 
-      // Clear category error
-      const newErrors = { ...errors };
-      delete newErrors.categoryId;
-      delete newErrors.projectPhase;
-      setErrors(newErrors);
+      setErrors(prev => {
+        const next = { ...prev };
+        delete next.categoryId;
+        delete next.projectPhase;
+        return next;
+      });
+    };
+
+    const handleProjectPhaseChange = (projectPhase: string) => {
+      setFormData(prev => ({
+        ...prev,
+        projectPhase,
+      }));
+
+      setErrors(prev => {
+        const next = { ...prev };
+        delete next.projectPhase;
+        return next;
+      });
     };
 
     const validateForm = () => {
       const newErrors: Record<string, string> = {};
 
-      if (!formData.file) {
-        newErrors.file = 'Arquivo é obrigatório';
-      }
-
-      if (!formData.name.trim()) {
-        newErrors.name = 'Nome é obrigatório';
+      if (items.length === 0) {
+        newErrors.files = 'Selecione pelo menos um arquivo.';
       }
 
       if (!formData.categoryType) {
@@ -578,7 +823,10 @@ export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCa
       }
 
       if (!formData.categoryId) {
-        newErrors.categoryId = formData.categoryType === 'campaign' ? 'Campanha é obrigatória' : 'Empreendimento é obrigatório';
+        newErrors.categoryId =
+          formData.categoryType === 'campaign'
+            ? 'Campanha é obrigatória'
+            : 'Empreendimento é obrigatório';
       }
 
       if (formData.categoryType === 'project' && !formData.projectPhase) {
@@ -589,59 +837,102 @@ export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCa
       return Object.keys(newErrors).length === 0;
     };
 
-    const handleSubmit = async (e: React.FormEvent) => {
-      e.preventDefault();
-      
+    const handleSubmit = async (event: React.FormEvent) => {
+      event.preventDefault();
+
       if (!validateForm()) {
-        toast.error('Por favor, preencha todos os campos obrigatórios');
+        toast.error('Por favor, corrija os erros antes de prosseguir');
         return;
       }
 
-      try {
-        // Create the asset with the selected category and additional metadata
-        const additionalMetadata: any = {
-          name: formData.name,
-          description: formData.description,
-          tags: formData.tags.split(',').map(tag => tag.trim()).filter(Boolean),
-        };
+      const readyItems = items.filter(item => item.status === 'success' && item.tempPath);
 
-        // Add project phase if it's a project
-        if (formData.categoryType === 'project' && formData.projectPhase) {
-          additionalMetadata.projectPhase = formData.projectPhase;
+      if (readyItems.length === 0) {
+        toast.error('Aguarde o upload dos arquivos antes de enviar.');
+        return;
+      }
+
+      if (readyItems.length !== items.length) {
+        toast.error('Alguns arquivos ainda estão sendo enviados.');
+        return;
+      }
+
+      if (!supabase) {
+        toast.success('Materiais enviados (modo desenvolvimento).');
+        setItems([]);
+        onClose();
+        return;
+      }
+
+      const accessToken = await getAccessToken();
+
+      if (!accessToken) {
+        toast.error('Sessão expirada. Faça login novamente.');
+        return;
+      }
+
+      setIsFinalizing(true);
+
+      try {
+        const response = await fetch('/api/assets/finalize', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({
+            categoryType: formData.categoryType,
+            categoryId: formData.categoryId,
+            projectPhase: formData.categoryType === 'project' ? formData.projectPhase : null,
+            items: readyItems.map(item => ({
+              tempPath: item.tempPath,
+              originalName: item.file.name,
+              baseName: normalizeFileName(item.file),
+              extension: item.extension,
+              mimeType: item.mimeType,
+              size: item.file.size,
+              assetType: determineAssetType(item.file),
+            })),
+          }),
+        });
+
+        const payload = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+          throw new Error(payload?.message || 'Erro ao enviar materiais');
         }
 
-        await uploadAsset(
-          formData.file!,
-          formData.categoryType === 'project' ? formData.categoryId : undefined,
-          formData.categoryType === 'campaign' ? formData.categoryId : undefined,
-          additionalMetadata
-        );
-
-        toast.success('Material enviado com sucesso!');
+        await refreshData();
+        uploadedTempPathsRef.current.clear();
+        toast.success('Materiais enviados com sucesso!');
+        setItems([]);
         onClose();
       } catch (error) {
-        toast.error('Erro ao enviar material');
+        const message = error instanceof Error && error.message
+          ? error.message
+          : 'Erro ao enviar materiais';
+        toast.error(message);
+      } finally {
+        setIsFinalizing(false);
       }
     };
 
-    // Get available projects and campaigns
-    const availableProjects = projects.filter(p => p.image && p.image.trim() !== '');
-    const availableCampaigns = campaigns;
+    const statusBadge = (status: UploadStatus) => {
+      const variants: Record<UploadStatus, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
+        pending: { label: 'Pendente', variant: 'outline' },
+        uploading: { label: 'Enviando', variant: 'secondary' },
+        success: { label: 'Concluído', variant: 'default' },
+        error: { label: 'Erro', variant: 'destructive' }
+      };
 
-    // Get project phases based on status
-    const getProjectPhases = () => {
-      return [
-        { value: 'vem-ai', label: 'Vem Aí' },
-        { value: 'breve-lancamento', label: 'Breve Lançamento' },
-        { value: 'lancamento', label: 'Lançamento' }
-      ];
+      const badge = variants[status];
+      return <Badge variant={badge.variant} className="text-xs">{badge.label}</Badge>;
     };
 
     return (
-      <form onSubmit={handleSubmit} className="space-y-4">
-        {/* File Upload */}
+      <form onSubmit={handleSubmit} className="space-y-6">
         <div>
-          <Label htmlFor="file" className="mb-2">Arquivo *</Label>
+          <Label htmlFor="file" className="mb-2">Arquivos *</Label>
           <div
             onDragOver={handleDragOver}
             onDragEnter={handleDragOver}
@@ -651,141 +942,133 @@ export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCa
             onKeyDown={handleSelectAreaKeyDown}
             role="button"
             tabIndex={0}
-            className={`relative flex flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed p-6 text-center transition-colors cursor-pointer ${isDragActive ? 'border-primary bg-primary/10' : errors.file ? 'border-red-500/60' : 'border-border bg-input-background/40'}`}
+            className={cn(
+              'relative flex flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed border-border bg-input-background/40 p-6 text-center transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2',
+              isDragActive && 'border-primary bg-primary/10',
+              errors.files && 'border-red-500/60'
+            )}
           >
             <Upload className="w-10 h-10 text-primary" />
-            <div className="text-sm font-medium">Arraste e solte o arquivo aqui</div>
+            <div className="text-sm font-medium">Arraste arquivos aqui</div>
             <div className="text-xs text-muted-foreground">ou clique para selecionar</div>
             <Button
               type="button"
               variant="outline"
+              size="sm"
               onClick={() => fileInputRef.current?.click()}
+              disabled={isFinalizing}
             >
-              Escolher arquivo
+              Selecionar arquivos
             </Button>
             <input
               ref={fileInputRef}
               id="file"
               type="file"
+              multiple
               onChange={handleFileChange}
               accept="image/*,video/*,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.zip,.rar"
               className="hidden"
             />
-            {formData.file && (
+            {items.length > 0 && (
               <p className="text-xs text-muted-foreground">
-                Arquivo selecionado: <span className="font-medium">{formData.file.name}</span>
+                {items.length} arquivo{items.length > 1 ? 's' : ''} na fila
               </p>
             )}
           </div>
-          {errors.file && <p className="text-xs text-red-500 mt-1">{errors.file}</p>}
-        </div>
-        {/* Material Name */}
-        <div>
-          <Label htmlFor="name" className="mb-2">Nome do Material *</Label>
-          <Input
-            id="name"
-            value={formData.name}
-            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            placeholder="Nome do material"
-            className={`bg-input-background border-border ${errors.name ? 'border-red-500' : ''}`}
-          />
-          {errors.name && <p className="text-xs text-red-500 mt-1">{errors.name}</p>}
+          {errors.files && <p className="text-xs text-red-500 mt-1">{errors.files}</p>}
         </div>
 
-        {/* Description */}
-        <div>
-          <Label htmlFor="description" className="mb-2">Descrição</Label>
-          <Textarea
-            id="description"
-            value={formData.description}
-            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-            placeholder="Descrição do material (opcional)"
-            className="bg-input-background border-border resize-none"
-            rows={3}
-          />
-        </div>
-
-        {/* Category Type Selection */}
-        <div>
-          <Label className="mb-2">Tipo de Categoria *</Label>
-          <Select 
-            value={formData.categoryType} 
-            onValueChange={handleCategoryTypeChange}
-            disabled={!!preSelectedCategory?.categoryType}
-          >
-            <SelectTrigger className={`bg-input-background border-border ${errors.categoryType ? 'border-red-500' : ''}`}>
-              <SelectValue placeholder="Selecione o tipo de categoria" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="campaign">
-                <div className="flex items-center gap-2">
-                  <Target className="w-4 h-4" />
-                  Campanha
-                </div>
-              </SelectItem>
-              <SelectItem value="project">
-                <div className="flex items-center gap-2">
-                  <Building className="w-4 h-4" />
-                  Empreendimento
-                </div>
-              </SelectItem>
-            </SelectContent>
-          </Select>
-          {errors.categoryType && <p className="text-xs text-red-500 mt-1">{errors.categoryType}</p>}
-        </div>
-
-        {/* Campaign Selection */}
-        {formData.categoryType === 'campaign' && (
-          <div>
-            <Label className="mb-2">Campanha *</Label>
-            <Select 
-              value={formData.categoryId} 
-              onValueChange={handleCategoryIdChange}
-              disabled={!!preSelectedCategory?.categoryId}
-            >
-              <SelectTrigger className={`bg-input-background border-border ${errors.categoryId ? 'border-red-500' : ''}`}>
-                <SelectValue placeholder="Selecione a campanha" />
-              </SelectTrigger>
-              <SelectContent>
-                {availableCampaigns.map((campaign) => (
-                  <SelectItem key={campaign.id} value={campaign.id}>
+        {items.length > 0 && (
+          <div className="space-y-3">
+            {items.map(item => (
+              <div
+                key={item.id}
+                className="space-y-2 rounded-lg border border-border bg-muted/20 p-3"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 space-y-1">
                     <div className="flex items-center gap-2">
-                      <div 
-                        className="w-3 h-3 rounded-full" 
-                        style={{ backgroundColor: campaign.color }}
-                      />
-                      {campaign.name}
+                      <p className="font-medium truncate" title={item.file.name}>
+                        {item.file.name}
+                      </p>
+                      {statusBadge(item.status)}
                     </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {errors.categoryId && <p className="text-xs text-red-500 mt-1">{errors.categoryId}</p>}
+                    <p className="text-xs text-muted-foreground">
+                      {formatFileSize(item.file.size)} • {item.mimeType || 'Arquivo'}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="w-10 text-right text-xs text-muted-foreground">
+                      {item.progress}%
+                    </span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => removeItem(item.id)}
+                      disabled={isFinalizing}
+                      className="text-muted-foreground hover:text-foreground"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+                <Progress value={item.progress} className="h-2" />
+                {item.error && <p className="text-xs text-red-500">{item.error}</p>}
+              </div>
+            ))}
           </div>
         )}
 
-        {/* Project Selection */}
-        {formData.categoryType === 'project' && (
-          <>
+        <div className="space-y-4">
+          <div>
+            <Label className="mb-2">Tipo de categoria *</Label>
+            <Select
+              value={formData.categoryType}
+              onValueChange={handleCategoryTypeChange}
+              disabled={isFinalizing || !!preSelectedCategory?.categoryType}
+            >
+              <SelectTrigger className={cn('bg-input-background border-border', errors.categoryType && 'border-red-500')}>
+                <SelectValue placeholder="Selecione o tipo" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="campaign">
+                  <div className="flex items-center gap-2">
+                    <Target className="w-4 h-4" />
+                    Campanha
+                  </div>
+                </SelectItem>
+                <SelectItem value="project">
+                  <div className="flex items-center gap-2">
+                    <Building className="w-4 h-4" />
+                    Empreendimento
+                  </div>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+            {errors.categoryType && <p className="text-xs text-red-500 mt-1">{errors.categoryType}</p>}
+          </div>
+
+          {formData.categoryType === 'campaign' && (
             <div>
-              <Label className="mb-2">Empreendimento *</Label>
-              <Select 
-                value={formData.categoryId} 
+              <Label className="mb-2">Campanha *</Label>
+              <Select
+                value={formData.categoryId}
                 onValueChange={handleCategoryIdChange}
-                disabled={!!preSelectedCategory?.categoryId}
+                disabled={isFinalizing || !!preSelectedCategory?.categoryId}
               >
-                <SelectTrigger className={`bg-input-background border-border ${errors.categoryId ? 'border-red-500' : ''}`}>
-                  <SelectValue placeholder="Selecione o empreendimento" />
+                <SelectTrigger className={cn('bg-input-background border-border', errors.categoryId && 'border-red-500')}>
+                  <SelectValue placeholder="Selecione a campanha" />
                 </SelectTrigger>
                 <SelectContent>
-                  {availableProjects.map((project) => (
-                    <SelectItem key={project.id} value={project.id}>
+                  {availableCampaigns.map(campaign => (
+                    <SelectItem key={campaign.id} value={campaign.id}>
                       <div className="flex items-center gap-2">
-                        <div 
-                          className="w-3 h-3 rounded-full" 
-                          style={{ backgroundColor: project.color }}
+                        <span
+                          className="h-3 w-3 rounded-full"
+                          style={{ backgroundColor: campaign.color }}
                         />
-                        {project.name}
+                        {campaign.name}
                       </div>
                     </SelectItem>
                   ))}
@@ -793,20 +1076,43 @@ export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCa
               </Select>
               {errors.categoryId && <p className="text-xs text-red-500 mt-1">{errors.categoryId}</p>}
             </div>
+          )}
 
-            {/* Project Phase Selection */}
-            {formData.categoryId && (
+          {formData.categoryType === 'project' && (
+            <>
               <div>
-                <Label className="mb-2">Fase do Empreendimento *</Label>
-                <Select 
-                  value={formData.projectPhase} 
-                  onValueChange={(value) => setFormData({ ...formData, projectPhase: value })}
+                <Label className="mb-2">Empreendimento *</Label>
+                <Select
+                  value={formData.categoryId}
+                  onValueChange={handleCategoryIdChange}
+                  disabled={isFinalizing || !!preSelectedCategory?.categoryId}
                 >
-                  <SelectTrigger className={`bg-input-background border-border ${errors.projectPhase ? 'border-red-500' : ''}`}>
+                  <SelectTrigger className={cn('bg-input-background border-border', errors.categoryId && 'border-red-500')}>
+                    <SelectValue placeholder="Selecione o empreendimento" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableProjects.map(project => (
+                      <SelectItem key={project.id} value={project.id}>
+                        {project.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {errors.categoryId && <p className="text-xs text-red-500 mt-1">{errors.categoryId}</p>}
+              </div>
+
+              <div>
+                <Label className="mb-2">Fase do empreendimento *</Label>
+                <Select
+                  value={formData.projectPhase}
+                  onValueChange={handleProjectPhaseChange}
+                  disabled={isFinalizing}
+                >
+                  <SelectTrigger className={cn('bg-input-background border-border', errors.projectPhase && 'border-red-500')}>
                     <SelectValue placeholder="Selecione a fase" />
                   </SelectTrigger>
                   <SelectContent>
-                    {getProjectPhases().map((phase) => (
+                    {getProjectPhases().map(phase => (
                       <SelectItem key={phase.value} value={phase.value}>
                         {phase.label}
                       </SelectItem>
@@ -814,43 +1120,23 @@ export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCa
                   </SelectContent>
                 </Select>
                 {errors.projectPhase && <p className="text-xs text-red-500 mt-1">{errors.projectPhase}</p>}
-                
-                <Alert className="mt-2 border-blue-500/50 bg-blue-500/10">
-                  <AlertCircle className="h-4 w-4 text-blue-500" />
-                  <AlertDescription className="text-blue-200">
-                    <strong>Vem Aí:</strong> Material para divulgação antes do lançamento<br/>
-                    <strong>Breve Lançamento:</strong> Material para pré-lançamento<br/>
-                    <strong>Lançamento:</strong> Material para divulgação oficial
-                  </AlertDescription>
-                </Alert>
               </div>
-            )}
-          </>
-        )}
-
-        {/* Tags */}
-        <div>
-          <Label htmlFor="tags" className="mb-2">Tags</Label>
-          <Input
-            id="tags"
-            value={formData.tags}
-            onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
-            placeholder="tag1, tag2, tag3 (separadas por vírgula)"
-            className="bg-input-background border-border"
-          />
-          <p className="text-xs text-muted-foreground mt-1">
-            Separe múltiplas tags com vírgulas
-          </p>
+            </>
+          )}
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex gap-2 pt-4">
-          <Button type="submit" disabled={!formData.file} className="flex-1 cursor-pointer">
-            Enviar Material
-          </Button>
-          <Button type="button" variant="outline" onClick={onClose}>
-            Cancelar
-          </Button>
+        <div className="flex flex-col gap-4 border-t border-border/60 pt-4 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-xs text-muted-foreground">
+            Os arquivos começam a ser enviados imediatamente. Ao confirmar, apenas associamos ao empreendimento ou campanha escolhida.
+          </p>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <Button type="button" variant="outline" onClick={onClose} disabled={isFinalizing}>
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={isFinalizing || items.length === 0}>
+              {isFinalizing ? 'Finalizando...' : 'Enviar materiais'}
+            </Button>
+          </div>
         </div>
       </form>
     );
@@ -896,11 +1182,12 @@ export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCa
                   Enviar Material
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>Enviar Novo Material</DialogTitle>
                   <DialogDescription>
-                    Configure as informações do material e associe a uma categoria obrigatória
+                    Selecione um ou mais arquivos e associe todos à mesma campanha ou empreendimento.
+                    Os uploads acontecem em lotes de até três materiais simultâneos.
                   </DialogDescription>
                 </DialogHeader>
                 <UploadForm 
@@ -1124,12 +1411,12 @@ export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCa
                         <span>{asset.downloadCount || 0} downloads</span>
                       </div>
                       
-                      <div className="flex items-center gap-1">
-                        <Badge variant="outline" className="text-xs">
+                      <div className="flex flex-wrap items-center gap-1 min-w-0">
+                        <Badge variant="outline" className="text-xs max-w-full truncate">
                           {getCategoryName(asset)}
                         </Badge>
                         {getProjectPhase(asset) && (
-                          <Badge variant={getProjectPhase(asset)?.variant} className="text-xs">
+                          <Badge variant={getProjectPhase(asset)?.variant} className="text-xs max-w-full truncate">
                             {getProjectPhase(asset)?.label}
                           </Badge>
                         )}
@@ -1244,15 +1531,15 @@ export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCa
                             <h3 className="font-medium truncate mb-1" title={asset.name}>
                               {asset.name}
                             </h3>
-                            <div className="flex items-center gap-2 mb-2">
-                              <Badge variant={typeBadge.variant} className="text-xs">
+                            <div className="flex flex-wrap items-center gap-2 mb-2 min-w-0">
+                              <Badge variant={typeBadge.variant} className="text-xs max-w-full truncate">
                                 {typeBadge.label}
                               </Badge>
-                              <Badge variant="outline" className="text-xs">
+                              <Badge variant="outline" className="text-xs max-w-full truncate">
                                 {getCategoryName(asset)}
                               </Badge>
                               {getProjectPhase(asset) && (
-                                <Badge variant={getProjectPhase(asset)?.variant} className="text-xs">
+                                <Badge variant={getProjectPhase(asset)?.variant} className="text-xs max-w-full truncate">
                                   {getProjectPhase(asset)?.label}
                                 </Badge>
                               )}
@@ -1378,6 +1665,3 @@ export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCa
     </>
   );
 }
-
-
-

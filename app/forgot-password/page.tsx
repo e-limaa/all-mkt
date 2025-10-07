@@ -108,7 +108,7 @@ export default function ForgotPasswordPage() {
       <div className="pt-2 text-center text-sm text-muted-foreground">
         <p>
           Lembrou a senha?{' '}
-          <Link className="font-semibold text-primary underline-offset-4 hover:underline" href="/login">
+          <Link className="font-semibold text-primary underline-offset-4 hover:underline" href="/">
             Voltar ao login
           </Link>
         </p>

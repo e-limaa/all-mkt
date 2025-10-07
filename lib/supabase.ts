@@ -25,18 +25,20 @@ const readBrowserEnv = (): SupabaseEnv => ({
 const getSupabaseEnv = (): SupabaseEnv => (typeof window === 'undefined' ? readServerEnv() : readBrowserEnv());
 
 const initialEnv = getSupabaseEnv();
-const hasValidConfig = Boolean(initialEnv.url && initialEnv.anonKey && initialEnv.url.startsWith('https://'));
+const supabaseUrl = initialEnv.url;
+const supabaseAnonKey = initialEnv.anonKey;
+const hasValidConfig = Boolean(supabaseUrl && supabaseAnonKey && supabaseUrl.startsWith('https://'));
 
 if (process.env.NODE_ENV !== 'production') {
-  const redactedKey = initialEnv.anonKey.length > 8
-    ? `${initialEnv.anonKey.slice(0, 4)}...${initialEnv.anonKey.slice(-4)}`
-    : initialEnv.anonKey;
-  console.log('[Supabase] URL:', initialEnv.url || '(não configurado)');
+  const redactedKey = supabaseAnonKey.length > 8
+    ? `${supabaseAnonKey.slice(0, 4)}...${supabaseAnonKey.slice(-4)}`
+    : supabaseAnonKey;
+  console.log('[Supabase] URL:', supabaseUrl || '(não configurado)');
   console.log('[Supabase] ANON KEY:', redactedKey || '(não configurado)');
 }
 
 export const supabase = hasValidConfig
-  ? createClient<Database>(initialEnv.url, initialEnv.anonKey, {
+  ? createClient<Database>(supabaseUrl, supabaseAnonKey, {
       auth: {
         autoRefreshToken: true,
         persistSession: true,
@@ -44,6 +46,8 @@ export const supabase = hasValidConfig
       },
     })
   : null;
+
+export { supabaseUrl };
 
 export const isSupabaseConfigured = () => {
   const env = getSupabaseEnv();

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, FormEvent } from 'react';
+import { useState, FormEvent, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Loader2, LogIn, MailCheck } from 'lucide-react';
@@ -22,6 +22,24 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(initialMessage);
+  const [checkingSession, setCheckingSession] = useState(true);
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        const redirectTarget = redirectedFrom && redirectedFrom.startsWith('/') ? redirectedFrom : '/';
+        router.replace(redirectTarget);
+      } else {
+        setCheckingSession(false);
+      }
+    });
+  }, [redirectedFrom, router]);
+
+  if (checkingSession) {
+    return null;
+  }
+
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -37,7 +55,7 @@ export default function LoginPage() {
     setLoading(true);
 
     const supabase = createClient();
-    const { error: signInError } = await supabase.auth.signInWithPassword(validation.data);
+    const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword(validation.data);
 
     if (signInError) {
       setError(signInError.message);
@@ -45,7 +63,18 @@ export default function LoginPage() {
       return;
     }
 
-    const redirectTarget = redirectedFrom && redirectedFrom.startsWith('/') ? redirectedFrom : '/account';
+    let activeSession = signInData.session;
+    let attempts = 0;
+    while (!activeSession && attempts < 5) {
+      const { data: sessionData } = await supabase.auth.getSession();
+      activeSession = sessionData.session;
+      if (!activeSession) {
+        await new Promise((resolve) => setTimeout(resolve, 150));
+      }
+      attempts += 1;
+    }
+
+    const redirectTarget = redirectedFrom && redirectedFrom.startsWith('/') ? redirectedFrom : '/';
     router.push(redirectTarget);
     router.refresh();
   };
@@ -56,9 +85,6 @@ export default function LoginPage() {
       description="Use suas credenciais para acessar o ALL MKT."
       footer={
         <div className="space-y-2 text-center">
-          <p className="text-xs leading-relaxed">
-            Credenciais de demonstração: admin@allmkt.com · editor@allmkt.com · viewer@allmkt.com — senha 123456
-          </p>
           <p className="text-xs">Precisa de suporte? Fale com o administrador do ALL MKT.</p>
         </div>
       }

@@ -69,7 +69,7 @@ function DevelopmentModeAlert() {
 }
 
 function AppContent() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { isViewer, isAdmin } = usePermissions();
   const { systemSettings } = useConfig();
   const [navigationState, setNavigationState] = useState<NavigationState>({
@@ -98,6 +98,23 @@ function AppContent() {
       setNavigationState({ page: 'materials' });
     }
   }, [user, isViewer, navigationState.page]);
+
+  if (authLoading) {
+    return (
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          minHeight: '60vh',
+          color: '#94a3b8',
+          fontSize: '1rem',
+        }}
+      >
+        Carregando sessão…
+      </div>
+    );
+  }
 
   if (!user) {
     return (
