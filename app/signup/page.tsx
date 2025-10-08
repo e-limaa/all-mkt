@@ -11,6 +11,7 @@ import { createClient } from '@/lib/supabase/client';
 import { getFirstErrorMessage, signupSchema, type SignupInput } from '@/lib/validation';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/ui/password-input';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
@@ -57,12 +58,10 @@ export default function SignupPage() {
 
       const newUserId = signUpData.user?.id;
       if (newUserId) {
-        const { error: profileError } = await supabase.from('users').upsert({
-          id: newUserId,
-          email: validation.data.email,
-          name: validation.data.name,
-          role: 'viewer',
-        });
+        const { error: profileError } = await supabase
+          .from('users')
+          .update({ name: validation.data.name })
+          .eq('id', newUserId);
 
         if (profileError) {
           setError(profileError.message);
@@ -151,9 +150,8 @@ export default function SignupPage() {
             <Label htmlFor="password" className="text-sm font-medium text-white">
               Senha
             </Label>
-            <Input
+            <PasswordInput
               id="password"
-              type="password"
               placeholder="********"
               value={form.password}
               onChange={(event) => setForm((prev) => ({ ...prev, password: event.target.value }))}

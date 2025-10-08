@@ -19,6 +19,7 @@ import {
 } from "./ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "./ui/alert-dialog";
 import { Input } from "./ui/input";
+import { PasswordInput } from "./ui/password-input";
 import { Label } from "./ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Users, Crown, Settings, Eye, Loader2, Pencil, Trash2 } from "lucide-react";
@@ -531,14 +532,13 @@ export function UserManager() {
               <Label htmlFor="password">
                 {dialogMode === "edit" ? "Nova senha (opcional)" : "Senha provisoria"}
               </Label>
-              <Input
-                id="password"
-                name="password"
-                type="password"
-                value={formValues.password}
-                onChange={handleInputChange}
-                placeholder={dialogMode === "edit" ? "Deixe em branco para manter a senha" : "Defina uma senha inicial"}
-              />
+                <PasswordInput
+                  id="password"
+                  name="password"
+                  value={formValues.password}
+                  onChange={handleInputChange}
+                  placeholder={dialogMode === "edit" ? "Deixe em branco para manter a senha" : "Defina uma senha inicial"}
+                />
               {dialogMode === "edit" && (
                 <p className="text-xs text-muted-foreground">Deixe em branco para manter a senha atual.</p>
               )}

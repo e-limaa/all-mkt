@@ -7,6 +7,7 @@ import { AuthSplitLayout } from "./auth/AuthSplitLayout";
 import { loginHeroLayoutOverrides } from "./auth/login-layout";
 import { loginHeroContent } from "./auth/login-content";
 import { Input } from "./ui/input";
+import { PasswordInput } from "./ui/password-input";
 import { Button } from "./ui/button";
 import { Label } from "./ui/label";
 import { Alert, AlertDescription } from "./ui/alert";
@@ -198,9 +199,8 @@ export function LoginScreen() {
                 >
                   Senha
                 </Label>
-                <Input
+                <PasswordInput
                   id="password"
-                  type="password"
                   placeholder="********"
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}

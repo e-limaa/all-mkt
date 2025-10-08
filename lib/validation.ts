@@ -9,7 +9,14 @@ export const passwordSchema = z
   .string({ required_error: 'Informe uma senha.' })
   .min(8, 'A senha deve conter pelo menos 8 caracteres.');
 
+export const nameSchema = z
+  .string({ required_error: 'Informe um nome.' })
+  .trim()
+  .min(2, 'Informe pelo menos 2 caracteres.')
+  .max(80, 'O nome pode ter no máximo 80 caracteres.');
+
 export const signupSchema = z.object({
+  name: nameSchema,
   email: emailSchema,
   password: passwordSchema,
 });

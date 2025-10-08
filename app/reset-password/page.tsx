@@ -5,14 +5,10 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Loader2, KeyRound } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
-import {
-  getFirstErrorMessage,
-  resetPasswordSchema,
-  type ResetPasswordInput,
-} from '@/lib/validation';
+import { getFirstErrorMessage, resetPasswordSchema, type ResetPasswordInput } from '@/lib/validation';
 import { AuthShell } from '@/app/(auth)/components/AuthShell';
 import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/ui/password-input';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
@@ -55,7 +51,7 @@ export default function ResetPasswordPage() {
 
           if (sessionError) {
             console.error('[reset-password] setSession error:', sessionError);
-            setError('Link de recuperação inválido ou expirado. Solicite um novo.');
+            setError('Link de recuperacao invalido ou expirado. Solicite um novo.');
             return;
           }
 
@@ -64,14 +60,14 @@ export default function ResetPasswordPage() {
           const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
           if (exchangeError) {
             console.error('[reset-password] exchangeCodeForSession error:', exchangeError);
-            setError('Link de recuperação inválido ou expirado. Solicite um novo.');
+            setError('Link de recuperacao invalido ou expirado. Solicite um novo.');
             return;
           }
           cleanupUrl();
         }
       } catch (linkError) {
         console.error('[reset-password] unexpected recovery link error:', linkError);
-        setError('Não foi possível validar o link de recuperação. Solicite um novo.');
+        setError('Nao foi possivel validar o link de recuperacao. Solicite um novo.');
       } finally {
         setHasValidatedLink(true);
       }
@@ -100,7 +96,7 @@ export default function ResetPasswordPage() {
       } = await supabase.auth.getSession();
 
       if (!session) {
-        setError('Sessão de recuperação não encontrada. Solicite um novo link.');
+        setError('Sessao de recuperacao nao encontrada. Solicite um novo link.');
         return;
       }
 
@@ -116,13 +112,14 @@ export default function ResetPasswordPage() {
       setInfo('Senha atualizada com sucesso! Redirecionando para o login...');
       await supabase.auth.signOut();
 
-      const params = new URLSearchParams({ message: 'Senha atualizada com sucesso. Faça login.' });
+      const params = new URLSearchParams({ message: 'Senha atualizada com sucesso. Faca login.' });
       setTimeout(() => {
         router.push(`/login?${params.toString()}`);
         router.refresh();
       }, 1200);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Não foi possível atualizar a senha. Tente novamente.';
+    } catch (resetError) {
+      const message =
+        resetError instanceof Error ? resetError.message : 'Nao foi possivel atualizar a senha. Tente novamente.';
       setError(message);
     } finally {
       setLoading(false);
@@ -132,16 +129,15 @@ export default function ResetPasswordPage() {
   return (
     <AuthShell
       title="Definir nova senha"
-      description="Escolha uma nova senha forte para concluir o processo de recuperação."
+      description="Escolha uma nova senha forte para concluir o processo de recuperacao."
     >
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="password">Nova senha</Label>
-            <Input
+            <PasswordInput
               id="password"
-              type="password"
-              placeholder="••••••••"
+              placeholder="********"
               value={form.password}
               onChange={(event) => setForm((prev) => ({ ...prev, password: event.target.value }))}
               autoComplete="new-password"
@@ -152,9 +148,8 @@ export default function ResetPasswordPage() {
 
           <div className="space-y-2">
             <Label htmlFor="confirmPassword">Confirmar nova senha</Label>
-            <Input
+            <PasswordInput
               id="confirmPassword"
-              type="password"
               placeholder="Repita a nova senha"
               value={form.confirmPassword}
               onChange={(event) =>

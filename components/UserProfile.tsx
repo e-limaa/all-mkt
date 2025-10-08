@@ -20,6 +20,7 @@ import {
   DialogTitle
 } from './ui/dialog';
 import { Input } from './ui/input';
+import { PasswordInput } from './ui/password-input';
 import { Label } from './ui/label';
 import { Separator } from './ui/separator';
 import { LogOut, User as UserIcon, Image as ImageIcon, ChevronDown } from 'lucide-react';
@@ -448,9 +449,8 @@ export function UserProfile() {
                 <form onSubmit={handlePasswordSubmit} className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="profile-new-password">Nova senha</Label>
-                    <Input
+                    <PasswordInput
                       id="profile-new-password"
-                      type="password"
                       value={newPassword}
                       onChange={(event) => setNewPassword(event.target.value)}
                       placeholder="Digite a nova senha"
@@ -459,9 +459,8 @@ export function UserProfile() {
 
                   <div className="space-y-2">
                     <Label htmlFor="profile-confirm-password">Confirmar nova senha</Label>
-                    <Input
+                    <PasswordInput
                       id="profile-confirm-password"
-                      type="password"
                       value={confirmPassword}
                       onChange={(event) => setConfirmPassword(event.target.value)}
                       placeholder="Repita a nova senha"

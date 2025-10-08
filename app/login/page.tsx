@@ -18,6 +18,7 @@ import {
 } from '@/lib/validation';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/ui/password-input';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
@@ -202,22 +203,21 @@ export default function LoginPage() {
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="password" className="text-sm font-medium text-white">
-                  Senha
-                </Label>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="********"
-                  value={form.password}
-                  onChange={(event) => setForm((prev) => ({ ...prev, password: event.target.value }))}
-                  autoComplete="current-password"
-                  disabled={loading}
-                  required
-                  className="h-12 rounded-xl border-white/10 bg-white/5 text-base text-white placeholder:text-white/40 focus-visible:border-[#E4002B] focus-visible:ring-[#E4002B]/40"
-                />
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="password" className="text-sm font-medium text-white">
+                Senha
+              </Label>
+              <PasswordInput
+                id="password"
+                placeholder="********"
+                value={form.password}
+                onChange={(event) => setForm((prev) => ({ ...prev, password: event.target.value }))}
+                autoComplete="current-password"
+                disabled={loading}
+                required
+                className="h-12 rounded-xl border-white/10 bg-white/5 text-base text-white placeholder:text-white/40 focus-visible:border-[#E4002B] focus-visible:ring-[#E4002B]/40"
+              />
+            </div>
             </div>
 
             <div className="flex items-center justify-between text-sm text-white/60">
