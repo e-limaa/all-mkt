@@ -32,14 +32,38 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const normalizedEmail = email.trim().toLowerCase();
 
   try {
-    const { data: existingUser, error: fetchError } = await supabaseAdmin.auth.admin.getUserByEmail(normalizedEmail);
+    let page = 1;
+    const perPage = 200;
+    let matchedUser: { email?: string } | null = null;
+    let hasMore = true;
 
-    if (fetchError) {
-      console.error('[password-reset] Falha ao buscar usuário:', fetchError.message);
-      return res.status(500).json({ error: 'Não foi possível verificar o usuário. Tente novamente.' });
+    while (hasMore && !matchedUser) {
+      const { data: listData, error: listError } = await supabaseAdmin.auth.admin.listUsers({
+        page,
+        perPage,
+      });
+
+      if (listError) {
+        console.error('[password-reset] Falha ao listar usuários:', listError.message);
+        return res.status(500).json({ error: 'Não foi possível verificar o usuário. Tente novamente.' });
+      }
+
+      matchedUser =
+        listData?.users?.find((candidate) => candidate.email?.trim().toLowerCase() === normalizedEmail) ?? null;
+
+      if (matchedUser) {
+        break;
+      }
+
+      const nextPage = listData?.nextPage;
+      if (!nextPage || nextPage <= page) {
+        hasMore = false;
+      } else {
+        page = nextPage;
+      }
     }
 
-    if (!existingUser?.user) {
+    if (!matchedUser) {
       return res.status(404).json({ error: 'Não encontramos uma conta com este e-mail.' });
     }
 
@@ -55,6 +79,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(200).json({ ok: true });
   } catch (error) {
     console.error('[password-reset] Erro inesperado:', error);
-    return res.status(500).json({ error: 'Esse e-mail não existe na nossa base de dados. Insira um e-mail válido.' });
+    return res.status(500).json({ error: 'Não foi possível processar sua solicitação. Tente novamente em instantes.' });
   }
 }

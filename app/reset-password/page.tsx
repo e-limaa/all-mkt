@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Loader2, KeyRound } from 'lucide-react';
@@ -22,6 +22,63 @@ export default function ResetPasswordPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
+  const [hasValidatedLink, setHasValidatedLink] = useState(false);
+  const isFormDisabled = !hasValidatedLink || loading;
+
+  useEffect(() => {
+    const supabase = createClient();
+
+    const ensureRecoverySession = async () => {
+      const cleanupUrl = () => {
+        try {
+          const url = new URL(window.location.href);
+          url.hash = '';
+          window.history.replaceState({}, document.title, url.toString());
+        } catch {
+          /* noop */
+        }
+      };
+
+      try {
+        const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+        const searchParams = new URLSearchParams(window.location.search);
+
+        const accessToken = hashParams.get('access_token') || searchParams.get('access_token');
+        const refreshToken = hashParams.get('refresh_token') || searchParams.get('refresh_token');
+        const code = hashParams.get('code') || searchParams.get('code');
+
+        if (accessToken && refreshToken) {
+          const { error: sessionError } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+
+          if (sessionError) {
+            console.error('[reset-password] setSession error:', sessionError);
+            setError('Link de recuperação inválido ou expirado. Solicite um novo.');
+            return;
+          }
+
+          cleanupUrl();
+        } else if (code) {
+          const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+          if (exchangeError) {
+            console.error('[reset-password] exchangeCodeForSession error:', exchangeError);
+            setError('Link de recuperação inválido ou expirado. Solicite um novo.');
+            return;
+          }
+          cleanupUrl();
+        }
+      } catch (linkError) {
+        console.error('[reset-password] unexpected recovery link error:', linkError);
+        setError('Não foi possível validar o link de recuperação. Solicite um novo.');
+      } finally {
+        setHasValidatedLink(true);
+      }
+    };
+
+    void ensureRecoverySession();
+  }, []);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -88,7 +145,7 @@ export default function ResetPasswordPage() {
               value={form.password}
               onChange={(event) => setForm((prev) => ({ ...prev, password: event.target.value }))}
               autoComplete="new-password"
-              disabled={loading}
+              disabled={isFormDisabled}
               required
             />
           </div>
@@ -104,7 +161,7 @@ export default function ResetPasswordPage() {
                 setForm((prev) => ({ ...prev, confirmPassword: event.target.value }))
               }
               autoComplete="new-password"
-              disabled={loading}
+              disabled={isFormDisabled}
               required
             />
           </div>
@@ -122,7 +179,7 @@ export default function ResetPasswordPage() {
           </Alert>
         )}
 
-        <Button type="submit" className="w-full" disabled={loading}>
+        <Button type="submit" className="w-full" disabled={isFormDisabled}>
           {loading ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />

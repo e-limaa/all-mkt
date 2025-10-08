@@ -1,37 +1,48 @@
 import React, { useState } from "react";
 import Link from "next/link";
+import { Loader2, LogIn, MailCheck } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import { useConfig } from "../contexts/ConfigContext";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "./ui/card";
+import { AuthSplitLayout } from "./auth/AuthSplitLayout";
+import { loginHeroLayoutOverrides } from "./auth/login-layout";
+import { loginHeroContent } from "./auth/login-content";
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
 import { Label } from "./ui/label";
 import { Alert, AlertDescription } from "./ui/alert";
-import { Loader2, LogIn, MailCheck } from "lucide-react";
-import Frame1000005813 from "../imports/Frame1000005813";
+import {
+  forgotPasswordSchema,
+  getFirstErrorMessage,
+  type ForgotPasswordInput,
+} from "../lib/validation";
 
 export function LoginScreen() {
   const { signIn, loading } = useAuth();
   const { systemSettings } = useConfig();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-  const companyName = systemSettings.companyName || "ALL MKT";
+  const [forgotForm, setForgotForm] = useState<ForgotPasswordInput>({
+    email: "",
+  });
+  const [view, setView] = useState<"login" | "forgot">("login");
+  const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
+  const [forgotLoading, setForgotLoading] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
+  const brandName = systemSettings.companyName?.trim() || "ALL MKT";
+  const adminEmail = systemSettings.adminEmail?.trim() || null;
+  const currentYear = new Date().getFullYear();
+
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setError(null);
+    setInfo(null);
 
     if (!email || !password) {
       setError("Por favor, preencha todos os campos.");
       return;
     }
+
     try {
       await signIn(email, password);
     } catch (err) {
@@ -39,24 +50,132 @@ export function LoginScreen() {
     }
   };
 
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <div className="w-full max-w-md">
-        <div className="flex justify-center mb-8">
-          <Frame1000005813 />
-        </div>
+  const handleForgotSubmit = async (
+    event: React.FormEvent<HTMLFormElement>
+  ) => {
+    event.preventDefault();
+    setError(null);
+    setInfo(null);
 
-        <Card>
-          <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl text-center">Entrar no {companyName}</CardTitle>
-            <CardDescription className="text-center">
-              Digite suas credenciais para acessar o sistema
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <Label htmlFor="email" className="mb-2">
+    const validation = forgotPasswordSchema.safeParse(forgotForm);
+    if (!validation.success) {
+      setError(getFirstErrorMessage(validation.error));
+      return;
+    }
+
+    setForgotLoading(true);
+
+    try {
+      const response = await fetch("/api/auth/request-password-reset", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email: validation.data.email }),
+      });
+
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        setError(
+          body.error ?? "Nao foi possivel enviar o link de recuperacao."
+        );
+        return;
+      }
+
+      setInfo("Enviamos um link de recuperacao para o seu email.");
+      setForgotForm({ email: "" });
+    } catch (forgotError) {
+      const message =
+        forgotError instanceof Error
+          ? forgotError.message
+          : "Nao foi possivel enviar o link. Tente novamente.";
+      setError(message);
+    } finally {
+      setForgotLoading(false);
+    }
+  };
+
+  const switchToLogin = () => {
+    setView("login");
+    setError(null);
+    setInfo((prev) => prev);
+  };
+
+  const switchToForgot = () => {
+    setView("forgot");
+    setError(null);
+    setInfo(null);
+  };
+
+  const heroProps = {
+    brandName,
+    currentYear,
+    title: loginHeroContent.title,
+    description: loginHeroContent.description,
+    layout: loginHeroLayoutOverrides,
+  };
+
+  return (
+    <AuthSplitLayout
+      hero={heroProps}
+      brandName={brandName}
+      currentYear={currentYear}
+      panelWrapperClassName="lg:grid-cols-[1.15fr_1fr]"
+    >
+      {view === "login" ? (
+        <>
+          <div className="space-y-3 text-center">
+            <h2 className="text-3xl font-semibold text-white">Login</h2>
+            <p className="text-sm text-white/60">
+              Seja bem-vindo(a) ao {brandName}. Faca login para continuar e
+              ficar por dentro de tudo que acontece no marketing estrategico.
+            </p>
+          </div>
+
+          <div className="space-y-4">
+            {error && (
+              <Alert
+                variant="destructive"
+                aria-live="assertive"
+                className="border-red-500/40 bg-red-500/10 text-red-200"
+              >
+                <AlertDescription className="text-sm text-red-100">
+                  {error}
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {systemSettings.twoFactor && (
+              <Alert
+                className="border-white/15 bg-white/5 text-white"
+                aria-live="polite"
+              >
+                <AlertDescription className="text-sm text-white/80">
+                  A autenticacao em duas etapas esta ativa. Apos o login, sera
+                  solicitado um codigo adicional enviado ao seu email.
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {info && (
+              <Alert
+                className="border-white/15 bg-white/5 text-white"
+                aria-live="polite"
+              >
+                <AlertDescription className="text-sm text-white/80">
+                  {info}
+                </AlertDescription>
+              </Alert>
+            )}
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label
+                  htmlFor="email"
+                  className="text-sm font-medium text-white"
+                >
                   Email
                 </Label>
                 <Input
@@ -64,83 +183,188 @@ export function LoginScreen() {
                   type="email"
                   placeholder="seu@email.com"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(event) => setEmail(event.target.value)}
+                  autoComplete="email"
                   disabled={loading}
+                  required
+                  className="h-12 rounded-xl border-white/10 bg-white/5 text-base text-white placeholder:text-white/40 focus-visible:border-[#E4002B] focus-visible:ring-[#E4002B]/40"
                 />
               </div>
 
-              <div>
-                <Label htmlFor="password" className="mb-2">
+              <div className="space-y-2">
+                <Label
+                  htmlFor="password"
+                  className="text-sm font-medium text-white"
+                >
                   Senha
                 </Label>
                 <Input
                   id="password"
                   type="password"
-                  placeholder="••••••••"
+                  placeholder="********"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(event) => setPassword(event.target.value)}
+                  autoComplete="current-password"
                   disabled={loading}
+                  required
+                  className="h-12 rounded-xl border-white/10 bg-white/5 text-base text-white placeholder:text-white/40 focus-visible:border-[#E4002B] focus-visible:ring-[#E4002B]/40"
                 />
               </div>
-
-              {error && (
-                <Alert variant="destructive">
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              )}
-
-              {systemSettings.twoFactor && (
-                <Alert>
-                  <AlertDescription>
-                    A autenticação em duas etapas está ativa. Após o login, será solicitado um código adicional enviado ao seu email.
-                  </AlertDescription>
-                </Alert>
-              )}
-
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Entrando...
-                  </>
-                ) : (
-                  <>
-                    <LogIn className="mr-2 h-4 w-4" />
-                    Entrar
-                  </>
-                )}
-              </Button>
-            </form>
-
-            <div className="mt-6 space-y-3">
-              <Button asChild variant="outline" className="w-full" disabled={loading}>
-                <Link href="/forgot-password">
-                  <MailCheck className="h-4 w-4" />
-                  Esqueci minha senha
-                </Link>
-              </Button>
-              <p className="text-center text-sm text-muted-foreground">
-                Novo por aqui?{" "}
-                <Link className="font-semibold text-primary underline-offset-4 hover:underline" href="/signup">
-                  Crie sua conta
-                </Link>
-              </p>
             </div>
 
-            {systemSettings.adminEmail && (
-              <div className="mt-6 text-sm text-center text-muted-foreground">
-                <p className="mb-2">Precisa de ajuda? </p>
-                <p className="text-xs">
-                  <a className="underline" href={`mailto:${systemSettings.adminEmail}`}>
-                    Contate o administrador
-                  </a>
-                  .
-                </p>
-              </div>
+            <div className="flex items-center justify-between text-sm text-white/60">
+              <button
+                type="button"
+                onClick={switchToForgot}
+                className="transition-colors hover:text-white"
+              >
+                Esqueci minha senha
+              </button>
+              <Link
+                href="/signup"
+                className="font-semibold text-[#E4002B] transition-colors hover:text-[#ff3752]"
+              >
+                Criar conta
+              </Link>
+            </div>
+
+            <Button
+              type="submit"
+              className="h-12 w-full rounded-xl bg-[#E4002B] text-base font-semibold text-white shadow-[0_25px_40px_-25px_rgba(228,0,43,0.8)] transition hover:bg-[#ff2d4e] focus-visible:ring-[#E4002B]/40"
+              disabled={loading}
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                  Entrando...
+                </>
+              ) : (
+                <>
+                  <LogIn className="mr-2 h-5 w-5" />
+                  Entrar
+                </>
+              )}
+            </Button>
+          </form>
+
+          <div className="space-y-2 pt-4 text-center text-xs text-white/40">
+            <p>Sistema de gestao digital de ativos imobiliarios</p>
+            <p>
+              Dica: Use qualquer email valido com senha &quot;123456&quot; para
+              testar integracoes internas.
+            </p>
+            {adminEmail ? (
+              <p className="text-white/55">
+                Suporte:{" "}
+                <a
+                  className="underline transition-colors hover:text-white"
+                  href={`mailto:${adminEmail}`}
+                >
+                  {adminEmail}
+                </a>
+              </p>
+            ) : null}
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="space-y-3 text-center">
+            <h2 className="text-3xl font-semibold text-white">
+              Recuperar senha
+            </h2>
+            <p className="text-sm text-white/60">
+              Informe o email cadastrado para receber um link seguro de
+              redefinicao.
+            </p>
+          </div>
+
+          <div className="space-y-4">
+            {error && (
+              <Alert
+                variant="destructive"
+                aria-live="assertive"
+                className="border-red-500/40 bg-red-500/10 text-red-200"
+              >
+                <AlertDescription className="text-sm text-red-100">
+                  {error}
+                </AlertDescription>
+              </Alert>
             )}
-          </CardContent>
-        </Card>
-      </div>
-    </div>
+
+            {info && (
+              <Alert
+                className="border-white/15 bg-white/5 text-white"
+                aria-live="polite"
+              >
+                <AlertDescription className="text-sm text-white/80">
+                  {info}
+                </AlertDescription>
+              </Alert>
+            )}
+          </div>
+
+          <form onSubmit={handleForgotSubmit} className="space-y-6">
+            <div className="space-y-2">
+              <Label
+                htmlFor="forgot-email"
+                className="text-sm font-medium text-white"
+              >
+                Email
+              </Label>
+              <Input
+                id="forgot-email"
+                type="email"
+                placeholder="seu@email.com"
+                value={forgotForm.email}
+                onChange={(event) =>
+                  setForgotForm({ email: event.target.value })
+                }
+                autoComplete="email"
+                disabled={forgotLoading}
+                required
+                className="h-12 rounded-xl border-white/10 bg-white/5 text-base text-white placeholder:text-white/40 focus-visible:border-[#E4002B] focus-visible:ring-[#E4002B]/40"
+              />
+            </div>
+
+            <Button
+              type="submit"
+              className="h-12 w-full rounded-xl bg-[#E4002B] text-base font-semibold text-white shadow-[0_25px_40px_-25px_rgba(228,0,43,0.8)] transition hover:bg-[#ff2d4e] focus-visible:ring-[#E4002B]/40"
+              disabled={forgotLoading}
+            >
+              {forgotLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                  Enviando...
+                </>
+              ) : (
+                <>
+                  <MailCheck className="mr-2 h-5 w-5" />
+                  Enviar link
+                </>
+              )}
+            </Button>
+          </form>
+
+          <div className="space-y-2 pt-4 text-center text-xs text-white/40">
+            <button
+              type="button"
+              onClick={switchToLogin}
+              className="text-white underline-offset-4 hover:underline"
+            >
+              Voltar ao login
+            </button>
+            <p>
+              Nao possui conta ainda?{" "}
+              <Link
+                className="font-semibold text-[#E4002B] transition-colors hover:text-[#ff3752]"
+                href="/signup"
+              >
+                Criar conta
+              </Link>
+            </p>
+          </div>
+        </>
+      )}
+    </AuthSplitLayout>
   );
 }

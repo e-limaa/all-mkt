@@ -4,7 +4,6 @@ import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
-import { Textarea } from './ui/textarea';
 import { Separator } from './ui/separator';
 import { ScrollArea } from './ui/scroll-area';
 import { toast } from 'sonner';
@@ -27,7 +26,6 @@ import {
   ZoomIn,
   ZoomOut,
   Save,
-  Tag,
   Info
 } from 'lucide-react';
 import { Asset } from '../types';
@@ -59,9 +57,7 @@ export function AssetViewer({
 }: AssetViewerProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState({
-    name: '',
-    description: '',
-    tags: ''
+    name: ''
   });
   const [isVideoMuted, setIsVideoMuted] = useState(false);
   const [imageZoom, setImageZoom] = useState(1);
@@ -73,9 +69,7 @@ export function AssetViewer({
   useEffect(() => {
     if (asset) {
       setEditForm({
-        name: asset.name || '',
-        description: asset.description || '',
-        tags: (asset.tags || []).join(', ')
+        name: asset.name || ''
       });
       setImageZoom(1);
     }
@@ -120,12 +114,7 @@ export function AssetViewer({
 
   const handleEdit = () => {
     if (asset && onEdit) {
-      const updates = {
-        name: editForm.name,
-        description: editForm.description,
-        tags: editForm.tags.split(',').map(tag => tag.trim()).filter(Boolean)
-      };
-      onEdit(asset, updates);
+      onEdit(asset, { name: editForm.name });
       setIsEditing(false);
       toast.success('Material atualizado com sucesso!');
     }
@@ -451,32 +440,6 @@ export function AssetViewer({
                         <p id="edit-name-help" className="sr-only">Digite o novo nome para o material</p>
                       </div>
                       
-                      <div>
-                        <Label htmlFor="edit-description">Descrição</Label>
-                        <Textarea
-                          id="edit-description"
-                          value={editForm.description}
-                          onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
-                          className="bg-input-background border-border resize-none mt-2"
-                          rows={4}
-                          aria-describedby="edit-description-help"
-                        />
-                        <p id="edit-description-help" className="sr-only">Digite uma descrição para o material</p>
-                      </div>
-                      
-                      <div>
-                        <Label htmlFor="edit-tags">Tags (separadas por vírgula)</Label>
-                        <Input
-                          id="edit-tags"
-                          value={editForm.tags}
-                          onChange={(e) => setEditForm({ ...editForm, tags: e.target.value })}
-                          className="bg-input-background border-border mt-2"
-                          placeholder="tag1, tag2, tag3"
-                          aria-describedby="edit-tags-help"
-                        />
-                        <p id="edit-tags-help" className="sr-only">Digite as tags separadas por vírgula</p>
-                      </div>
-
                       <div className="flex gap-2 pt-4">
                         <Button onClick={handleEdit} className="flex-1">
                           <Save className="w-4 h-4 mr-2" />
@@ -489,48 +452,9 @@ export function AssetViewer({
                     </div>
                   ) : (
                     <div className="space-y-6">
-                      {/* Descrição */}
-                      <div>
-                        <Label className="text-base font-semibold">Descrição</Label>
-                        {asset.description ? (
-                          <p className="text-muted-foreground mt-2 leading-relaxed text-sm">
-                            {asset.description}
-                          </p>
-                        ) : (
-                          <p className="text-muted-foreground mt-2 italic text-sm">
-                            Sem descrição
-                          </p>
-                        )}
-                      </div>
-
-                      <Separator />
-
-                      {/* Tags */}
-                      <div>
-                        <Label className="text-base font-semibold flex items-center gap-2">
-                          <Tag className="w-4 h-4" />
-                          Tags
-                        </Label>
-                        {asset.tags && asset.tags.length > 0 ? (
-                          <div className="flex flex-wrap gap-2 mt-2" role="list" aria-label="Tags do material">
-                            {asset.tags.map((tag, index) => (
-                              <Badge key={index} variant="outline" role="listitem" className="text-xs">
-                                {tag}
-                              </Badge>
-                            ))}
-                          </div>
-                        ) : (
-                          <p className="text-muted-foreground mt-2 italic text-sm">
-                            Nenhuma tag
-                          </p>
-                        )}
-                      </div>
-
-                      <Separator />
-
                       {/* Categoria */}
                       <div>
-                        <Label className="text-base font-semibold">Categoria</Label>
+                        <Label className="text-base font-semibold">Empreendimento/Campanha</Label>
                         <div className="mt-2">
                           <Badge variant="outline" className="text-xs">
                             {asset.categoryName || 'Sem categoria'}
