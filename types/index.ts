@@ -54,6 +54,12 @@ export interface AssetMetadata {
   exifData?: Record<string, any>;
   pages?: number;
   projectPhase?: string;
+  previewUrl?: string;
+  thumbnailUrl?: string;
+  posterUrl?: string;
+  coverUrl?: string;
+  thumbnail?: string;
+  preview?: string;
 }
 
 export interface Asset {

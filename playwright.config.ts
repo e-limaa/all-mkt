@@ -19,7 +19,7 @@ export default defineConfig({
     viewport: { width: 1280, height: 720 },
   },
   webServer: {
-    command: `PORT=${PORT} npm run dev`,
+    command: `npx cross-env PORT=${PORT} npm run dev`,
     url: `http://127.0.0.1:${PORT}`,
     reuseExistingServer: !process.env.CI,
     stdout: 'pipe',

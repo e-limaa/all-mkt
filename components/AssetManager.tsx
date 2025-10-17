@@ -220,6 +220,48 @@ export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCa
     setViewingAsset(asset);
   };
 
+  const getPreviewUrl = (asset: Asset): string | null => {
+    const directThumbnail = asset.thumbnailUrl ?? asset.thumbnail ?? null;
+    if (typeof directThumbnail === 'string') {
+      const normalized = directThumbnail.trim();
+      if (normalized.length > 0) {
+        return normalized;
+      }
+    }
+
+    const metadataSource =
+      typeof asset.metadata === 'object' && asset.metadata
+        ? (asset.metadata as Record<string, unknown>)
+        : null;
+
+    if (metadataSource) {
+      const candidateKeys = [
+        'previewUrl',
+        'thumbnailUrl',
+        'posterUrl',
+        'coverUrl',
+        'thumbnail',
+        'preview',
+      ];
+
+      for (const key of candidateKeys) {
+        const candidate = metadataSource[key];
+        if (typeof candidate === 'string' && candidate.trim().length > 0) {
+          return candidate.trim();
+        }
+      }
+    }
+
+    if (asset.type === 'image' && typeof asset.url === 'string') {
+      const normalized = asset.url.trim();
+      if (normalized.length > 0) {
+        return normalized;
+      }
+    }
+
+    return null;
+  };
+
   const handleAssetChange = (asset: Asset) => {
     setViewingAsset(asset);
   };
@@ -1378,17 +1420,23 @@ export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCa
                         handleViewAsset(asset); 
                       }}
                     >
-                      {asset.thumbnailUrl ? (
-                        <ImageWithFallback
-                          src={asset.thumbnailUrl}
-                          alt={asset.name}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <TypeIcon className="w-12 h-12 text-muted-foreground" />
-                        </div>
-                      )}
+                      {(() => {
+                        const previewUrl = getPreviewUrl(asset);
+                        if (!previewUrl) {
+                          return (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <TypeIcon className="w-12 h-12 text-muted-foreground" />
+                            </div>
+                          );
+                        }
+                        return (
+                          <ImageWithFallback
+                            src={previewUrl}
+                            alt={asset.name}
+                            className="w-full h-full object-cover"
+                          />
+                        );
+                      })()}
                       <div className="absolute top-2 right-2">
                         <Badge variant={typeBadge.variant} className="text-xs">
                           {typeBadge.label}
@@ -1511,17 +1559,23 @@ export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCa
                           handleViewAsset(asset); 
                         }}
                       >
-                        {asset.thumbnailUrl ? (
-                          <ImageWithFallback
-                            src={asset.thumbnailUrl}
-                            alt={asset.name}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <TypeIcon className="w-8 h-8 text-muted-foreground" />
-                          </div>
-                        )}
+                        {(() => {
+                          const previewUrl = getPreviewUrl(asset);
+                          if (!previewUrl) {
+                            return (
+                              <div className="w-full h-full flex items-center justify-center">
+                                <TypeIcon className="w-8 h-8 text-muted-foreground" />
+                              </div>
+                            );
+                          }
+                          return (
+                            <ImageWithFallback
+                              src={previewUrl}
+                              alt={asset.name}
+                              className="w-full h-full object-cover"
+                            />
+                          );
+                        })()}
                       </div>
                       
                       {/* Content */}

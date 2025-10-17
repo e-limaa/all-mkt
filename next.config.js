@@ -18,7 +18,6 @@ const nextConfig = {
       },
     ],
   },
-  // Suporte para importações de SVG
   webpack: (config) => {
     config.module.rules.push({
       test: /\.svg$/,
@@ -26,12 +25,30 @@ const nextConfig = {
     });
     return config;
   },
-  // Configurações de ambiente
   env: {
     CUSTOM_KEY: 'allmvt-dam',
   },
-  // Configurações de transpilação
   transpilePackages: ['lucide-react'],
+  async headers() {
+    return [
+      {
+        source: '/(.*)',
+        headers: [
+          {
+            key: 'Content-Security-Policy',
+            value: [
+              "default-src 'self'",
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' 'inline-speculation-rules'",
+              "connect-src 'self' https://*.supabase.co",
+              "img-src 'self' blob: data: https://*.supabase.co https://images.unsplash.com https://sample-videos.com",
+              "style-src 'self' 'unsafe-inline'",
+              "font-src 'self' data:",
+            ].join('; '),
+          },
+        ],
+      },
+    ];
+  },
 };
 
 module.exports = nextConfig;
