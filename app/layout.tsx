@@ -1,6 +1,5 @@
 ﻿import type { Metadata } from "next";
 import "../styles/globals.css";
-import N8nFloatingWidget from "@/components/chat/N8nFloatingWidget";
 
 export const metadata: Metadata = {
   title: {
@@ -19,7 +18,6 @@ export default function RootLayout({
     <html lang="pt-BR" className="h-full">
       <body className="min-h-screen bg-background text-foreground antialiased">
         {children}
-        <N8nFloatingWidget />
       </body>
     </html>
   );

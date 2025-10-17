@@ -1,7 +1,7 @@
-﻿/* eslint-disable @typescript-eslint/no-misused-promises */
+/* eslint-disable @typescript-eslint/no-misused-promises */
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { MessageCircle, Send, Loader2, X } from "lucide-react";
 
@@ -139,7 +139,7 @@ export function N8nFloatingWidget() {
     {
       id: uuidv4(),
       role: "assistant",
-      text: "Olá! Como posso ajudar você hoje?",
+      text: "Ola! Como posso ajudar voce hoje?",
     },
   ]);
   const [input, setInput] = useState("");
@@ -159,7 +159,36 @@ export function N8nFloatingWidget() {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" });
   }, [messages, open]);
 
+  useEffect(() => {
+    if (typeof document === "undefined") {
+      return;
+    }
+    const style = document.createElement("style");
+    style.textContent = "@keyframes n8n-typing {0%,80%,100%{opacity:0.25;transform:translateY(0);}40%{opacity:1;transform:translateY(-3px);}}";
+    document.head.appendChild(style);
+    return () => {
+      document.head.removeChild(style);
+    };
+  }, []);
+
+  const getTypingDotStyle = (index: number): CSSProperties => ({
+    backgroundColor: "currentColor",
+    opacity: 0.55,
+    animation: "n8n-typing 1.2s ease-in-out infinite",
+    animationDelay: `${index * 0.18}s`,
+  });
+
+  const TypingIndicator = () => (
+    <div className="flex items-center gap-1" aria-label="Assistente digitando">
+      {[0, 1, 2].map((index) => (
+        <span key={index} className="h-2.5 w-2.5 rounded-full" style={getTypingDotStyle(index)} />
+      ))}
+    </div>
+  );
+
   const hasMessages = messages.length > 0;
+  const avatarSrc = "/images/chat/tais.png";
+  const avatarAlt = "Tais, colaboradora virtual";
 
   const handleSuggestionClick = async (value: string) => {
     setInput(value);
@@ -190,7 +219,7 @@ export function N8nFloatingWidget() {
     const placeholder: ChatMessage = {
       id: uuidv4(),
       role: "assistant",
-      text: "…",
+      text: "",
       pending: true,
     };
 
@@ -225,7 +254,7 @@ export function N8nFloatingWidget() {
       const reply = extractReply(payload);
 
       if (!reply) {
-        console.warn("[chat] webhook respondeu sem texto útil", payload);
+        console.warn("[chat] webhook respondeu sem texto util", payload);
         setMessages((prev) =>
           prev.map((msg) =>
             msg.pending
@@ -267,7 +296,7 @@ export function N8nFloatingWidget() {
                 ...msg,
                 pending: false,
                 error: true,
-                text: "Não foi possível obter uma resposta. Tente novamente.",
+                text: "Nao foi possivel obter uma resposta. Tente novamente.",
               }
             : msg,
         ),
@@ -290,12 +319,10 @@ export function N8nFloatingWidget() {
             isUser ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground",
           )}
         >
-          <p className={cn(message.error && "text-destructive")}>{message.text}</p>
-          {message.pending && (
-            <div className="mt-1 flex items-center gap-1 text-xs opacity-60">
-              <Loader2 className="h-3 w-3 animate-spin" />
-              <span>digitando…</span>
-            </div>
+          {message.pending ? (
+            <TypingIndicator />
+          ) : (
+            <p className={cn(message.error && "text-destructive")}>{message.text}</p>
           )}
         </div>
       </div>
@@ -327,12 +354,20 @@ export function N8nFloatingWidget() {
       {open && (
         <div className="pointer-events-auto w-[min(420px,calc(100vw-3rem))] max-w-full">
           <div className="flex h-[560px] flex-col overflow-hidden rounded-3xl border border-border bg-card shadow-2xl shadow-primary/15">
-            <div className="flex items-start justify-between gap-3 border-b border-border bg-background/90 px-4 py-3 backdrop-blur">
-              <div className="flex flex-col">
-                <span className="text-sm font-semibold text-foreground">Assistente DAM</span>
-                <span className="text-xs text-muted-foreground">
-                  Converse com o time virtual em tempo real.
+            <div className="flex items-center justify-between gap-3 border-b border-border bg-background/90 px-4 py-3 backdrop-blur">
+              <div className="flex items-center gap-3">
+                <span className="relative inline-flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary/20 ring-4 ring-primary/10">
+                  <img
+                    src={avatarSrc}
+                    alt={avatarAlt}
+                    className="h-full w-full object-cover"
+                    loading="lazy"
+                  />
                 </span>
+                <div className="flex flex-col">
+                  <span className="text-sm font-semibold text-foreground">Tais</span>
+                  <span className="text-xs text-muted-foreground">Colaboradora Virtual</span>
+                </div>
               </div>
               <div className="flex items-center gap-2">
                 <span className="flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-medium text-emerald-500">
@@ -372,26 +407,28 @@ export function N8nFloatingWidget() {
                   {error}
                 </div>
               )}
-              <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-                <Textarea
-                  value={input}
-                  onChange={(event) => setInput(event.target.value)}
-                  placeholder="Digite a sua mensagem..."
-                  rows={2}
-                  disabled={loading}
-                  className="resize-none"
-                />
-                <div className="flex items-center justify-between">
-                  <div className="text-xs text-muted-foreground">
-                    {loading ? "Obtendo resposta..." : "Tempo médio de resposta em segundos."}
-                  </div>
+              <form onSubmit={handleSubmit} className="flex flex-col gap-2">
+                <div className="relative flex-1">
+                  <Textarea
+                    value={input}
+                    onChange={(event) => setInput(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
+                        event.preventDefault();
+                        void handleSend();
+                      }
+                    }}
+                    placeholder="Digite a sua mensagem..."
+                    rows={2}
+                    className="min-h-[52px] max-h-[160px] resize-none pr-16"
+                  />
                   <Button
                     type="submit"
                     disabled={loading || input.trim().length === 0}
-                    className="gap-2"
+                    className="absolute right-2 top-1/2 flex h-10 w-10 -translate-y-1/2 transform items-center justify-center rounded-xl p-0"
                   >
-                    {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                    Enviar
+                    {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
+                    <span className="sr-only">Enviar mensagem</span>
                   </Button>
                 </div>
               </form>
@@ -403,12 +440,17 @@ export function N8nFloatingWidget() {
       {!open && (
         <Button
           size="icon"
-          className="pointer-events-auto h-14 w-14 rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/30 transition hover:scale-105"
+          className="pointer-events-auto h-16 w-16 overflow-hidden rounded-full bg-primary/10 text-primary-foreground shadow-lg shadow-primary/30 transition hover:scale-105"
           aria-expanded={open}
           aria-label="Abrir assistente virtual"
           onClick={() => setOpen(true)}
         >
-          <MessageCircle className="h-6 w-6" />
+          <img
+            src={avatarSrc}
+            alt={avatarAlt}
+            className="h-full w-full object-cover"
+            loading="lazy"
+          />
         </Button>
       )}
     </div>

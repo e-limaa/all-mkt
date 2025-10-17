@@ -18,6 +18,7 @@ import { Card, CardContent } from './components/ui/card';
 import { Alert, AlertDescription } from './components/ui/alert';
 import { ShieldX, AlertTriangle, BellOff, MailX } from 'lucide-react';
 import { isSupabaseConfigured } from './lib/supabase';
+import N8nFloatingWidget from './components/chat/N8nFloatingWidget';
 
 interface MaterialFilters {
   categoryType?: 'campaign' | 'project';
@@ -359,10 +360,12 @@ export default function App() {
 
 function AppFrame() {
   const { systemSettings } = useConfig();
+  const { user } = useAuth();
 
   return (
     <div className="h-screen bg-background text-foreground">
       <AppContent />
+      {user ? <N8nFloatingWidget /> : null}
       {systemSettings.systemNotifications && <Toaster />}
     </div>
   );
