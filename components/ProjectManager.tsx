@@ -86,6 +86,21 @@ const getStatusBadge = (status: string) => {
   return badges[status as keyof typeof badges] || badges["em-desenvolvimento"];
 };
 
+const normalizeProjectStatus = (status?: string): Project["status"] => {
+  switch (status) {
+    case "breve-lancamento":
+      return "breve-lancamento";
+    case "lancamento":
+    case "vendas":
+    case "entregue":
+      return "lancamento";
+    case "vem-ai":
+    case "em-desenvolvimento":
+    default:
+      return "vem-ai";
+  }
+};
+
 interface ProjectManagerProps {
   onPageChange?: (page: string) => void;
   onNavigateToMaterials?: (projectId: string, projectName: string) => void;
@@ -168,15 +183,13 @@ export function ProjectManager({
       if (imageUrl && imageUrl.startsWith("blob:")) {
         imageUrl = "";
       }
+      const normalizedStatus = normalizeProjectStatus(projectData.projectPhase || projectData.status);
+
       const projectToCreate = {
         name: projectData.name || "",
         description: projectData.description || "",
         location: projectData.location || "",
-        status: "vem-ai" as
-          | "em-desenvolvimento"
-          | "lancamento"
-          | "vendas"
-          | "entregue",
+        status: normalizedStatus,
         color: projectData.color || "#3b82f6",
         image: imageUrl || "",
         created_by: userId,
@@ -196,24 +209,12 @@ export function ProjectManager({
       return;
     }
 
+    const normalizedStatus = normalizeProjectStatus(updatedProject.projectPhase || updatedProject.status);
+
     const updates = {
       ...updatedProject,
-      status: ((updatedProject.status as any) === "vem-ai"
-        ? "vem-ai"
-        : updatedProject.status === "em-desenvolvimento"
-        ? "em-desenvolvimento"
-        : updatedProject.status === "lancamento"
-        ? "lancamento"
-        : updatedProject.status === "vendas"
-        ? "vendas"
-        : updatedProject.status === "entregue"
-        ? "entregue"
-        : "vem-ai") as
-        | "vem-ai"
-        | "em-desenvolvimento"
-        | "lancamento"
-        | "vendas"
-        | "entregue",
+      status: normalizedStatus,
+      projectPhase: normalizedStatus,
       image: updatedProject.image || "",
     };
 
@@ -289,28 +290,18 @@ export function ProjectManager({
   };
 
   const getStats = () => {
-    const totalProjects = projectsWithImages.length; // Apenas com imagem
-    const totalProjectsIncomplete = projects.length - projectsWithImages.length; // Sem imagem
-    const inDevelopment = projectsWithImages.filter(
-      (p) => p.status === "em-desenvolvimento"
-    ).length;
-    const launching = projectsWithImages.filter(
-      (p) => p.status === "lancamento"
-    ).length;
-    const inSales = projectsWithImages.filter(
-      (p) => p.status === "vendas"
-    ).length;
-    const delivered = projectsWithImages.filter(
-      (p) => p.status === "entregue"
-    ).length;
+    const totalProjects = projectsWithImages.length;
+    const totalProjectsIncomplete = projects.length - projectsWithImages.length;
+    const awaiting = projectsWithImages.filter((p) => p.status === 'vem-ai').length;
+    const comingSoon = projectsWithImages.filter((p) => p.status === 'breve-lancamento').length;
+    const launching = projectsWithImages.filter((p) => p.status === 'lancamento').length;
 
     return {
       totalProjects,
       totalProjectsIncomplete,
-      inDevelopment,
+      awaiting,
+      comingSoon,
       launching,
-      inSales,
-      delivered,
     };
   };
 
@@ -408,7 +399,19 @@ export function ProjectManager({
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-foreground">
-              {stats.inDevelopment}
+              {stats.awaiting}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-card/50 backdrop-blur-sm border-border/50">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Breve Lançamento</CardTitle>
+            <Clock className="h-4 w-4 text-yellow-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-foreground">
+              {stats.comingSoon}
             </div>
           </CardContent>
         </Card>
@@ -421,30 +424,6 @@ export function ProjectManager({
           <CardContent>
             <div className="text-2xl font-bold text-foreground">
               {stats.launching}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-card/50 backdrop-blur-sm border-border/50">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Em Vendas</CardTitle>
-            <Home className="h-4 w-4 text-yellow-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-foreground">
-              {stats.inSales}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-card/50 backdrop-blur-sm border-border/50">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Entregues</CardTitle>
-            <CheckCircle className="h-4 w-4 text-red-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-foreground">
-              {stats.delivered}
             </div>
           </CardContent>
         </Card>
@@ -834,15 +813,13 @@ function ProjectForm({
       return;
     }
 
+    const statusToPersist = normalizeProjectStatus(formData.projectPhase || formData.status);
+
     onSubmit(
       {
         ...formData,
-        status: "vem-ai" as
-          | "em-desenvolvimento"
-          | "lancamento"
-          | "vendas"
-          | "entregue",
-        projectPhase: (formData.projectPhase || undefined) as Project["projectPhase"] | undefined,
+        status: statusToPersist,
+        projectPhase: statusToPersist,
         image: formData.image || "",
       },
       imageFile || undefined
@@ -918,7 +895,11 @@ function ProjectForm({
           <Select
             value={formData.projectPhase}
             onValueChange={(value) =>
-              setFormData({ ...formData, projectPhase: value })
+              setFormData((prev) => ({
+                ...prev,
+                projectPhase: value,
+                status: value as Project["status"],
+              }))
             }
           >
             <SelectTrigger

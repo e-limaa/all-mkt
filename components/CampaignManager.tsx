@@ -39,7 +39,6 @@ import { formatDate } from '../utils/format';
 import { useAssets } from '../contexts/AssetContext';
 import { usePermissions } from '../contexts/hooks/usePermissions';
 import { Permission } from '../types/enums';
-import { useAuth } from '../contexts/AuthContext';
 
 const getStatusBadge = (status: string) => {
   const badges = {
@@ -58,7 +57,6 @@ interface CampaignManagerProps {
 export function CampaignManager({ onNavigateToMaterials }: CampaignManagerProps) {
   const { campaigns, assets, createCampaign, updateCampaign, deleteCampaign } = useAssets();
   const { hasPermission, isViewer } = usePermissions();
-  const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -90,7 +88,7 @@ export function CampaignManager({ onNavigateToMaterials }: CampaignManagerProps)
         endDate: campaignData.endDate,
         status: (campaignData.status || 'inactive') as Campaign['status'],
         tags: campaignData.tags || [],
-        createdBy: user?.id || 'system'
+        color: campaignData.color || '#E4002B'
       });
       setIsCreateOpen(false);
     } catch (error) {
@@ -157,8 +155,9 @@ export function CampaignManager({ onNavigateToMaterials }: CampaignManagerProps)
     const activeCampaigns = campaigns.filter(c => c.status === 'active').length;
     const scheduledCampaigns = campaigns.filter(c => c.status === 'inactive').length;
     const archivedCampaigns = campaigns.filter(c => c.status === 'archived').length;
+    const expiringCampaigns = campaigns.filter(c => c.status === 'expiring').length;
     
-    return { totalCampaigns, activeCampaigns, scheduledCampaigns, archivedCampaigns };
+    return { totalCampaigns, activeCampaigns, scheduledCampaigns, archivedCampaigns, expiringCampaigns };
   };
 
   const stats = getStats();

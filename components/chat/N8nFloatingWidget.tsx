@@ -148,7 +148,7 @@ export function N8nFloatingWidget() {
   const [suggestions, setSuggestions] = useState<string[]>([]);
 
   const listRef = useRef<HTMLDivElement>(null);
-  const userIdRef = useRef<string>();
+  const userIdRef = useRef<string | undefined>(undefined);
   const threadIdRef = useRef<string>(uuidv4());
 
   useEffect(() => {

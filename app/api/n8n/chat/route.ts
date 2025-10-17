@@ -1,6 +1,6 @@
 ﻿import { NextResponse } from "next/server";
 
-export const runtime = "edge";
+export const runtime = "nodejs";
 
 const WEBHOOK_URL = process.env.N8N_WEBHOOK_URL;
 const WEBHOOK_SECRET = process.env.N8N_WEBHOOK_SECRET;

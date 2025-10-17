@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, FormEvent, useEffect } from 'react';
+import { useState, FormEvent, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Loader2, LogIn, MailCheck } from 'lucide-react';
+import type { Session } from '@supabase/supabase-js';
 import { AuthSplitLayout } from '@/components/auth/AuthSplitLayout';
 import { type LoginHeroProps } from '@/components/auth/LoginHero';
 import { loginHeroLayoutOverrides } from '@/components/auth/login-layout';
@@ -22,7 +23,7 @@ import { PasswordInput } from '@/components/ui/password-input';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
-export default function LoginPage() {
+function LoginPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectedFrom = searchParams?.get('redirectedFrom') ?? null;
@@ -76,7 +77,7 @@ export default function LoginPage() {
         return;
       }
 
-      let activeSession = signInData.session;
+      let activeSession: Session | null = signInData.session;
       let attempts = 0;
       while (!activeSession && attempts < 5) {
         const { data: sessionData } = await supabase.auth.getSession();
@@ -250,7 +251,7 @@ export default function LoginPage() {
 
           <div className="space-y-2 pt-4 text-center text-xs text-white/40">
             <p>Sistema de gestao digital de ativos imobiliarios</p>
-            <p>Dica: Use qualquer email valido com senha "123456" para testar integracoes internas.</p>
+            <p>Dica: Use qualquer email valido com senha &quot;123456&quot; para testar integracoes internas.</p>
           </div>
         </>
       ) : (
@@ -327,5 +328,13 @@ export default function LoginPage() {
         </>
       )}
     </AuthSplitLayout>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginPageContent />
+    </Suspense>
   );
 }

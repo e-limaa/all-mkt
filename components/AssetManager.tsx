@@ -654,7 +654,9 @@ export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCa
     const startUpload = async (newItem: UploadItem) => {
       markItem(newItem.id, { status: 'uploading', progress: 0, error: undefined });
 
-      if (!supabase || !supabaseUrl) {
+      const supabaseClient = supabase;
+
+      if (!supabaseClient || !supabaseUrl) {
         setTimeout(() => {
           markItem(newItem.id, {
             status: 'success',
@@ -712,7 +714,7 @@ export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCa
 
           if (xhr.status >= 200 && xhr.status < 300) {
             trackTempPath(tempPath);
-            const { data } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(tempPath);
+            const { data } = supabaseClient.storage.from(STORAGE_BUCKET).getPublicUrl(tempPath);
             markItem(newItem.id, {
               status: 'success',
               progress: 100,

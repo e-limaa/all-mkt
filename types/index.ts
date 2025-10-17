@@ -32,7 +32,7 @@ export interface Project {
   name: string;
   description?: string;
   location: string;
-  status: 'em-desenvolvimento' | 'lancamento' | 'vendas' | 'entregue';
+  status: 'vem-ai' | 'breve-lancamento' | 'lancamento';
   launchDate?: string;
   color: string;
   image: string;
