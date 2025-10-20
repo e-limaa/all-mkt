@@ -38,7 +38,7 @@ const nextConfig = {
             value: [
               "default-src 'self'",
               "script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' 'inline-speculation-rules'",
-              "connect-src 'self' https://*.supabase.co",
+              "connect-src 'self' https://*.supabase.co wss://*.supabase.co",
               "img-src 'self' blob: data: https://*.supabase.co https://images.unsplash.com https://sample-videos.com",
               "media-src 'self' blob: data: https://*.supabase.co",
               "style-src 'self' 'unsafe-inline'",
