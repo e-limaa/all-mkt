@@ -1,24 +1,15 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { Toaster } from './components/ui/sonner';
 import { ConfigProvider, useConfig } from './contexts/ConfigContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { AssetProvider } from './contexts/AssetContext';
 import { LoginScreen } from './components/LoginScreen';
-import { AppLayout } from './components/AppLayout';
-import { Dashboard } from './components/Dashboard';
-import { AssetManager } from './components/AssetManager';
-import { CampaignManager } from './components/CampaignManager';
-import { ProjectManager } from './components/ProjectManager';
-import { UserManager } from './components/UserManager';
-import { SharedLinksManager } from './components/SharedLinksManager';
-import { Settings } from './components/Settings';
 import { PermissionGuard, usePermissions } from './contexts/hooks/usePermissions';
 import { Permission } from './types/enums';
 import { Card, CardContent } from './components/ui/card';
 import { Alert, AlertDescription } from './components/ui/alert';
 import { ShieldX, AlertTriangle, BellOff, MailX } from 'lucide-react';
 import { isSupabaseConfigured } from './lib/supabase';
-import N8nFloatingWidget from './components/chat/N8nFloatingWidget';
 
 interface MaterialFilters {
   categoryType?: 'campaign' | 'project';
@@ -31,6 +22,44 @@ interface NavigationState {
   materialFilters?: MaterialFilters;
 }
 
+const AppLayout = lazy(() =>
+  import('./components/AppLayout').then((module) => ({ default: module.AppLayout })),
+);
+const Dashboard = lazy(() =>
+  import('./components/Dashboard').then((module) => ({ default: module.Dashboard })),
+);
+const AssetManager = lazy(() =>
+  import('./components/AssetManager').then((module) => ({ default: module.AssetManager })),
+);
+const CampaignManager = lazy(() =>
+  import('./components/CampaignManager').then((module) => ({ default: module.CampaignManager })),
+);
+const ProjectManager = lazy(() =>
+  import('./components/ProjectManager').then((module) => ({ default: module.ProjectManager })),
+);
+const UserManager = lazy(() =>
+  import('./components/UserManager').then((module) => ({ default: module.UserManager })),
+);
+const SharedLinksManager = lazy(() =>
+  import('./components/SharedLinksManager').then((module) => ({ default: module.SharedLinksManager })),
+);
+const Settings = lazy(() =>
+  import('./components/Settings').then((module) => ({ default: module.Settings })),
+);
+const N8nFloatingWidgetLazy = lazy(() => import('./components/chat/N8nFloatingWidget'));
+
+const SuspenseFallback = ({ message = 'Carregando interface...' }: { message?: string }) => (
+  <div className="flex min-h-[220px] items-center justify-center text-sm text-muted-foreground">
+    {message}
+  </div>
+);
+
+const FullScreenLoader = ({ message = 'Carregando...' }: { message?: string }) => (
+  <div className="flex min-h-[60vh] items-center justify-center text-base text-muted-foreground">
+    {message}
+  </div>
+);
+
 // Access Denied Component
 function AccessDenied() {
   return (
@@ -40,7 +69,7 @@ function AccessDenied() {
           <ShieldX className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
           <h2 className="text-xl font-semibold mb-2">Acesso Negado</h2>
           <p className="text-muted-foreground">
-            Você não possui permissão para acessar esta página. Entre em contato com o administrador do sistema.
+            VocÃª nÃ£o possui permissÃ£o para acessar esta pÃ¡gina. Entre em contato com o administrador do sistema.
           </p>
         </CardContent>
       </Card>
@@ -62,8 +91,8 @@ function DevelopmentModeAlert() {
     <Alert className="border-yellow-500/50 bg-yellow-500/10 mb-6">
       <AlertTriangle className="h-4 w-4 text-yellow-500" />
       <AlertDescription className="text-yellow-200">
-        <strong>Configuração obrigatória:</strong> não foi possível acessar o Supabase. 
-        Verifique as variáveis de ambiente e reinicie o aplicativo para continuar.
+        <strong>ConfiguraÃ§Ã£o obrigatÃ³ria:</strong> nÃ£o foi possÃ­vel acessar o Supabase. 
+        Verifique as variÃ¡veis de ambiente e reinicie o aplicativo para continuar.
       </AlertDescription>
     </Alert>
   );
@@ -101,20 +130,7 @@ function AppContent() {
   }, [user, isViewer, navigationState.page]);
 
   if (authLoading) {
-    return (
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: '60vh',
-          color: '#94a3b8',
-          fontSize: '1rem',
-        }}
-      >
-        Carregando sessão…
-      </div>
-    );
+    return <FullScreenLoader message={'Carregando sessao...'} />;
   }
 
   if (!user) {
@@ -125,7 +141,7 @@ function AppContent() {
           <Alert className="border-yellow-500/40 bg-yellow-500/10 mb-4">
             <MailX className="h-4 w-4 text-yellow-500" />
             <AlertDescription className="text-yellow-100">
-              Notificações por email estão desativadas pelo administrador.
+              NotificaÃ§Ãµes por email estÃ£o desativadas pelo administrador.
             </AlertDescription>
           </Alert>
         )}
@@ -185,7 +201,7 @@ function AppContent() {
                 <Alert className="border-blue-500/40 bg-blue-500/10 mb-4">
                   <MailX className="h-4 w-4 text-blue-200" />
                   <AlertDescription className="text-blue-100">
-                    Emails automáticos estão desativados. Ative-os nas Configurações para avisos de upload e compartilhamento.
+                    Emails automÃ¡ticos estÃ£o desativados. Ative-os nas ConfiguraÃ§Ãµes para avisos de upload e compartilhamento.
                   </AlertDescription>
                 </Alert>
               )}
@@ -193,7 +209,7 @@ function AppContent() {
                 <Alert className="border-red-500/40 bg-red-500/10 mb-4">
                   <BellOff className="h-4 w-4 text-red-300" />
                   <AlertDescription className="text-red-200">
-                    Alertas do sistema estão desativados. Nenhum aviso será exibido aos usuários.
+                    Alertas do sistema estÃ£o desativados. Nenhum aviso serÃ¡ exibido aos usuÃ¡rios.
                   </AlertDescription>
                 </Alert>
               )}
@@ -288,7 +304,7 @@ function AppContent() {
                 <Alert className="border-blue-500/40 bg-blue-500/10 mb-4">
                   <MailX className="h-4 w-4 text-blue-200" />
                   <AlertDescription className="text-blue-100">
-                    O envio de emails automáticos está desativado. Atualize esta configuração para reativar convites e avisos.
+                    O envio de emails automÃ¡ticos estÃ¡ desativado. Atualize esta configuraÃ§Ã£o para reativar convites e avisos.
                   </AlertDescription>
                 </Alert>
               )}
@@ -296,7 +312,7 @@ function AppContent() {
                 <Alert className="border-red-500/40 bg-red-500/10 mb-4">
                   <BellOff className="h-4 w-4 text-red-300" />
                   <AlertDescription className="text-red-200">
-                    Alertas na interface estão desativados. Toques de sucesso ou erro não serão exibidos aos usuários.
+                    Alertas na interface estÃ£o desativados. Toques de sucesso ou erro nÃ£o serÃ£o exibidos aos usuÃ¡rios.
                   </AlertDescription>
                 </Alert>
               )}
@@ -306,7 +322,7 @@ function AppContent() {
         );
         
       default:
-        // Para visualizadores, redirecionar para materiais ao invés do dashboard
+        // Para visualizadores, redirecionar para materiais ao invÃ©s do dashboard
         if (isViewer()) {
           return (
             <PermissionGuard 
@@ -339,11 +355,17 @@ function AppContent() {
     }
   };
 
+  const pageContent = renderPage();
+
   return (
     <AssetProvider>
-      <AppLayout currentPage={navigationState.page} onPageChange={handlePageChange}>
-        {renderPage()}
-      </AppLayout>
+      <Suspense fallback={<FullScreenLoader message="Preparando layout..." />}>
+        <AppLayout currentPage={navigationState.page} onPageChange={handlePageChange}>
+          <Suspense fallback={<SuspenseFallback message="Carregando conteÃºdo..." />}>
+            {pageContent}
+          </Suspense>
+        </AppLayout>
+      </Suspense>
     </AssetProvider>
   );
 }
@@ -365,7 +387,11 @@ function AppFrame() {
   return (
     <div className="h-screen bg-background text-foreground">
       <AppContent />
-      {user ? <N8nFloatingWidget /> : null}
+      {user ? (
+        <Suspense fallback={null}>
+          <N8nFloatingWidgetLazy />
+        </Suspense>
+      ) : null}
       {systemSettings.systemNotifications && <Toaster />}
     </div>
   );

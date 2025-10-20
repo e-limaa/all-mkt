@@ -323,6 +323,18 @@ export function AssetProvider({ children }: { children: ReactNode }) {
 
 
       setCampaigns(transformedCampaigns);
+      const campaignNameMap = new Map(transformedCampaigns.map(item => [item.id, item.name]));
+      setAssets(prev =>
+        prev.map(asset => {
+          if (asset.categoryType === 'campaign' && asset.categoryId) {
+            const updatedName = campaignNameMap.get(asset.categoryId);
+            if (updatedName && asset.categoryName !== updatedName) {
+              return { ...asset, categoryName: updatedName };
+            }
+          }
+          return asset;
+        }),
+      );
     } catch (error) {
       console.error('Error fetching campaigns:', error);
       toast.error('Erro ao carregar campanhas');
@@ -358,6 +370,18 @@ export function AssetProvider({ children }: { children: ReactNode }) {
       }));
 
       setProjects(transformedProjects);
+      const projectNameMap = new Map(transformedProjects.map(item => [item.id, item.name]));
+      setAssets(prev =>
+        prev.map(asset => {
+          if (asset.categoryType === 'project' && asset.categoryId) {
+            const updatedName = projectNameMap.get(asset.categoryId);
+            if (updatedName && asset.categoryName !== updatedName) {
+              return { ...asset, categoryName: updatedName };
+            }
+          }
+          return asset;
+        }),
+      );
     } catch (error) {
       console.error('Error fetching projects:', error);
       toast.error('Erro ao carregar projetos');

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { User as SupabaseUser, Session } from '@supabase/supabase-js';
 import { Database } from '../types/supabase';
@@ -42,6 +42,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSession(null);
   };
 
+  const fetchUserProfile = useCallback(async (userId: string) => {
+    if (!supabase) return null;
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', userId)
+        .single();
+      if (error) throw error;
+      setUser(data);
+      return data;
+    } catch (error) {
+      console.error('[Auth] Erro ao buscar perfil do usuário:', error);
+      toast.error('Erro ao carregar perfil do usuário');
+      setUser(null);
+      return null;
+    }
+  }, []);
+
   const purgeStoredSession = () => {
     if (typeof window === 'undefined') return;
     try {
@@ -56,61 +75,87 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    if (!isConfigured) {
-      console.error('[Auth] Supabase não configurado. Verifique suas variáveis de ambiente.');
-      setLoading(false);
-      return;
-    }
+    let cancelled = false;
+
+    const initialize = async () => {
+      if (!isConfigured) {
+        console.error('[Auth] Supabase não configurado. Verifique suas variáveis de ambiente.');
+        setLoading(false);
+        return;
+      }
+
+      if (!supabase) {
+        setLoading(false);
+        return;
+      }
+
+      setLoading(true);
+
+      try {
+        const { data, error } = await supabase.auth.getSession();
+
+        if (error) throw error;
+
+        if (cancelled) return;
+
+        const session = data.session ?? null;
+        setSession(session);
+        setSupabaseUser(session?.user ?? null);
+
+        if (session?.user) {
+          await fetchUserProfile(session.user.id);
+        } else {
+          clearAuthState();
+        }
+      } catch (error) {
+        console.error('[Auth] Falha ao recuperar sessão atual.', error);
+        clearAuthState();
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    };
+
+    initialize();
 
     if (!supabase) {
-      setLoading(false);
-      return;
+      return () => {
+        cancelled = true;
+      };
     }
-
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setSupabaseUser(session?.user ?? null);
-      if (session?.user) {
-        fetchUserProfile(session.user.id);
-      } else {
-        setLoading(false);
-      }
-    });
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      setSession(session);
+      if (cancelled) return;
+
+      setSession(session ?? null);
       setSupabaseUser(session?.user ?? null);
 
       if (session?.user) {
-        await fetchUserProfile(session.user.id);
+        setLoading(true);
+        try {
+          await fetchUserProfile(session.user.id);
+        } finally {
+          if (!cancelled) {
+            setLoading(false);
+          }
+        }
       } else {
         clearAuthState();
         setLoading(false);
       }
     });
 
-    return () => subscription.unsubscribe();
-  }, [isConfigured]);
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+    };
+  }, [isConfigured, fetchUserProfile]);
 
-  const fetchUserProfile = async (userId: string) => {
-    if (!supabase) return;
-    try {
-      const { data, error } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', userId)
-        .single();
-      if (error) throw error;
-      setUser(data);
-    } catch (error) {
-      console.error('[Auth] Erro ao buscar perfil do usuário:', error);
-      toast.error('Erro ao carregar perfil do usuário');
-    } finally {
-      setLoading(false);
-    }
-  };
+
+  
 
   const ensureConfigured = () => {
     if (!isConfigured || !supabase) {

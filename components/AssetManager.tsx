@@ -122,11 +122,17 @@ export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCa
       filtered = filtered.filter(asset =>
         asset.name.toLowerCase().includes(query) ||
         asset.description?.toLowerCase().includes(query) ||
-        asset.tags.some(tag => tag.toLowerCase().includes(query))
+        asset.tags.some(tag => tag.toLowerCase().includes(query)) ||
+        getCategoryName(asset).toLowerCase().includes(query)
       );
     }
     
-    setFilteredAssets(filtered);
+    const decorated = filtered.map(asset => ({
+      ...asset,
+      categoryName: getCategoryName(asset),
+    }));
+    
+    setFilteredAssets(decorated);
   };
 
   // Apply initial filters when component loads or assets change
@@ -149,6 +155,21 @@ export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCa
   useEffect(() => {
     applyFilters();
   }, [searchFilters]);
+
+  useEffect(() => {
+    if (!viewingAsset) return;
+    const updated = assets.find(asset => asset.id === viewingAsset.id);
+    if (
+      updated &&
+      (updated !== viewingAsset) &&
+      (updated.name !== viewingAsset.name ||
+        updated.categoryName !== viewingAsset.categoryName ||
+        updated.categoryId !== viewingAsset.categoryId ||
+        updated.categoryType !== viewingAsset.categoryType)
+    ) {
+      setViewingAsset(updated);
+    }
+  }, [assets, viewingAsset]);
 
   const getTypeIcon = (type: string) => {
     switch (type) {
@@ -440,20 +461,19 @@ export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCa
   };
 
   const getCategoryName = (asset: Asset) => {
-    // Primeiro tenta usar categoryName diretamente se existir
-    if (asset.categoryName) {
-      return asset.categoryName;
-    }
-    
-    // Fallback: buscar pelo categoryType e categoryId
+    // Prioridade: utilizar os dados mais recentes das coleções carregadas
     if (asset.categoryType === 'project' && asset.categoryId) {
       const project = projects.find(p => p.id === asset.categoryId);
-      return project?.name || 'Projeto';
+      if (project?.name) {
+        return project.name;
+      }
     }
     
     if (asset.categoryType === 'campaign' && asset.categoryId) {
       const campaign = campaigns.find(c => c.id === asset.categoryId);
-      return campaign?.name || 'Campanha';
+      if (campaign?.name) {
+        return campaign.name;
+      }
     }
     
     // Compatibilidade com estrutura antiga
@@ -465,6 +485,10 @@ export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCa
     if (asset.campaignId) {
       const campaign = campaigns.find(c => c.id === asset.campaignId);
       return campaign?.name || 'Campanha';
+    }
+    
+    if (asset.categoryName) {
+      return asset.categoryName;
     }
     
     return 'Sem categoria';
@@ -485,7 +509,11 @@ export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCa
 
   // Determine if we're viewing filtered materials by project/campaign
   const isFiltered = initialFilters?.categoryType && initialFilters?.categoryId;
-  const filterTitle = isFiltered ? initialFilters?.categoryName : null;
+  const filterTitle = isFiltered
+    ? initialFilters?.categoryType === 'project'
+      ? projects.find(p => p.id === initialFilters?.categoryId)?.name ?? initialFilters?.categoryName ?? null
+      : campaigns.find(c => c.id === initialFilters?.categoryId)?.name ?? initialFilters?.categoryName ?? null
+    : null;
 
   // Determine which back function to use
   const backFunction = onBackToProjects || onBackToCampaigns;
@@ -1206,7 +1234,7 @@ export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCa
               )}
               <h1 className="flex items-center gap-3 text-[16px]">
                 <FolderOpen className="w-8 h-8 text-primary" />
-                {isFiltered ? `Materiais - ${filterTitle}` : 'Gerenciamento de Materiais'}
+                {isFiltered ? `Materiais - ${filterTitle ?? 'Categoria'}` : 'Gerenciamento de Materiais'}
               </h1>
             </div>
             <p className="text-muted-foreground mt-1">
@@ -1252,7 +1280,7 @@ export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCa
             <Filter className="h-4 w-4 text-blue-500" />
             <AlertDescription className="flex items-center justify-between">
               <span className="text-blue-200">
-                Exibindo apenas materiais de <strong>{filterTitle}</strong> ({filteredAssets.length} item{filteredAssets.length !== 1 ? 's' : ''})
+                Exibindo apenas materiais de <strong>{filterTitle ?? 'Categoria'}</strong> ({filteredAssets.length} item{filteredAssets.length !== 1 ? 's' : ''})
               </span>
               {!isFiltered && (
                 <Button
@@ -1681,7 +1709,7 @@ export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCa
               </h3>
               <p className="text-muted-foreground mb-4">
                 {searchFilters.query ? 'Tente ajustar sua pesquisa' : 
-                 isFiltered ? `Envie materiais para ${filterTitle}` : 'Envie seus primeiros materiais'}
+                 isFiltered ? `Envie materiais para ${filterTitle ?? 'essa categoria'}` : 'Envie seus primeiros materiais'}
               </p>
               
               <PermissionGuard 
