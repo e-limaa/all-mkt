@@ -47,7 +47,7 @@ export const supabase = hasValidConfig
     })
   : null;
 
-export { supabaseUrl };
+export { supabaseUrl, supabaseAnonKey };
 
 export const isSupabaseConfigured = () => {
   const env = getSupabaseEnv();
