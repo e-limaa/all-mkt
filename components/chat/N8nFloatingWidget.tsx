@@ -1,9 +1,9 @@
 /* eslint-disable @typescript-eslint/no-misused-promises */
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { v4 as uuidv4 } from "uuid";
-import { MessageCircle, Send, Loader2, X } from "lucide-react";
+import { MessageCircle, Send, Loader2, X, Download } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -47,6 +47,8 @@ function ensureUserId(): string {
 
 const REPLY_KEYS = ["reply", "message", "text", "response", "output"];
 const SUGGESTION_KEYS = ["suggestions", "hints", "options"];
+const BULLETED_FOLLOW_UP_REGEX = /\bQuer que\b/i;
+const URL_REGEX = /(https?:\/\/[^\s]+)/g;
 
 function findFirstReply(value: unknown): string | null {
   if (!value) return null;
@@ -126,6 +128,58 @@ function findSuggestions(value: unknown): string[] {
   return [];
 }
 
+const formatAssistantText = (text: string) => {
+  if (!text) return text;
+  if (!/\d+\.\s+/.test(text)) {
+    return text;
+  }
+
+  let result = text.replace(/\s*(\d+\.\s+)/g, "\n$1");
+  result = result.replace(/^\n+/, "");
+  result = result.replace(/\n{2,}/g, "\n");
+
+  if (BULLETED_FOLLOW_UP_REGEX.test(result)) {
+    result = result.replace(/\s+(Quer que)/i, "\n$1");
+  }
+
+  return result.trim();
+};
+
+const getFileNameFromUrl = (url: string) => {
+  try {
+    const parsed = new URL(url);
+    const segments = parsed.pathname.split("/").filter(Boolean);
+    const lastSegment = segments[segments.length - 1];
+    if (lastSegment) {
+      const decoded = decodeURIComponent(lastSegment);
+      if (decoded) {
+        return decoded;
+      }
+    }
+  } catch {
+    // ignore parsing issues
+  }
+  return "material";
+};
+
+const extractFileNameFromDisposition = (header: string | null) => {
+  if (!header) return null;
+  const filenameMatch = header.match(/filename\*?=(?:UTF-8'')?["']?([^"';]+)["']?/i);
+  if (filenameMatch?.[1]) {
+    try {
+      return decodeURIComponent(filenameMatch[1]);
+    } catch {
+      return filenameMatch[1];
+    }
+  }
+  return null;
+};
+
+const truncateLabel = (value: string, maxLength = 32) => {
+  if (value.length <= maxLength) return value;
+  return `${value.slice(0, maxLength - 3)}...`;
+};
+
 function extractSuggestions(payload: N8nResponse): string[] {
   if (Array.isArray(payload.suggestions) && payload.suggestions.length > 0) {
     return payload.suggestions.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
@@ -146,6 +200,99 @@ export function N8nFloatingWidget() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [downloadingUrl, setDownloadingUrl] = useState<string | null>(null);
+
+  const handleMaterialDownload = useCallback(
+    async (url: string) => {
+      if (!url) return;
+      try {
+        setError(null);
+        setDownloadingUrl(url);
+
+        const response = await fetch(url);
+        if (!response.ok) {
+          throw new Error(`Download failed with status ${response.status}`);
+        }
+
+        const blob = await response.blob();
+        const dispositionName = extractFileNameFromDisposition(response.headers.get("Content-Disposition"));
+        const fileName = dispositionName || getFileNameFromUrl(url);
+        const objectUrl = URL.createObjectURL(blob);
+
+        const tempLink = document.createElement("a");
+        tempLink.href = objectUrl;
+        tempLink.download = fileName;
+        document.body.appendChild(tempLink);
+        tempLink.click();
+        tempLink.remove();
+        URL.revokeObjectURL(objectUrl);
+      } catch (downloadError) {
+        console.error("[chat] Falha ao baixar material:", downloadError);
+        setError("Nao foi possivel baixar o arquivo. Tente novamente.");
+      } finally {
+        setDownloadingUrl(null);
+      }
+    },
+    [setError],
+  );
+
+  const renderDownloadButton = useCallback(
+    (url: string, key: string) => {
+      const label = truncateLabel(getFileNameFromUrl(url));
+      const isDownloading = downloadingUrl === url;
+      return (
+        <button
+          key={key}
+          type="button"
+          onClick={() => void handleMaterialDownload(url)}
+          className="ml-1 inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-1 text-xs font-semibold text-primary transition hover:bg-primary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+        >
+          {isDownloading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+          {isDownloading ? "Baixando..." : `Baixar ${label}`}
+        </button>
+      );
+    },
+    [downloadingUrl, handleMaterialDownload],
+  );
+
+  const renderAssistantContent = useCallback(
+    (text: string, isError?: boolean): ReactNode => {
+      const lines = text.split("\n");
+      return (
+        <div className={cn("space-y-1 text-left", isError && "text-destructive")}>
+          {lines.map((line, lineIndex) => {
+            if (!line.trim()) {
+              return <span key={lineIndex} className="block">&nbsp;</span>;
+            }
+
+            const segments: ReactNode[] = [];
+            let lastIndex = 0;
+
+            line.replace(URL_REGEX, (match, _p1, offset) => {
+              if (offset > lastIndex) {
+                segments.push(line.slice(lastIndex, offset));
+              }
+              const key = `${lineIndex}-${offset}`;
+              segments.push(renderDownloadButton(match, key));
+              lastIndex = offset + match.length;
+              return match;
+            });
+
+            if (lastIndex < line.length) {
+              segments.push(line.slice(lastIndex));
+            }
+
+            return (
+              <span key={lineIndex} className="block">
+                {segments}
+              </span>
+            );
+          })}
+        </div>
+      );
+    },
+    [renderDownloadButton],
+  );
 
   const listRef = useRef<HTMLDivElement>(null);
   const userIdRef = useRef<string | undefined>(undefined);
@@ -308,6 +455,17 @@ export function N8nFloatingWidget() {
 
   const renderMessage = (message: ChatMessage) => {
     const isUser = message.role === "user";
+    const displayText = isUser ? message.text : formatAssistantText(message.text);
+
+    let content: ReactNode;
+    if (message.pending) {
+      content = <TypingIndicator />;
+    } else if (isUser) {
+      content = <p className={cn(message.error && "text-destructive")}>{displayText}</p>;
+    } else {
+      content = renderAssistantContent(displayText, message.error);
+    }
+
     return (
       <div
         key={message.id}
@@ -319,11 +477,7 @@ export function N8nFloatingWidget() {
             isUser ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground",
           )}
         >
-          {message.pending ? (
-            <TypingIndicator />
-          ) : (
-            <p className={cn(message.error && "text-destructive")}>{message.text}</p>
-          )}
+          {content}
         </div>
       </div>
     );
