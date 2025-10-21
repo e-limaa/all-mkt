@@ -28,6 +28,9 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const SESSION_TIMEOUT_MS = 5000;
+const PROFILE_TIMEOUT_MS = 6000;
+
 const buildFallbackUser = (sessionUser: SupabaseUser): User => ({
   id: sessionUser.id,
   email: sessionUser.email ?? '',
@@ -64,15 +67,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!supabase) return null;
     try {
       console.log('[Auth] fetchUserProfile start', { userId });
-      const {
-        data: sessionData,
-        error: sessionError,
-      } = await supabase.auth.getSession();
+
+      let sessionResult: Awaited<ReturnType<typeof supabase.auth.getSession>>;
+      try {
+        sessionResult = await Promise.race([
+          supabase.auth.getSession(),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('getSession timeout')), SESSION_TIMEOUT_MS),
+          ),
+        ]) as Awaited<ReturnType<typeof supabase.auth.getSession>>;
+      } catch (error) {
+        console.error('[Auth] fetchUserProfile session fetch failed', { userId, error });
+        toast.error('Nao foi possivel validar a sessao do usuario.');
+        setUser(null);
+        return null;
+      }
+
+      const { data: sessionData, error: sessionError } = sessionResult;
+      if (sessionError) {
+        console.error('[Auth] fetchUserProfile session error', { userId, sessionError });
+        toast.error('Sessao do usuario invalida.');
+        setUser(null);
+        return null;
+      }
+
       console.log('[Auth] fetchUserProfile session result', {
         hasSession: Boolean(sessionData.session),
-        sessionError,
       });
-      if (sessionError) throw sessionError;
+
       const accessToken = sessionData.session?.access_token;
       if (!accessToken) {
         console.warn('[Auth] fetchUserProfile missing access token', { userId });
@@ -81,13 +103,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       const apiUrl = `${supabaseUrl}/rest/v1/users?id=eq.${userId}&select=*`;
-      const response = await fetch(apiUrl, {
-        headers: {
-          apikey: supabaseAnonKey,
-          Authorization: `Bearer ${accessToken}`,
-          Prefer: 'return=representation',
-        },
-      });
+      const controller = new AbortController();
+      const fetchTimeoutId = setTimeout(() => controller.abort(), PROFILE_TIMEOUT_MS);
+
+      let response: Response;
+      try {
+        response = await fetch(apiUrl, {
+          headers: {
+            apikey: supabaseAnonKey,
+            Authorization: `Bearer ${accessToken}`,
+            Prefer: 'return=representation',
+          },
+          signal: controller.signal,
+        });
+      } catch (error) {
+        clearTimeout(fetchTimeoutId);
+        if ((error as DOMException)?.name === 'AbortError') {
+          console.error('[Auth] fetchUserProfile fetch aborted by timeout', { userId });
+          toast.error('Tempo limite ao carregar o perfil do usuario.');
+        } else {
+          console.error('[Auth] fetchUserProfile fetch failed', { userId, error });
+          toast.error('Erro na requisicao de perfil do usuario.');
+        }
+        setUser(null);
+        return null;
+      } finally {
+        clearTimeout(fetchTimeoutId);
+      }
+
       console.log('[Auth] fetchUserProfile http status', {
         status: response.status,
         ok: response.ok,
