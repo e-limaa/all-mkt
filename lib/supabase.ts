@@ -47,6 +47,13 @@ export const supabase = hasValidConfig
     })
   : null;
 
+export { supabaseUrl, supabaseAnonKey };
+
+export const isSupabaseConfigured = () => {
+  const env = getSupabaseEnv();
+  return Boolean(env.url && env.anonKey && env.url.startsWith('https://'));
+};
+
 if (typeof window !== 'undefined') {
   const anonKeySnippet =
     supabaseAnonKey.length > 8
@@ -65,13 +72,6 @@ if (typeof window !== 'undefined') {
     anonKeySnippet,
   });
 }
-
-export { supabaseUrl, supabaseAnonKey };
-
-export const isSupabaseConfigured = () => {
-  const env = getSupabaseEnv();
-  return Boolean(env.url && env.anonKey && env.url.startsWith('https://'));
-};
 
 const getAbsoluteStorageUrl = (publicUrl: string): string => {
   if (publicUrl.startsWith('http')) {
