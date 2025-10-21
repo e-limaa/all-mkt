@@ -54,6 +54,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isConfigured = isSupabaseConfigured();
 
   const clearAuthState = () => {
+    console.log('[Auth] clearAuthState');
     setUser(null);
     setSupabaseUser(null);
     setSession(null);
@@ -68,10 +69,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .eq('id', userId)
         .single();
       if (error) throw error;
-      console.log('[Auth] fetchUserProfile success');
+      console.log('[Auth] fetchUserProfile success', { userId, hasData: Boolean(data) });
+      setUser(data);
       return data;
     } catch (error) {
-      console.error('[Auth] Erro ao buscar perfil do usuario:', error);
+      console.error('[Auth] fetchUserProfile error', { userId, error });
+      toast.error('Erro ao carregar perfil do usuário');
+      setUser(null);
       return null;
     }
   }, []);
@@ -81,11 +85,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const storageKey = (supabase as any)?.auth?.storageKey as string | undefined;
       if (storageKey) {
+        console.log('[Auth] purgeStoredSession removing', storageKey);
         window.localStorage.removeItem(storageKey);
         window.localStorage.removeItem(`${storageKey}-global`);
       }
     } catch (error) {
-      console.warn('[Auth] Nao foi possivel limpar a sessao armazenada localmente.', error);
+      console.warn('[Auth] purgeStoredSession error', error);
     }
   };
 
@@ -95,12 +100,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const initialize = async () => {
       console.log('[Auth] initialize start', { isConfigured, hasSupabase: Boolean(supabase) });
       if (!isConfigured) {
-        console.error('[Auth] Supabase nao configurado. Verifique suas variaveis de ambiente.');
+        console.error('[Auth] initialize aborted - supabase not configured');
         setLoading(false);
         return;
       }
 
       if (!supabase) {
+        console.error('[Auth] initialize aborted - supabase client missing');
         setLoading(false);
         return;
       }
@@ -114,23 +120,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (cancelled) return;
 
-        const session = data.session ?? null;
-        console.log('[Auth] getSession result', { hasSession: Boolean(session) });
-        setSession(session);
-        setSupabaseUser(session?.user ?? null);
+        const currentSession = data.session ?? null;
+        console.log('[Auth] getSession result', { hasSession: Boolean(currentSession) });
+        setSession(currentSession);
+        setSupabaseUser(currentSession?.user ?? null);
 
-        if (session?.user) {
-          const profile = await fetchUserProfile(session.user.id);
-          if (profile) {
-            setUser(profile);
-          } else {
-            setUser(buildFallbackUser(session.user));
+        if (currentSession?.user) {
+          console.log('[Auth] initialize refreshing profile', { userId: currentSession.user.id });
+          const profile = await fetchUserProfile(currentSession.user.id);
+          if (!profile) {
+            console.log('[Auth] initialize using fallback user');
+            setUser(buildFallbackUser(currentSession.user));
           }
         } else {
+          console.log('[Auth] initialize with no session user, clearing');
           clearAuthState();
         }
       } catch (error) {
-        console.error('[Auth] Falha ao recuperar sessao atual.', error);
+        console.error('[Auth] Falha ao recuperar sessão atual.', error);
         clearAuthState();
       } finally {
         if (!cancelled) {
@@ -149,21 +156,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      console.log('[Auth] onAuthStateChange', { event: _event, hasSession: Boolean(session) });
+    } = supabase.auth.onAuthStateChange(async (event, nextSession) => {
+      console.log('[Auth] onAuthStateChange', { event, hasSession: Boolean(nextSession) });
       if (cancelled) return;
 
-      setSession(session ?? null);
-      setSupabaseUser(session?.user ?? null);
+      setSession(nextSession ?? null);
+      setSupabaseUser(nextSession?.user ?? null);
 
-      if (session?.user) {
+      if (nextSession?.user) {
         setLoading(true);
         try {
-          const profile = await fetchUserProfile(session.user.id);
-          if (profile) {
-            setUser(profile);
-          } else {
-            setUser(buildFallbackUser(session.user));
+          console.log('[Auth] onAuthStateChange refreshing profile', { userId: nextSession.user.id });
+          const profile = await fetchUserProfile(nextSession.user.id);
+          if (!profile) {
+            console.log('[Auth] onAuthStateChange using fallback user');
+            setUser(buildFallbackUser(nextSession.user));
           }
         } finally {
           if (!cancelled) {
@@ -171,6 +178,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
         }
       } else {
+        console.log('[Auth] onAuthStateChange without user, clearing');
         clearAuthState();
         setLoading(false);
       }
@@ -184,7 +192,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const ensureConfigured = () => {
     if (!isConfigured || !supabase) {
-      const message = 'Supabase nao esta configurado. Configure as variaveis de ambiente.';
+      const message = 'Supabase não está configurado. Configure as variáveis de ambiente.';
+      console.error('[Auth] ensureConfigured failed');
       toast.error(message);
       throw new Error(message);
     }
@@ -198,16 +207,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { error } = await supabase!.auth.signInWithPassword({ email, password });
 
       if (error) throw error;
-      const currentSession = await supabase!.auth.getSession();
-      const currentUser = currentSession.data.session?.user ?? null;
-      if (currentUser) {
-        setSupabaseUser(currentUser);
-        setUser(buildFallbackUser(currentUser));
+      const current = supabase.auth.session()?.user ?? null;
+      console.log('[Auth] signIn success', { hasSupabaseSessionUser: Boolean(current) });
+      if (current) {
+        setSupabaseUser(current);
+        setUser(buildFallbackUser(current));
       }
       toast.success('Login realizado com sucesso!');
     } catch (error: any) {
+      console.error('[Auth] signIn error', error);
       const message = error.message === 'Invalid login credentials'
-        ? 'Email ou senha invalidos'
+        ? 'Email ou senha inválidos'
         : error.message;
       toast.error(message);
       throw error;
@@ -230,14 +240,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
 
       if (error) throw error;
-      const currentSession = await supabase!.auth.getSession();
-      const currentUser = currentSession.data.session?.user ?? null;
-      if (currentUser) {
-        setSupabaseUser(currentUser);
-        setUser(buildFallbackUser(currentUser));
+      const current = supabase.auth.session()?.user ?? null;
+      console.log('[Auth] signUp success', { hasSupabaseSessionUser: Boolean(current) });
+      if (current) {
+        setSupabaseUser(current);
+        setUser(buildFallbackUser(current));
       }
       toast.success('Conta criada com sucesso! Verifique seu email.');
     } catch (error: any) {
+      console.error('[Auth] signUp error', error);
       toast.error(error.message);
       throw error;
     } finally {
@@ -252,10 +263,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const { error } = await supabase!.auth.signOut({ scope: 'global' });
       if (error) throw error;
+      console.log('[Auth] signOut success');
       toast.success('Logout realizado com sucesso!');
     } catch (error: any) {
       console.error('[Auth] Falha ao realizar logout', error);
-      toast.error(error?.message ?? 'Nao foi possivel finalizar a sessao.');
+      toast.error(error?.message ?? 'Não foi possível finalizar a sessão.');
     } finally {
       purgeStoredSession();
       clearAuthState();
@@ -270,19 +282,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     avatarFile,
     removeAvatar,
   }: UpdateProfileOptions) => {
-    if (!user) throw new Error('Usuario nao encontrado');
+    if (!user) throw new Error('Usuário não encontrado');
 
     if (!isConfigured || !supabase) {
-      toast.error('Supabase nao esta configurado.');
-      throw new Error('Supabase nao configurado');
+      toast.error('Supabase não está configurado.');
+      throw new Error('Supabase não configurado');
     }
 
     const session = await supabase.auth.getSession();
     const accessToken = session.data.session?.access_token;
 
     if (!accessToken) {
-      toast.error('Sessao expirada. Faca login novamente.');
-      throw new Error('Sessao invalida');
+      toast.error('Sessão expirada. Faça login novamente.');
+      throw new Error('Sessão inválida');
     }
 
     let avatarPayload: { name: string; data: string } | undefined;
@@ -355,11 +367,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     if (error) {
+      console.error('[Auth] resetPassword error', error);
       toast.error(error.message);
       throw error;
     }
 
-    toast.success('Email de recuperacao enviado!');
+    console.log('[Auth] resetPassword success', { email });
+    toast.success('Email de recuperação enviado!');
   };
 
   const value = {
