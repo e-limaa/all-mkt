@@ -69,7 +69,7 @@ function AccessDenied() {
           <ShieldX className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
           <h2 className="text-xl font-semibold mb-2">Acesso Negado</h2>
           <p className="text-muted-foreground">
-            VocÃª nÃ£o possui permissÃ£o para acessar esta pÃ¡gina. Entre em contato com o administrador do sistema.
+            Você não possui permissão para acessar esta página. Entre em contato com o administrador do sistema.
           </p>
         </CardContent>
       </Card>
@@ -91,8 +91,8 @@ function DevelopmentModeAlert() {
     <Alert className="border-yellow-500/50 bg-yellow-500/10 mb-6">
       <AlertTriangle className="h-4 w-4 text-yellow-500" />
       <AlertDescription className="text-yellow-200">
-        <strong>ConfiguraÃ§Ã£o obrigatÃ³ria:</strong> nÃ£o foi possÃ­vel acessar o Supabase. 
-        Verifique as variÃ¡veis de ambiente e reinicie o aplicativo para continuar.
+        <strong>Configuração obrigatória:</strong> não foi possível acessar o Supabase. 
+        Verifique as variáveis de ambiente e reinicie o aplicativo para continuar.
       </AlertDescription>
     </Alert>
   );
@@ -141,7 +141,7 @@ function AppContent() {
           <Alert className="border-yellow-500/40 bg-yellow-500/10 mb-4">
             <MailX className="h-4 w-4 text-yellow-500" />
             <AlertDescription className="text-yellow-100">
-              NotificaÃ§Ãµes por email estÃ£o desativadas pelo administrador.
+              Notificações por email estão desativadas pelo administrador.
             </AlertDescription>
           </Alert>
         )}
@@ -201,7 +201,7 @@ function AppContent() {
                 <Alert className="border-blue-500/40 bg-blue-500/10 mb-4">
                   <MailX className="h-4 w-4 text-blue-200" />
                   <AlertDescription className="text-blue-100">
-                    Emails automÃ¡ticos estÃ£o desativados. Ative-os nas ConfiguraÃ§Ãµes para avisos de upload e compartilhamento.
+                    Emails automáticos estão desativados. Ative-os nas Configurações para avisos de upload e compartilhamento.
                   </AlertDescription>
                 </Alert>
               )}
@@ -209,7 +209,7 @@ function AppContent() {
                 <Alert className="border-red-500/40 bg-red-500/10 mb-4">
                   <BellOff className="h-4 w-4 text-red-300" />
                   <AlertDescription className="text-red-200">
-                    Alertas do sistema estÃ£o desativados. Nenhum aviso serÃ¡ exibido aos usuÃ¡rios.
+                    Alertas do sistema estão desativados. Nenhum aviso será exibido aos usuários.
                   </AlertDescription>
                 </Alert>
               )}
@@ -304,7 +304,7 @@ function AppContent() {
                 <Alert className="border-blue-500/40 bg-blue-500/10 mb-4">
                   <MailX className="h-4 w-4 text-blue-200" />
                   <AlertDescription className="text-blue-100">
-                    O envio de emails automÃ¡ticos estÃ¡ desativado. Atualize esta configuraÃ§Ã£o para reativar convites e avisos.
+                    O envio de emails automáticos está desativado. Atualize esta configuração para reativar convites e avisos.
                   </AlertDescription>
                 </Alert>
               )}
@@ -312,7 +312,7 @@ function AppContent() {
                 <Alert className="border-red-500/40 bg-red-500/10 mb-4">
                   <BellOff className="h-4 w-4 text-red-300" />
                   <AlertDescription className="text-red-200">
-                    Alertas na interface estÃ£o desativados. Toques de sucesso ou erro nÃ£o serÃ£o exibidos aos usuÃ¡rios.
+                    Alertas na interface estão desativados. Toques de sucesso ou erro não serão exibidos aos usuários.
                   </AlertDescription>
                 </Alert>
               )}
@@ -322,7 +322,7 @@ function AppContent() {
         );
         
       default:
-        // Para visualizadores, redirecionar para materiais ao invÃ©s do dashboard
+        // Para visualizadores, redirecionar para materiais ao invés do dashboard
         if (isViewer()) {
           return (
             <PermissionGuard 
@@ -361,7 +361,7 @@ function AppContent() {
     <AssetProvider>
       <Suspense fallback={<FullScreenLoader message="Preparando layout..." />}>
         <AppLayout currentPage={navigationState.page} onPageChange={handlePageChange}>
-          <Suspense fallback={<SuspenseFallback message="Carregando conteÃºdo..." />}>
+          <Suspense fallback={<SuspenseFallback message="Carregando conteúdo..." />}>
             {pageContent}
           </Suspense>
         </AppLayout>

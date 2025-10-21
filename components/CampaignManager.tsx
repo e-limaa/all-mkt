@@ -1,3 +1,4 @@
+﻿import { PageHeader } from './PageHeader';
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
@@ -66,6 +67,9 @@ export function CampaignManager({ onNavigateToMaterials }: CampaignManagerProps)
   const canCreateCampaigns = hasPermission(Permission.CREATE_CAMPAIGNS);
   const canEditCampaigns = hasPermission(Permission.EDIT_CAMPAIGNS);
   const canDeleteCampaigns = hasPermission(Permission.DELETE_CAMPAIGNS);
+  const headerDescription = isViewer()
+    ? 'Visualize campanhas e seus materiais'
+    : 'Gerencie campanhas e organize materiais por ações de marketing';
   
   const filteredCampaigns = campaigns.filter(campaign => {
     const matchesSearch = campaign.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -164,44 +168,33 @@ export function CampaignManager({ onNavigateToMaterials }: CampaignManagerProps)
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="flex items-center gap-3">
-            <Megaphone className="w-8 h-8 text-primary" />
-            Campanhas de Marketing
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            {isViewer() 
-              ? 'Visualize campanhas e seus materiais' 
-              : 'Gerencie campanhas e organize materiais por ações de marketing'
-            }
-          </p>
-        </div>
-        
-        {canCreateCampaigns && (
-          <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-            <DialogTrigger asChild>
-              <Button className="bg-primary hover:bg-primary/90">
-                <Plus className="w-4 h-4 mr-2" />
-                Nova Campanha
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-md">
-              <DialogHeader>
-                <DialogTitle>Criar Nova Campanha</DialogTitle>
-                <DialogDescription>
-                  Configure uma nova campanha de marketing
-                </DialogDescription>
-              </DialogHeader>
-              <CampaignForm onSubmit={handleCreateCampaign} />
-            </DialogContent>
-          </Dialog>
-        )}
-      </div>
+      <PageHeader
+        icon={Megaphone}
+        title="Campanhas de Marketing"
+        description={headerDescription}
+        action={
+          canCreateCampaigns ? (
+            <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+              <DialogTrigger asChild>
+                <Button className="w-full bg-primary hover:bg-primary/90 sm:w-auto">
+                  <Plus className="mr-2 h-4 w-4" />
+                  Nova Campanha
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Criar Nova Campanha</DialogTitle>
+                  <DialogDescription>Configure uma nova campanha de marketing</DialogDescription>
+                </DialogHeader>
+                <CampaignForm onSubmit={handleCreateCampaign} />
+              </DialogContent>
+            </Dialog>
+          ) : null
+        }
+      />
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-5 gap-4">
         <Card className="bg-card/50 backdrop-blur-sm border-border/50">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total de Campanhas</CardTitle>
@@ -289,7 +282,7 @@ export function CampaignManager({ onNavigateToMaterials }: CampaignManagerProps)
       </Card>
 
       {/* Campaigns Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+      <div className="grid grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
         {filteredCampaigns.map((campaign) => {
           const statusBadge = getStatusBadge(campaign.status);
           const campaignAssets = getCampaignAssets(campaign.id);
@@ -424,12 +417,7 @@ export function CampaignManager({ onNavigateToMaterials }: CampaignManagerProps)
             <p className="text-muted-foreground mb-4">
               {searchQuery ? 'Tente ajustar sua pesquisa' : 'Não há campanhas disponíveis'}
             </p>
-            {canCreateCampaigns && (
-              <Button onClick={() => setIsCreateOpen(true)} className="bg-primary hover:bg-primary/90">
-                <Plus className="w-4 h-4 mr-2" />
-                Nova Campanha
-              </Button>
-            )}
+    
           </CardContent>
         </Card>
       )}
@@ -580,3 +568,10 @@ function CampaignForm({
     </form>
   );
 }
+
+
+
+
+
+
+

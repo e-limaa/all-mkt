@@ -798,7 +798,7 @@ export function AssetProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    if (!supabase) throw new Error('Supabase nǜo configurado');
+    if (!supabase) throw new Error('Supabase não configurado');
 
     try {
       const payload = buildProjectPayload({
@@ -835,7 +835,7 @@ export function AssetProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    if (!supabase) throw new Error('Supabase nǜo configurado');
+    if (!supabase) throw new Error('Supabase não configurado');
 
     try {
       const payload = buildProjectPayload(updates as Record<string, unknown>);

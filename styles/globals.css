@@ -1,4 +1,8 @@
-@import "tailwindcss";
+﻿@import "tailwindcss";
+
+html {
+  font-size: clamp(14px, 3vw, 16px);
+}
 
 @custom-variant dark (&:is(.dark *));
 
@@ -128,8 +132,15 @@
     @apply border-border outline-ring/50;
   }
 
+  img,
+  video {
+    max-width: 100%;
+    height: auto;
+  }
+
   body {
     @apply bg-background text-foreground;
+    overflow-x: hidden;
   }
 }
 
@@ -189,10 +200,6 @@
       line-height: 1.5;
     }
   }
-}
-
-html {
-  font-size: var(--font-size);
 }
 
 /* Estilo para scrollbars no dark mode */
@@ -437,3 +444,5 @@ html {
 .modal-overlay {
   line-height: 1;
 }
+
+

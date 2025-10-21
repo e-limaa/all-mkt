@@ -125,8 +125,8 @@ export function LoginScreen() {
     >
       {view === "login" ? (
         <>
-          <div className="space-y-3 text-center">
-            <h2 className="text-3xl font-semibold text-white">Login</h2>
+          <div className="space-y-4 text-center sm:text-left">
+            <h2 className="text-2xl font-semibold text-white sm:text-3xl">Login</h2>
             <p className="text-sm text-white/60">
               Seja bem-vindo(a) ao {brandName}. Faca login para continuar e
               ficar por dentro de tudo que acontece no marketing estrategico.
@@ -247,7 +247,7 @@ export function LoginScreen() {
             </Button>
           </form>
 
-          <div className="space-y-2 pt-4 text-center text-xs text-white/40">
+          <div className="space-y-2 pt-4 text-center text-[0.75rem] text-white/40 sm:text-xs">
             <p>Sistema de gestao digital de ativos imobiliarios</p>
             <p>
               Dica: Use qualquer email valido com senha &quot;123456&quot; para
@@ -268,8 +268,8 @@ export function LoginScreen() {
         </>
       ) : (
         <>
-          <div className="space-y-3 text-center">
-            <h2 className="text-3xl font-semibold text-white">
+          <div className="space-y-4 text-center sm:text-left">
+            <h2 className="text-2xl font-semibold text-white sm:text-3xl">
               Recuperar senha
             </h2>
             <p className="text-sm text-white/60">
@@ -345,7 +345,7 @@ export function LoginScreen() {
             </Button>
           </form>
 
-          <div className="space-y-2 pt-4 text-center text-xs text-white/40">
+          <div className="space-y-2 pt-4 text-center text-[0.75rem] text-white/40 sm:text-xs">
             <button
               type="button"
               onClick={switchToLogin}
@@ -368,3 +368,5 @@ export function LoginScreen() {
     </AuthSplitLayout>
   );
 }
+
+

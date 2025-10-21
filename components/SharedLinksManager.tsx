@@ -1,3 +1,4 @@
+﻿import { PageHeader } from './PageHeader';
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
@@ -8,6 +9,8 @@ import { formatDate } from '../utils/format';
 
 export function SharedLinksManager() {
   const { sharedLinks } = useAssets();
+  const headerDescription =
+    "Gerencie links para compartilhamento de materiais com clientes e parceiros";
 
   const activeLinks = sharedLinks.filter((link) => {
     if (!link.is_active) return false;
@@ -23,26 +26,20 @@ export function SharedLinksManager() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="flex items-center gap-3">
-            <Share2 className="w-8 h-8 text-primary" />
-            Links Compartilhados
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Gerencie links para compartilhamento de materiais com clientes e parceiros
-          </p>
-        </div>
-        
-        <Button className="bg-primary hover:bg-primary/90">
-          <Plus className="w-4 h-4 mr-2" />
-          Novo Link
-        </Button>
-      </div>
+      <PageHeader
+        icon={Share2}
+        title="Links Compartilhados"
+        description={headerDescription}
+        action={
+          <Button className="w-full bg-primary hover:bg-primary/90 sm:w-auto">
+            <Plus className="mr-2 h-4 w-4" />
+            Novo Link
+          </Button>
+        }
+      />
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total de Links</CardTitle>
@@ -167,3 +164,7 @@ export function SharedLinksManager() {
     </div>
   );
 }
+
+
+
+

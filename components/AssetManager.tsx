@@ -26,7 +26,6 @@ import {
   List,
   FolderOpen,
   X,
-  ArrowLeft,
   Edit,
   ShieldX,
   CheckSquare,
@@ -34,7 +33,7 @@ import {
   Package,
   AlertCircle,
   Building,
-  Target
+  Target,
 } from 'lucide-react';
 import { Asset } from '../types';
 import { Permission } from '../types/enums';
@@ -46,6 +45,7 @@ import { AssetViewer } from './AssetViewer';
 import { Progress } from './ui/progress';
 import { cn } from './ui/utils';
 import { supabase, supabaseUrl } from '../lib/supabase';
+import { PageHeader } from './PageHeader';
 
 interface AssetManagerProps {
   initialFilters?: {
@@ -1217,59 +1217,47 @@ export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCa
   return (
     <>
       <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="flex items-center gap-3">
-              {backFunction && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={backFunction}
-                  className="text-muted-foreground hover:text-foreground"
-                >
-                  <ArrowLeft className="w-4 h-4 mr-2" />
-                  Voltar
-                </Button>
-              )}
-              <h1 className="flex items-center gap-3 text-[16px]">
-                <FolderOpen className="w-8 h-8 text-primary" />
-                {isFiltered ? `Materiais - ${filterTitle ?? 'Categoria'}` : 'Gerenciamento de Materiais'}
-              </h1>
-            </div>
-            <p className="text-muted-foreground mt-1">
-              {isFiltered ? 
-                `Visualizando materiais de ${initialFilters?.categoryType === 'campaign' ? 'campanha' : 'empreendimento'}` :
-                'Organize, visualize e compartilhe todos os seus ativos digitais'
-              }
-            </p>
-          </div>
-          
-          {/* Upload Button - only for Admin and Editor */}
-          <PermissionGuard permissions={[Permission.UPLOAD_MATERIALS]}>
-            <Dialog open={isUploadOpen} onOpenChange={setIsUploadOpen}>
-              <DialogTrigger asChild>
-                <Button className="bg-primary hover:bg-primary/90">
-                  <Upload className="w-4 h-4 mr-2" />
-                  Enviar Material
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-2xl sm:max-w-2xl max-h-[90vh] overflow-y-auto overflow-x-hidden">
-                <DialogHeader>
-                  <DialogTitle>Enviar Novo Material</DialogTitle>
-                  <DialogDescription>
-                    Selecione um ou mais arquivos e associe todos à mesma campanha ou empreendimento.
-                    Os uploads acontecem em lotes de até três materiais simultâneos.
-                  </DialogDescription>
-                </DialogHeader>
-                <UploadForm 
-                  onClose={() => setIsUploadOpen(false)} 
-                  preSelectedCategory={initialFilters}
-                />
-              </DialogContent>
-            </Dialog>
-          </PermissionGuard>
-        </div>
+        <PageHeader
+          icon={FolderOpen}
+          title={isFiltered ? `Materiais - ${filterTitle ?? 'Categoria'}` : 'Gerenciamento de Materiais'}
+          description={
+            isFiltered
+              ? `Visualizando materiais de ${
+                  initialFilters?.categoryType === 'campaign' ? 'campanha' : 'empreendimento'
+                }`
+              : 'Organize, visualize e compartilhe todos os seus ativos digitais'
+          }
+          backAction={
+            backFunction
+              ? {
+                  label: 'Voltar',
+                  onClick: backFunction,
+                }
+              : undefined
+          }
+          action={
+            <PermissionGuard permissions={[Permission.UPLOAD_MATERIALS]}>
+              <Dialog open={isUploadOpen} onOpenChange={setIsUploadOpen}>
+                <DialogTrigger asChild>
+                  <Button className="w-full bg-primary hover:bg-primary/90 sm:w-auto">
+                    <Upload className="mr-2 h-4 w-4" />
+                    Enviar Material
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-h-[90vh] w-full max-w-2xl overflow-y-auto overflow-x-hidden">
+                  <DialogHeader>
+                    <DialogTitle>Enviar Novo Material</DialogTitle>
+                    <DialogDescription>
+                      Selecione um ou mais arquivos e associe todos à mesma campanha ou empreendimento. Os uploads
+                      acontecem em lotes de até três materiais simultâneos.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <UploadForm onClose={() => setIsUploadOpen(false)} preSelectedCategory={initialFilters} />
+                </DialogContent>
+              </Dialog>
+            </PermissionGuard>
+          }
+        />
 
         {/* Viewer Alert */}
         {isViewer() && <ViewerRestrictionAlert />}
@@ -1418,21 +1406,21 @@ export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCa
 
         {/* Assets Grid/List */}
         {viewMode === 'grid' ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4">
             {filteredAssets.map((asset) => {
               const TypeIcon = getTypeIcon(asset.type);
               const typeBadge = getTypeBadge(asset.type);
               const isSelected = selectedAssets.includes(asset.id);
               
               return (
-                <Card 
-                  key={asset.id} 
-                  className={`group hover:shadow-lg transition-all duration-300 cursor-pointer bg-card/50 backdrop-blur-sm border-border/50 ${
+                <Card
+                  key={asset.id}
+                  className={`group flex h-full flex-col cursor-pointer bg-card/50 backdrop-blur-sm border-border/50 transition-all duration-300 hover:shadow-lg ${
                     isSelected ? 'ring-2 ring-primary' : ''
                   }`}
                   onClick={() => handleAssetSelect(asset.id)}
                 >
-                  <CardHeader className="p-3">
+                  <CardHeader className="relative p-2 sm:p-3">
                     {/* Checkbox no canto superior esquerdo */}
                     <div className="absolute top-2 left-2 z-10">
                       <Checkbox
@@ -1444,7 +1432,7 @@ export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCa
                     </div>
                     
                     <div 
-                      className="aspect-square relative overflow-hidden rounded-lg bg-muted cursor-pointer hover:opacity-80 transition-opacity"
+                      className="relative aspect-square overflow-hidden rounded-lg bg-muted transition-opacity hover:opacity-80"
                       onClick={(e) => { 
                         e.stopPropagation(); 
                         handleViewAsset(asset); 
@@ -1455,7 +1443,7 @@ export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCa
                         if (!previewUrl) {
                           return (
                             <div className="w-full h-full flex items-center justify-center">
-                              <TypeIcon className="w-12 h-12 text-muted-foreground" />
+                              <TypeIcon className="h-8 w-8 text-muted-foreground sm:h-10 sm:w-10" />
                             </div>
                           );
                         }
@@ -1468,85 +1456,88 @@ export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCa
                         );
                       })()}
                       <div className="absolute top-2 right-2">
-                        <Badge variant={typeBadge.variant} className="text-xs">
+                        <Badge variant={typeBadge.variant} className="text-[0.65rem] sm:text-xs">
                           {typeBadge.label}
                         </Badge>
                       </div>
                       <div className="absolute inset-0 bg-black/0 hover:bg-black/10 transition-colors flex items-center justify-center opacity-0 hover:opacity-100">
-                        <Eye className="w-8 h-8 text-white drop-shadow-lg" />
+                        <Eye className="h-6 w-6 text-white drop-shadow-lg sm:h-8 sm:w-8" />
                       </div>
                     </div>
                   </CardHeader>
                   
-                  <CardContent className="p-3 pt-0">
+                  <CardContent className="flex flex-1 flex-col p-2 pt-0 sm:p-3 sm:pt-0">
                     <div className="space-y-2">
-                      <h3 className="font-medium text-sm truncate" title={asset.name}>
+                      <h3 className="truncate text-xs font-medium sm:text-sm" title={asset.name}>
                         {asset.name}
                       </h3>
                       
-                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <div className="flex items-center justify-between text-[0.65rem] text-muted-foreground sm:text-xs">
                         <span>{formatFileSize(asset.size)}</span>
                         <span>{asset.downloadCount || 0} downloads</span>
                       </div>
                       
-                      <div className="flex flex-wrap items-center gap-1 min-w-0">
-                        <Badge variant="outline" className="text-xs max-w-full truncate">
+                      <div className="flex min-w-0 flex-wrap items-center gap-1">
+                        <Badge variant="outline" className="max-w-full truncate text-[0.65rem] sm:text-xs">
                           {getCategoryName(asset)}
                         </Badge>
                         {getProjectPhase(asset) && (
-                          <Badge variant={getProjectPhase(asset)?.variant} className="text-xs max-w-full truncate">
+                          <Badge variant={getProjectPhase(asset)?.variant} className="max-w-full truncate text-[0.65rem] sm:text-xs">
                             {getProjectPhase(asset)?.label}
                           </Badge>
                         )}
                       </div>
                       
-                      <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 pt-2">
-                        <Button 
-                          size="sm" 
-                          variant="outline" 
-                          onClick={(e) => { 
-                            e.stopPropagation(); 
-                            handleViewAsset(asset); 
+                      <div className="flex gap-1 pt-2 opacity-0 transition-opacity group-hover:opacity-100">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-8 w-8 rounded-xl sm:w-auto"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleViewAsset(asset);
                           }}
                         >
-                          <Eye className="w-3 h-3" />
+                          <Eye className="h-3 w-3" />
                         </Button>
-                        
-                        <Button 
-                          size="sm" 
-                          variant="outline" 
-                          onClick={(e) => { 
-                            e.stopPropagation(); 
-                            handleDownload(asset); 
+
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-8 w-8 rounded-xl sm:w-auto"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDownload(asset);
                           }}
                         >
-                          <Download className="w-3 h-3" />
+                          <Download className="h-3 w-3" />
                         </Button>
-                        
+
                         <PermissionGuard permissions={[Permission.SHARE_MATERIALS]}>
-                          <Button 
-                            size="sm" 
-                            variant="outline" 
-                            onClick={(e) => { 
-                              e.stopPropagation(); 
-                              handleShare(asset); 
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="hidden h-8 w-8 rounded-xl sm:flex sm:w-auto"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleShare(asset);
                             }}
                           >
-                            <Share2 className="w-3 h-3" />
+                            <Share2 className="h-3 w-3" />
                           </Button>
                         </PermissionGuard>
-                        
+
                         <PermissionGuard permissions={[Permission.DELETE_MATERIALS]}>
-                          <Button 
-                            size="sm" 
-                            variant="outline" 
-                            onClick={(e) => { 
-                              e.stopPropagation(); 
-                              handleDeleteAsset(asset.id); 
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="hidden h-8 w-8 rounded-xl text-destructive hover:text-destructive sm:flex sm:w-auto"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteAsset(asset.id);
                             }}
-                            className="text-destructive hover:text-destructive"
                           >
-                            <Trash2 className="w-3 h-3" />
+                            <Trash2 className="h-3 w-3" />
                           </Button>
                         </PermissionGuard>
                       </div>
@@ -1616,14 +1607,14 @@ export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCa
                               {asset.name}
                             </h3>
                             <div className="flex flex-wrap items-center gap-2 mb-2 min-w-0">
-                              <Badge variant={typeBadge.variant} className="text-xs max-w-full truncate">
+                              <Badge variant={typeBadge.variant} className="max-w-full truncate text-[0.65rem] sm:text-xs">
                                 {typeBadge.label}
                               </Badge>
-                              <Badge variant="outline" className="text-xs max-w-full truncate">
+                              <Badge variant="outline" className="max-w-full truncate text-[0.65rem] sm:text-xs">
                                 {getCategoryName(asset)}
                               </Badge>
                               {getProjectPhase(asset) && (
-                                <Badge variant={getProjectPhase(asset)?.variant} className="text-xs max-w-full truncate">
+                                <Badge variant={getProjectPhase(asset)?.variant} className="max-w-full truncate text-[0.65rem] sm:text-xs">
                                   {getProjectPhase(asset)?.label}
                                 </Badge>
                               )}
@@ -1749,3 +1740,26 @@ export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCa
     </>
   );
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

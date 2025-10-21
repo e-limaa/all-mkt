@@ -1,17 +1,9 @@
+'use client';
+
 import React from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from '../contexts/hooks/usePermissions';
 import { useConfig } from '../contexts/ConfigContext';
-import { Permission } from '../types/enums';
-import { 
-  BarChart3, 
-  FileImage, 
-  Target, 
-  Building, 
-  Share2, 
-  Users, 
-  Settings
-} from 'lucide-react';
 import Frame1000005813 from '../imports/Frame1000005813';
 import {
   Sidebar,
@@ -25,6 +17,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from './ui/sidebar';
+import { buildNavigationItems } from '../lib/navigation';
 
 interface AppSidebarProps {
   currentPage: string;
@@ -38,90 +31,51 @@ export function AppSidebar({ currentPage, onPageChange }: AppSidebarProps) {
   const { systemSettings } = useConfig();
   const compactSidebar = systemSettings.compactSidebar;
 
-  const navigationItems = [
-    // Dashboard - disponível para Admin e Editor, mas NÃO para Viewer
-    ...(hasPermission(Permission.VIEW_DASHBOARD) ? [{
-      id: 'dashboard',
-      label: 'Dashboard',
-      icon: BarChart3,
-      href: 'dashboard'
-    }] : []),
-
-    // Materiais - todos podem ver, mas com funcionalidades diferentes
-    {
-      id: 'materials',
-      label: 'Materiais',
-      icon: FileImage,
-      href: 'materials'
-    },
-
-    // Campanhas - todos podem ver
-    {
-      id: 'campaigns',
-      label: 'Campanhas',
-      icon: Target,
-      href: 'campaigns'
-    },
-
-    // Empreendimentos - todos podem ver
-    {
-      id: 'projects',
-      label: 'Empreendimentos',
-      icon: Building,
-      href: 'projects'
-    },
-
-    // Links Compartilhados - disponível para todos os usuários (incluindo Viewer)
-    ...(hasPermission(Permission.VIEW_SHARED_LINKS) ? [{
-      id: 'shared',
-      label: 'Links Compartilhados',
-      icon: Share2,
-      href: 'shared'
-    }] : []),
-
-    // Usuários - apenas Admin
-    ...(hasPermission(Permission.VIEW_USERS) ? [{
-      id: 'users',
-      label: 'Usuários',
-      icon: Users,
-      href: 'users'
-    }] : []),
-
-    // Configurações - apenas Admin
-    ...(hasPermission(Permission.ACCESS_SETTINGS) ? [{
-      id: 'settings',
-      label: 'Configurações',
-      icon: Settings,
-      href: 'settings'
-    }] : [])
-  ];
+  const navigationItems = React.useMemo(
+    () => buildNavigationItems(hasPermission),
+    [hasPermission],
+  );
 
   return (
-    <Sidebar collapsible="icon" className="border-sidebar-border" data-compact={compactSidebar ? 'true' : 'false'}>
+    <Sidebar
+      collapsible="icon"
+      className="border-sidebar-border"
+      data-compact={compactSidebar ? 'true' : 'false'}
+    >
       <SidebarHeader className="border-b border-sidebar-border">
-        <div className="flex items-center justify-center px-2 py-3 p-[16px]">
+        <div className="flex items-center justify-center px-2 py-3">
           <Frame1000005813 />
         </div>
       </SidebarHeader>
 
       <SidebarContent>
-        <SidebarGroup className={`p-[8px] px-[8px] py-[16px] ${compactSidebar ? 'pt-3 pb-3' : ''}`}>
+        <SidebarGroup
+          className={`px-2 py-4 ${
+            compactSidebar ? 'pt-3 pb-3' : ''
+          }`}
+        >
           <SidebarGroupContent>
-            <SidebarMenu className={`sidebar-menu-gap ${compactSidebar ? 'space-y-1.5' : 'space-y-2'}`}>
+            <SidebarMenu
+              className={`sidebar-menu-gap ${
+                compactSidebar ? 'space-y-1.5' : 'space-y-2'
+              }`}
+            >
               {navigationItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = currentPage === item.href;
-                
+
                 return (
                   <SidebarMenuItem key={item.id}>
                     <SidebarMenuButton
                       onClick={() => onPageChange(item.href)}
                       isActive={isActive}
-                      tooltip={state === "collapsed" ? item.label : undefined}
-                      className={`w-full justify-start px-[8px] m-[1px] sidebar-menu-button cursor-pointer ${compactSidebar ? 'py-[6px]' : ''}`}
+                      tooltip={state === 'collapsed' ? item.label : undefined}
+                      className={`w-full justify-start px-2 lg:px-3 sidebar-menu-button cursor-pointer ${
+                        compactSidebar ? 'py-1.5' : 'py-2'
+                      }`}
                     >
-                      <Icon className="h-4 w-4" />
-                      <span className="text-[14px]">{item.label}</span>
+                      <Icon className="h-5 w-5 flex-shrink-0" />
+                      <span className="text-sm">{item.label}</span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 );
@@ -131,19 +85,18 @@ export function AppSidebar({ currentPage, onPageChange }: AppSidebarProps) {
         </SidebarGroup>
       </SidebarContent>
 
-      {/* Footer com informações do usuário - apenas quando expandido */}
       <SidebarFooter className="border-t border-sidebar-border">
         <SidebarMenu>
           <SidebarMenuItem>
-            <div className="flex items-center gap-3 px-2 py-2 text-sm text-sidebar-foreground/70">
-              {state === "expanded" && (
+            <div className="flex items-center gap-3 px-3 py-3 text-sm text-sidebar-foreground/70">
+              {state === 'expanded' && (
                 <>
-                  <div className="w-2 h-2 bg-green-500 rounded-full" />
+                  <div className="h-2 w-2 rounded-full bg-green-500" />
                   <span className="truncate">{user?.name}</span>
                 </>
               )}
-              {state === "collapsed" && (
-                <div className="w-2 h-2 bg-green-500 rounded-full mx-auto" />
+              {state === 'collapsed' && (
+                <div className="mx-auto h-2 w-2 rounded-full bg-green-500" />
               )}
             </div>
           </SidebarMenuItem>

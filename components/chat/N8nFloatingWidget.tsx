@@ -8,6 +8,7 @@ import { MessageCircle, Send, Loader2, X, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/components/ui/utils";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 type Role = "user" | "assistant";
 
@@ -188,7 +189,7 @@ function extractSuggestions(payload: N8nResponse): string[] {
 }
 
 export function N8nFloatingWidget() {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>(() => [
     {
       id: uuidv4(),
@@ -504,7 +505,7 @@ export function N8nFloatingWidget() {
   }, [suggestions]);
 
   return (
-    <div className="pointer-events-none fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3">
+    <div className="pointer-events-none fixed right-4 bottom-24 z-50 flex flex-col items-end gap-3 sm:right-6 sm:bottom-6">
       {open && (
         <div className="pointer-events-auto w-[min(420px,calc(100vw-3rem))] max-w-full">
           <div className="flex h-[560px] flex-col overflow-hidden rounded-3xl border border-border bg-card shadow-2xl shadow-primary/15">
@@ -592,20 +593,29 @@ export function N8nFloatingWidget() {
       )}
 
       {!open && (
-        <Button
-          size="icon"
-          className="pointer-events-auto h-16 w-16 overflow-hidden rounded-full bg-primary/10 text-primary-foreground shadow-lg shadow-primary/30 transition hover:scale-105"
-          aria-expanded={open}
-          aria-label="Abrir assistente virtual"
-          onClick={() => setOpen(true)}
-        >
-          <img
-            src={avatarSrc}
-            alt={avatarAlt}
-            className="h-full w-full object-cover"
-            loading="lazy"
-          />
-        </Button>
+        <TooltipProvider delayDuration={200}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="icon"
+                className="pointer-events-auto h-16 w-16 overflow-hidden rounded-full bg-primary/10 text-primary-foreground shadow-lg shadow-primary/30 transition hover:scale-105"
+                aria-expanded={open}
+                aria-label="Abrir assistente virtual"
+                onClick={() => setOpen(true)}
+              >
+                <img
+                  src={avatarSrc}
+                  alt={avatarAlt}
+                  className="h-full w-full object-cover"
+                  loading="lazy"
+                />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="left" sideOffset={12} className="max-w-[220px] text-sm">
+              Oi, sou a Tais. Como posso ajudar?
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       )}
     </div>
   );

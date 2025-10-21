@@ -1,4 +1,5 @@
-﻿import React, { useRef, useState } from "react";
+﻿import { PageHeader } from './PageHeader';
+import React, { useRef, useState } from "react";
 import {
   Card,
   CardContent,
@@ -127,6 +128,9 @@ export function ProjectManager({
   const canCreateProjects = hasPermission(Permission.CREATE_PROJECTS);
   const canEditProjects = hasPermission(Permission.EDIT_PROJECTS);
   const canDeleteProjects = hasPermission(Permission.DELETE_PROJECTS);
+  const headerDescription = isViewer()
+    ? "Visualize empreendimentos e seus materiais"
+    : "Gerencie empreendimentos e organize materiais por projeto";
 
   // Filtrar apenas empreendimentos que possuem imagem
   const projectsWithImages = projects.filter(
@@ -309,42 +313,34 @@ export function ProjectManager({
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="flex items-center gap-3">
-            <Building className="w-8 h-8 text-primary" />
-            Empreendimentos
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            {isViewer()
-              ? "Visualize empreendimentos e seus materiais"
-              : "Gerencie empreendimentos e organize materiais por projeto"}
-          </p>
-        </div>
+      <PageHeader
+        icon={Building}
+        title="Empreendimentos"
+        description={headerDescription}
+        action={
+          canCreateProjects ? (
+            <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+              <DialogTrigger asChild>
+                <Button className="w-full bg-primary hover:bg-primary/90 sm:w-auto">
+                  <Plus className="mr-2 h-4 w-4" />
+                  Novo Empreendimento
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="w-full max-w-3xl">
+                <DialogHeader>
+                  <DialogTitle>Criar Novo Empreendimento</DialogTitle>
+                  <DialogDescription>
+                    Configure um novo empreendimento com imagem obrigatória. Todos os novos empreendimentos começam com status "Vem Aí".
+                  </DialogDescription>
+                </DialogHeader>
+                <ProjectForm onSubmit={handleCreateProject} />
+              </DialogContent>
+            </Dialog>
+          ) : null
+        }
+      />
 
-        {canCreateProjects && (
-          <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-            <DialogTrigger asChild>
-              <Button className="bg-primary hover:bg-primary/90">
-                <Plus className="w-4 h-4 mr-2" />
-                Novo Empreendimento
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="w-full max-w-3xl">
-              <DialogHeader>
-                <DialogTitle>Criar Novo Empreendimento</DialogTitle>
-                <DialogDescription>
-                  Configure um novo empreendimento com imagem obrigatória. Todos
-                  os novos empreendimentos começam com status &quot;Vem
-                  Aí&quot;.
-                </DialogDescription>
-              </DialogHeader>
-              <ProjectForm onSubmit={handleCreateProject} />
-            </DialogContent>
-          </Dialog>
-        )}
-      </div>
+      
 
       {/* Debug Info - apenas em desenvolvimento */}
       {process.env.NODE_ENV === "development" && (
@@ -378,7 +374,7 @@ export function ProjectManager({
       )}
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-5 gap-4">
         <Card className="bg-card/50 backdrop-blur-sm border-border/50">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Visíveis</CardTitle>
@@ -462,7 +458,7 @@ export function ProjectManager({
       </Card>
 
       {/* Projects Grid - Layout igual ao visual de referência */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+      <div className="grid grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
         {filteredProjects.map((project) => {
           const statusBadge = getStatusBadge(project.status);
           const projectAssets = getProjectAssets(project.id);
@@ -638,15 +634,7 @@ export function ProjectManager({
                 ? "Tente ajustar sua pesquisa"
                 : "Não há empreendimentos disponíveis"}
             </p>
-            {canCreateProjects && (
-              <Button
-                onClick={() => setIsCreateOpen(true)}
-                className="bg-primary hover:bg-primary/90"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Novo Empreendimento
-              </Button>
-            )}
+    
           </CardContent>
         </Card>
       )}
@@ -1034,3 +1022,9 @@ function ProjectForm({
     </form>
   );
 }
+
+
+
+
+
+

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -31,6 +31,7 @@ import {
 import { Asset } from '../types';
 import { formatFileSize, formatDate } from '../utils/format';
 import { ImageWithFallback } from './figma/ImageWithFallback';
+import { useAssets } from '../contexts/AssetContext';
 
 interface AssetViewerProps {
   asset: Asset | null;
@@ -55,6 +56,7 @@ export function AssetViewer({
   onEdit,
   onDelete
 }: AssetViewerProps) {
+  const { projects, campaigns } = useAssets();
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState({
     name: ''
@@ -166,6 +168,40 @@ export function AssetViewer({
       onClose();
     }
   };
+
+  const resolvedCategoryName = useMemo(() => {
+    if (!asset) {
+      return 'Sem categoria';
+    }
+
+    const findProjectName = (id?: string | null) =>
+      id ? projects.find(project => project.id === id)?.name : undefined;
+
+    const findCampaignName = (id?: string | null) =>
+      id ? campaigns.find(campaign => campaign.id === id)?.name : undefined;
+
+    if (asset.categoryType === 'project') {
+      const projectName = findProjectName(asset.categoryId ?? asset.projectId);
+      if (projectName) return projectName;
+    }
+
+    if (asset.categoryType === 'campaign') {
+      const campaignName = findCampaignName(asset.categoryId ?? asset.campaignId);
+      if (campaignName) return campaignName;
+    }
+
+    const fallbackProjectName = findProjectName(asset.projectId);
+    if (fallbackProjectName) return fallbackProjectName;
+
+    const fallbackCampaignName = findCampaignName(asset.campaignId);
+    if (fallbackCampaignName) return fallbackCampaignName;
+
+    if (asset.categoryName && asset.categoryName.trim().length > 0) {
+      return asset.categoryName;
+    }
+
+    return 'Sem categoria';
+  }, [asset, projects, campaigns]);
 
   if (!asset || !isOpen) return null;
 
@@ -457,7 +493,7 @@ export function AssetViewer({
                         <Label className="text-base font-semibold">Empreendimento/Campanha</Label>
                         <div className="mt-2">
                           <Badge variant="outline" className="text-xs">
-                            {asset.categoryName || 'Sem categoria'}
+                            {resolvedCategoryName}
                           </Badge>
                         </div>
                       </div>

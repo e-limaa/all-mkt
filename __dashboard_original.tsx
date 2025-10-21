@@ -1,5 +1,4 @@
-Ôªøimport React, { useMemo } from 'react';
-import { PageHeader } from './PageHeader';
+import React, { useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
@@ -33,7 +32,6 @@ import {
   FileText,
   Archive,
   Eye,
-  BarChart3,
   ArrowUpRight,
   ShieldCheck,
   ShieldAlert
@@ -52,7 +50,7 @@ export function Dashboard() {
   
   const assetTypeData = [
     { name: 'Imagens', value: dashboardStats.assetsByType.image, color: '#dc2626', icon: Image },
-    { name: 'V√≠deos', value: dashboardStats.assetsByType.video, color: '#f97316', icon: Video },
+    { name: 'V+°deos', value: dashboardStats.assetsByType.video, color: '#f97316', icon: Video },
     { name: 'Documentos', value: dashboardStats.assetsByType.document, color: '#eab308', icon: FileText },
     { name: 'Arquivos', value: dashboardStats.assetsByType.archive, color: '#22c55e', icon: Archive }
   ];
@@ -67,7 +65,7 @@ export function Dashboard() {
     assets: count
   }));
 
-  // Dados simulados para gr√°fico de tend√™ncia
+  // Dados simulados para gr+Ìfico de tend+¨ncia
   const trendData = [
     { month: 'Jan', uploads: 45, downloads: 120 },
     { month: 'Fev', uploads: 52, downloads: 145 },
@@ -79,50 +77,36 @@ export function Dashboard() {
 
   const systemStatus = useMemo(() => ([
     {
-      label: 'Notifica√ß√µes por Email',
-      description: 'Envio de alertas autom√°ticos para administradores e equipes.',
+      label: 'Notifica+∫+¡es por Email',
+      description: 'Envio de alertas autom+Ìticos para administradores e equipes.',
       enabled: systemSettings.emailNotifications,
     },
     {
       label: 'Alertas do Sistema',
-      description: 'Exibe toasts e avisos em tempo real dentro da aplica√ß√£o.',
+      description: 'Exibe toasts e avisos em tempo real dentro da aplica+∫+˙o.',
       enabled: systemSettings.systemNotifications,
     },
     {
-      label: 'Autentica√ß√£o em Duas Etapas',
-      description: 'Solicita um segundo fator de verifica√ß√£o no login.',
+      label: 'Autentica+∫+˙o em Duas Etapas',
+      description: 'Solicita um segundo fator de verifica+∫+˙o no login.',
       enabled: systemSettings.twoFactor,
     },
     {
-      label: 'M√∫ltiplas Sess√µes',
-      description: 'Permite acesso simult√¢neo em mais de um dispositivo.',
+      label: 'M+¶ltiplas Sess+¡es',
+      description: 'Permite acesso simult+Ûneo em mais de um dispositivo.',
       enabled: systemSettings.multiSessions,
     },
     {
-      label: 'Backup Autom√°tico',
-      description: 'Gera c√≥pias de seguran√ßa recorrentes dos materiais.',
+      label: 'Backup Autom+Ìtico',
+      description: 'Gera c+¶pias de seguran+∫a recorrentes dos materiais.',
       enabled: systemSettings.autoBackup,
     },
   ]), [systemSettings]);
 
-  const headerDescription = "Acompanhe o desempenho dos seus materiais em tempo real.";
-  const headerAction = (
-    <Button variant="outline" className="w-full sm:w-auto">
-      <Download className="mr-2 h-4 w-4" />
-      Exportar relatorio
-    </Button>
-  );
-
   return (
     <div className="space-y-6">
-      <PageHeader
-        icon={BarChart3}
-        title="Painel de Insights"
-        description={headerDescription}
-        action={headerAction}
-      />
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="bg-card/50 backdrop-blur-sm border-border/50 hover:shadow-lg transition-all duration-300">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total de Materiais</CardTitle>
@@ -131,7 +115,7 @@ export function Dashboard() {
           <CardContent>
             <div className="text-2xl font-bold text-foreground">{formatNumber(dashboardStats.totalAssets)}</div>
             <p className="text-xs text-muted-foreground">
-              <span className="text-green-500">+12%</span> desde o m√™s passado
+              <span className="text-green-500">+12%</span> desde o m+¨s passado
             </p>
           </CardContent>
         </Card>
@@ -144,20 +128,20 @@ export function Dashboard() {
           <CardContent>
             <div className="text-2xl font-bold text-foreground">{formatNumber(dashboardStats.downloadCount)}</div>
             <p className="text-xs text-muted-foreground">
-              <span className="text-green-500">+8%</span> desde o m√™s passado
+              <span className="text-green-500">+8%</span> desde o m+¨s passado
             </p>
           </CardContent>
         </Card>
 
         <Card className="bg-card/50 backdrop-blur-sm border-border/50 hover:shadow-lg transition-all duration-300">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Usu√°rios Ativos</CardTitle>
+            <CardTitle className="text-sm font-medium">Usu+Ìrios Ativos</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-foreground">{formatNumber(dashboardStats.totalUsers)}</div>
             <p className="text-xs text-muted-foreground">
-              <span className="text-green-500">+3</span> novos usu√°rios
+              <span className="text-green-500">+3</span> novos usu+Ìrios
             </p>
           </CardContent>
         </Card>
@@ -201,7 +185,7 @@ export function Dashboard() {
         <Card className="bg-card/50 backdrop-blur-sm border-border/50">
           <CardHeader>
             <CardTitle>Tipos de Material</CardTitle>
-            <CardDescription>Distribui√ß√£o por categoria</CardDescription>
+            <CardDescription>Distribui+∫+˙o por categoria</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
@@ -234,7 +218,7 @@ export function Dashboard() {
               <Activity className="w-5 h-5 text-primary" />
               Atividade Recente
             </CardTitle>
-            <CardDescription>√öltimas a√ß√µes no sistema</CardDescription>
+            <CardDescription>+‹ltimas a+∫+¡es no sistema</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
@@ -268,7 +252,7 @@ export function Dashboard() {
         <Card className="bg-card/50 backdrop-blur-sm border-border/50">
           <CardHeader>
             <CardTitle>Materiais por Campanha</CardTitle>
-            <CardDescription>Distribui√ß√£o de assets por campanha de marketing</CardDescription>
+            <CardDescription>Distribui+∫+˙o de assets por campanha de marketing</CardDescription>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
@@ -301,7 +285,7 @@ export function Dashboard() {
         <Card className="bg-card/50 backdrop-blur-sm border-border/50">
           <CardHeader>
             <CardTitle>Materiais por Empreendimento</CardTitle>
-            <CardDescription>Distribui√ß√£o de assets por projeto</CardDescription>
+            <CardDescription>Distribui+∫+˙o de assets por projeto</CardDescription>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
@@ -371,9 +355,9 @@ export function Dashboard() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <TrendingUp className="w-5 h-5 text-primary" />
-            Tend√™ncia de Uploads e Downloads
+            Tend+¨ncia de Uploads e Downloads
           </CardTitle>
-          <CardDescription>Atividade dos √∫ltimos 6 meses</CardDescription>
+          <CardDescription>Atividade dos +¶ltimos 6 meses</CardDescription>
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={400}>
@@ -412,6 +396,3 @@ export function Dashboard() {
     </div>
   );
 }
-
-
-
