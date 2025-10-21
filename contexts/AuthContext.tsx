@@ -68,6 +68,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         data: sessionData,
         error: sessionError,
       } = await supabase.auth.getSession();
+      console.log('[Auth] fetchUserProfile session result', {
+        hasSession: Boolean(sessionData.session),
+        sessionError,
+      });
       if (sessionError) throw sessionError;
       const accessToken = sessionData.session?.access_token;
       if (!accessToken) {
@@ -83,6 +87,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           Authorization: `Bearer ${accessToken}`,
           Prefer: 'return=representation',
         },
+      });
+      console.log('[Auth] fetchUserProfile http status', {
+        status: response.status,
+        ok: response.ok,
       });
 
       if (!response.ok) {
