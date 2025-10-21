@@ -28,8 +28,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const SESSION_TIMEOUT_MS = 5000;
-const PROFILE_TIMEOUT_MS = 6000;
+const PROFILE_TIMEOUT_MS = 8000;
 
 const buildFallbackUser = (sessionUser: SupabaseUser): User => ({
   id: sessionUser.id,
@@ -63,43 +62,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSession(null);
   };
 
-  const fetchUserProfile = useCallback(async (userId: string) => {
-    if (!supabase) return null;
+  const fetchUserProfile = useCallback(async (currentSession: Session | null | undefined) => {
+    if (!supabase || !currentSession?.user) {
+      console.warn('[Auth] fetchUserProfile aborted - missing session user');
+      setUser(null);
+      return null;
+    }
+
+    const userId = currentSession.user.id;
+    const accessToken = currentSession.access_token;
+
     try {
       console.log('[Auth] fetchUserProfile start', { userId });
-
-      let sessionResult: Awaited<ReturnType<typeof supabase.auth.getSession>>;
-      try {
-        sessionResult = await Promise.race([
-          supabase.auth.getSession(),
-          new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error('getSession timeout')), SESSION_TIMEOUT_MS),
-          ),
-        ]) as Awaited<ReturnType<typeof supabase.auth.getSession>>;
-      } catch (error) {
-        console.error('[Auth] fetchUserProfile session fetch failed', { userId, error });
-        toast.error('Nao foi possivel validar a sessao do usuario.');
-        setUser(null);
-        return null;
-      }
-
-      const { data: sessionData, error: sessionError } = sessionResult;
-      if (sessionError) {
-        console.error('[Auth] fetchUserProfile session error', { userId, sessionError });
-        toast.error('Sessao do usuario invalida.');
-        setUser(null);
-        return null;
-      }
-
-      console.log('[Auth] fetchUserProfile session result', {
-        hasSession: Boolean(sessionData.session),
-      });
-
-      const accessToken = sessionData.session?.access_token;
       if (!accessToken) {
         console.warn('[Auth] fetchUserProfile missing access token', { userId });
-        setUser(null);
-        return null;
+        const fallback = buildFallbackUser(currentSession.user);
+        setUser(fallback);
+        return fallback;
       }
 
       const apiUrl = `${supabaseUrl}/rest/v1/users?id=eq.${userId}&select=*`;
@@ -153,9 +132,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const record = Array.isArray(rows) ? rows[0] : rows;
 
       if (!record) {
-        console.warn('[Auth] fetchUserProfile no data, returning null', { userId });
-        setUser(null);
-        return null;
+        console.warn('[Auth] fetchUserProfile no data, using fallback user', { userId });
+        const fallback = buildFallbackUser(currentSession.user);
+        setUser(fallback);
+        return fallback;
       }
 
       console.log('[Auth] fetchUserProfile success', { userId });
@@ -216,7 +196,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (currentSession?.user) {
           console.log('[Auth] initialize refreshing profile', { userId: currentSession.user.id });
-          const profile = await fetchUserProfile(currentSession.user.id);
+          const profile = await fetchUserProfile(currentSession);
           if (!profile) {
             console.log('[Auth] initialize using fallback user');
             setUser(buildFallbackUser(currentSession.user));
@@ -257,7 +237,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setLoading(true);
         try {
           console.log('[Auth] onAuthStateChange refreshing profile', { userId: nextSession.user.id });
-          const profile = await fetchUserProfile(nextSession.user.id);
+          const profile = await fetchUserProfile(nextSession);
           if (!profile) {
             console.log('[Auth] onAuthStateChange using fallback user');
             setUser(buildFallbackUser(nextSession.user));
