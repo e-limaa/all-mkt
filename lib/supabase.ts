@@ -47,6 +47,25 @@ export const supabase = hasValidConfig
     })
   : null;
 
+if (typeof window !== 'undefined') {
+  const anonKeySnippet =
+    supabaseAnonKey.length > 8
+      ? `${supabaseAnonKey.slice(0, 4)}...${supabaseAnonKey.slice(-4)}`
+      : supabaseAnonKey || null;
+
+  (window as any).__SUPABASE_DEBUG = {
+    supabaseUrl,
+    hasClient: Boolean(supabase),
+    isConfigured: isSupabaseConfigured(),
+  };
+
+  console.log('[Supabase runtime]', {
+    supabaseUrl,
+    hasClient: Boolean(supabase),
+    anonKeySnippet,
+  });
+}
+
 export { supabaseUrl, supabaseAnonKey };
 
 export const isSupabaseConfigured = () => {
