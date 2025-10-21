@@ -1057,16 +1057,19 @@ export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCa
                 key={item.id}
                 className="space-y-2 rounded-lg border border-border bg-muted/20 p-3"
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0 space-y-1">
-                    <div className="flex items-center gap-2">
-                      <p className="font-medium truncate" title={item.file.name}>
+                <div className="flex flex-wrap items-start gap-3">
+                  <div className="min-w-0 flex-1 space-y-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p
+                        className="font-medium text-sm leading-snug break-words"
+                        title={item.file.name}
+                      >
                         {item.file.name}
                       </p>
-                      {statusBadge(item.status)}
+                      <span className="flex-shrink-0">{statusBadge(item.status)}</span>
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                      {formatFileSize(item.file.size)} • {item.mimeType || 'Arquivo'}
+                    <p className="text-xs text-muted-foreground whitespace-normal break-words leading-relaxed">
+                      {formatFileSize(item.file.size)} · {item.mimeType || 'Arquivo'}
                     </p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
@@ -1244,7 +1247,7 @@ export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCa
                     Enviar Material
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="max-h-[90vh] w-full max-w-2xl overflow-y-auto overflow-x-hidden">
+                <DialogContent className="max-h-[90vh] w-full max-w-[calc(100vw-2rem)] sm:max-w-2xl overflow-y-auto overflow-x-hidden">
                   <DialogHeader>
                     <DialogTitle>Enviar Novo Material</DialogTitle>
                     <DialogDescription>
@@ -1740,6 +1743,13 @@ export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCa
     </>
   );
 }
+
+
+
+
+
+
+
 
 
 
