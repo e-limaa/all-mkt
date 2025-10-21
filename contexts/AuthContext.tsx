@@ -69,6 +69,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .select('*')
         .eq('id', userId)
         .single();
+      console.log('[Auth] fetchUserProfile response', {
+        userId,
+        hasData: Boolean(data),
+        error,
+      });
       if (error) throw error;
       console.log('[Auth] fetchUserProfile success', { userId, hasData: Boolean(data) });
       setUser(data);
