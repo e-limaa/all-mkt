@@ -51,6 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .eq('id', userId)
         .single();
       if (error) throw error;
+      console.log('[Auth] fetchUserProfile success');
       setUser(data);
       return data;
     } catch (error) {
