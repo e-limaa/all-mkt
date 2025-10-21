@@ -64,17 +64,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!supabase) return null;
     try {
       console.log('[Auth] fetchUserProfile start', { userId });
-      const { data, error } = await supabase
+      const { data, error, status } = await supabase
         .from('users')
         .select('*')
         .eq('id', userId)
-        .single();
+        .maybeSingle();
       console.log('[Auth] fetchUserProfile response', {
         userId,
         hasData: Boolean(data),
         error,
       });
-      if (error) throw error;
+      if (error && status !== 406) throw error;
+      if (!data) {
+        console.warn('[Auth] fetchUserProfile no data, returning null', { userId, status });
+        setUser(null);
+        return null;
+      }
       console.log('[Auth] fetchUserProfile success', { userId, hasData: Boolean(data) });
       setUser(data);
       return data;
