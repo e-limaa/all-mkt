@@ -28,6 +28,23 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const buildFallbackUser = (sessionUser: SupabaseUser): User => ({
+  id: sessionUser.id,
+  email: sessionUser.email ?? '',
+  name:
+    (sessionUser.user_metadata?.name as string | undefined) ??
+    sessionUser.email ??
+    'Usuario',
+  avatar_url: (sessionUser.user_metadata?.avatar_url as string | undefined) ?? null,
+  role:
+    (sessionUser.user_metadata?.role as User['role'] | undefined) ??
+    'viewer',
+  created_at:
+    (sessionUser.user_metadata?.created_at as string | undefined) ??
+    new Date().toISOString(),
+  updated_at: new Date().toISOString(),
+});
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [supabaseUser, setSupabaseUser] = useState<SupabaseUser | null>(null);
@@ -52,12 +69,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .single();
       if (error) throw error;
       console.log('[Auth] fetchUserProfile success');
-      setUser(data);
       return data;
     } catch (error) {
-      console.error('[Auth] Erro ao buscar perfil do usuário:', error);
-      toast.error('Erro ao carregar perfil do usuário');
-      setUser(null);
+      console.error('[Auth] Erro ao buscar perfil do usuario:', error);
       return null;
     }
   }, []);
@@ -71,7 +85,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         window.localStorage.removeItem(`${storageKey}-global`);
       }
     } catch (error) {
-      console.warn('[Auth] Não foi possível limpar a sessão armazenada localmente.', error);
+      console.warn('[Auth] Nao foi possivel limpar a sessao armazenada localmente.', error);
     }
   };
 
@@ -81,7 +95,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const initialize = async () => {
       console.log('[Auth] initialize start', { isConfigured, hasSupabase: Boolean(supabase) });
       if (!isConfigured) {
-        console.error('[Auth] Supabase não configurado. Verifique suas variáveis de ambiente.');
+        console.error('[Auth] Supabase nao configurado. Verifique suas variaveis de ambiente.');
         setLoading(false);
         return;
       }
@@ -106,12 +120,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSupabaseUser(session?.user ?? null);
 
         if (session?.user) {
-          await fetchUserProfile(session.user.id);
+          const profile = await fetchUserProfile(session.user.id);
+          if (profile) {
+            setUser(profile);
+          } else {
+            setUser(buildFallbackUser(session.user));
+          }
         } else {
           clearAuthState();
         }
       } catch (error) {
-        console.error('[Auth] Falha ao recuperar sessão atual.', error);
+        console.error('[Auth] Falha ao recuperar sessao atual.', error);
         clearAuthState();
       } finally {
         if (!cancelled) {
@@ -140,7 +159,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (session?.user) {
         setLoading(true);
         try {
-          await fetchUserProfile(session.user.id);
+          const profile = await fetchUserProfile(session.user.id);
+          if (profile) {
+            setUser(profile);
+          } else {
+            setUser(buildFallbackUser(session.user));
+          }
         } finally {
           if (!cancelled) {
             setLoading(false);
@@ -160,7 +184,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const ensureConfigured = () => {
     if (!isConfigured || !supabase) {
-      const message = 'Supabase não está configurado. Configure as variáveis de ambiente.';
+      const message = 'Supabase nao esta configurado. Configure as variaveis de ambiente.';
       toast.error(message);
       throw new Error(message);
     }
@@ -174,10 +198,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { error } = await supabase!.auth.signInWithPassword({ email, password });
 
       if (error) throw error;
+      const currentSession = await supabase!.auth.getSession();
+      const currentUser = currentSession.data.session?.user ?? null;
+      if (currentUser) {
+        setSupabaseUser(currentUser);
+        setUser(buildFallbackUser(currentUser));
+      }
       toast.success('Login realizado com sucesso!');
     } catch (error: any) {
       const message = error.message === 'Invalid login credentials'
-        ? 'Email ou senha inválidos'
+        ? 'Email ou senha invalidos'
         : error.message;
       toast.error(message);
       throw error;
@@ -200,6 +230,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
 
       if (error) throw error;
+      const currentSession = await supabase!.auth.getSession();
+      const currentUser = currentSession.data.session?.user ?? null;
+      if (currentUser) {
+        setSupabaseUser(currentUser);
+        setUser(buildFallbackUser(currentUser));
+      }
       toast.success('Conta criada com sucesso! Verifique seu email.');
     } catch (error: any) {
       toast.error(error.message);
@@ -219,7 +255,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       toast.success('Logout realizado com sucesso!');
     } catch (error: any) {
       console.error('[Auth] Falha ao realizar logout', error);
-      toast.error(error?.message ?? 'Não foi possível finalizar a sessão.');
+      toast.error(error?.message ?? 'Nao foi possivel finalizar a sessao.');
     } finally {
       purgeStoredSession();
       clearAuthState();
@@ -234,19 +270,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     avatarFile,
     removeAvatar,
   }: UpdateProfileOptions) => {
-    if (!user) throw new Error('Usuário não encontrado');
+    if (!user) throw new Error('Usuario nao encontrado');
 
     if (!isConfigured || !supabase) {
-      toast.error('Supabase não está configurado.');
-      throw new Error('Supabase não configurado');
+      toast.error('Supabase nao esta configurado.');
+      throw new Error('Supabase nao configurado');
     }
 
     const session = await supabase.auth.getSession();
     const accessToken = session.data.session?.access_token;
 
     if (!accessToken) {
-      toast.error('Sessão expirada. Faça login novamente.');
-      throw new Error('Sessão inválida');
+      toast.error('Sessao expirada. Faca login novamente.');
+      throw new Error('Sessao invalida');
     }
 
     let avatarPayload: { name: string; data: string } | undefined;
@@ -323,7 +359,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw error;
     }
 
-    toast.success('Email de recuperação enviado!');
+    toast.success('Email de recuperacao enviado!');
   };
 
   const value = {
