@@ -74,7 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return data;
     } catch (error) {
       console.error('[Auth] fetchUserProfile error', { userId, error });
-      toast.error('Erro ao carregar perfil do usuário');
+      toast.error('Erro ao carregar perfil do usuario');
       setUser(null);
       return null;
     }
@@ -87,7 +87,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (storageKey) {
         console.log('[Auth] purgeStoredSession removing', storageKey);
         window.localStorage.removeItem(storageKey);
-        window.localStorage.removeItem(${storageKey}-global);
+        window.localStorage.removeItem(`${storageKey}-global`);
       }
     } catch (error) {
       console.warn('[Auth] purgeStoredSession error', error);
@@ -137,7 +137,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           clearAuthState();
         }
       } catch (error) {
-        console.error('[Auth] Falha ao recuperar sessão atual.', error);
+        console.error('[Auth] Falha ao recuperar sessao atual.', error);
         clearAuthState();
       } finally {
         if (!cancelled) {
@@ -192,7 +192,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const ensureConfigured = () => {
     if (!isConfigured || !supabase) {
-      const message = 'Supabase não está configurado. Configure as variáveis de ambiente.';
+      const message = 'Supabase nao esta configurado. Configure as variaveis de ambiente.';
       console.error('[Auth] ensureConfigured failed');
       toast.error(message);
       throw new Error(message);
@@ -217,7 +217,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (error: any) {
       console.error('[Auth] signIn error', error);
       const message = error.message === 'Invalid login credentials'
-        ? 'Email ou senha inválidos'
+        ? 'Email ou senha invalidos'
         : error.message;
       toast.error(message);
       throw error;
@@ -267,7 +267,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       toast.success('Logout realizado com sucesso!');
     } catch (error: any) {
       console.error('[Auth] Falha ao realizar logout', error);
-      toast.error(error?.message ?? 'Não foi possível finalizar a sessão.');
+      toast.error(error?.message ?? 'Nao foi possivel finalizar a sessao.');
     } finally {
       purgeStoredSession();
       clearAuthState();
@@ -282,19 +282,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     avatarFile,
     removeAvatar,
   }: UpdateProfileOptions) => {
-    if (!user) throw new Error('Usuário não encontrado');
+    if (!user) throw new Error('Usuario nao encontrado');
 
     if (!isConfigured || !supabase) {
-      toast.error('Supabase não está configurado.');
-      throw new Error('Supabase não configurado');
+      toast.error('Supabase nao esta configurado.');
+      throw new Error('Supabase nao configurado');
     }
 
     const session = await supabase.auth.getSession();
     const accessToken = session.data.session?.access_token;
 
     if (!accessToken) {
-      toast.error('Sessão expirada. Faça login novamente.');
-      throw new Error('Sessão inválida');
+      toast.error('Sessao expirada. Faca login novamente.');
+      throw new Error('Sessao invalida');
     }
 
     let avatarPayload: { name: string; data: string } | undefined;
@@ -316,7 +316,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: Bearer ,
+        Authorization: `Bearer ${accessToken}`,
       },
       body: JSON.stringify({
         name,
@@ -363,7 +363,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     ensureConfigured();
 
     const { error } = await supabase!.auth.resetPasswordForEmail(email, {
-      redirectTo: ${window.location.origin}/reset-password,
+      redirectTo: `${window.location.origin}/reset-password`,
     });
 
     if (error) {
@@ -373,7 +373,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     console.log('[Auth] resetPassword success', { email });
-    toast.success('Email de recuperação enviado!');
+    toast.success('Email de recuperacao enviado!');
   };
 
   const value = {
@@ -398,4 +398,3 @@ export function useAuth() {
   }
   return context;
 }
-
