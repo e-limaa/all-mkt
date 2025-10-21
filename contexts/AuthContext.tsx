@@ -63,6 +63,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const fetchUserProfile = useCallback(async (userId: string) => {
     if (!supabase) return null;
     try {
+      console.log('[Auth] fetchUserProfile start', { userId });
       const { data, error } = await supabase
         .from('users')
         .select('*')
@@ -141,6 +142,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         clearAuthState();
       } finally {
         if (!cancelled) {
+          console.log('[Auth] initialize completed');
           setLoading(false);
         }
       }
@@ -174,6 +176,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
         } finally {
           if (!cancelled) {
+            console.log('[Auth] onAuthStateChange completed profile refresh');
             setLoading(false);
           }
         }
