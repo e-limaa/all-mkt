@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
-import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { supabase, isSupabaseConfigured, supabaseUrl, supabaseAnonKey } from '../lib/supabase';
 import { User as SupabaseUser, Session } from '@supabase/supabase-js';
 import { Database } from '../types/supabase';
 import { toast } from 'sonner';
@@ -64,25 +64,52 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!supabase) return null;
     try {
       console.log('[Auth] fetchUserProfile start', { userId });
-      const { data, error, status } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', userId)
-        .maybeSingle();
-      console.log('[Auth] fetchUserProfile response', {
-        userId,
-        hasData: Boolean(data),
-        error,
-      });
-      if (error && status !== 406) throw error;
-      if (!data) {
-        console.warn('[Auth] fetchUserProfile no data, returning null', { userId, status });
+      const {
+        data: sessionData,
+        error: sessionError,
+      } = await supabase.auth.getSession();
+      if (sessionError) throw sessionError;
+      const accessToken = sessionData.session?.access_token;
+      if (!accessToken) {
+        console.warn('[Auth] fetchUserProfile missing access token', { userId });
         setUser(null);
         return null;
       }
-      console.log('[Auth] fetchUserProfile success', { userId, hasData: Boolean(data) });
-      setUser(data);
-      return data;
+
+      const apiUrl = `${supabaseUrl}/rest/v1/users?id=eq.${userId}&select=*`;
+      const response = await fetch(apiUrl, {
+        headers: {
+          apikey: supabaseAnonKey,
+          Authorization: `Bearer ${accessToken}`,
+          Prefer: 'return=representation',
+        },
+      });
+
+      if (!response.ok) {
+        const body = await response.json().catch(() => null);
+        console.error('[Auth] fetchUserProfile http error', {
+          userId,
+          status: response.status,
+          body,
+        });
+        const message = body?.message || 'Nao foi possivel carregar o perfil do usuario';
+        toast.error(message);
+        setUser(null);
+        return null;
+      }
+
+      const rows = await response.json();
+      const record = Array.isArray(rows) ? rows[0] : rows;
+
+      if (!record) {
+        console.warn('[Auth] fetchUserProfile no data, returning null', { userId });
+        setUser(null);
+        return null;
+      }
+
+      console.log('[Auth] fetchUserProfile success', { userId });
+      setUser(record);
+      return record;
     } catch (error) {
       console.error('[Auth] fetchUserProfile error', { userId, error });
       toast.error('Erro ao carregar perfil do usuario');
