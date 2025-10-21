@@ -28,7 +28,7 @@ export function AuthSplitLayout({
         panelWrapperClassName,
       )}
     >
-      <div className="hidden min-h-full lg:block">
+      <div className="hidden h-full min-h-full lg:block">
         <LoginHero {...hero} />
       </div>
 

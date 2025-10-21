@@ -55,7 +55,7 @@ export function LoginHero({
   };
 
   return (
-    <div className="relative hidden overflow-hidden lg:flex">
+    <div className="relative hidden h-full w-full overflow-hidden lg:flex">
       <Image
         src={imageSrc}
         alt={imageAlt}
