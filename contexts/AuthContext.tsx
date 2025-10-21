@@ -207,7 +207,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { error } = await supabase!.auth.signInWithPassword({ email, password });
 
       if (error) throw error;
-      const current = supabase.auth.session()?.user ?? null;
+      const {
+        data: { session: currentSession },
+      } = await supabase!.auth.getSession();
+      const current = currentSession?.user ?? null;
       console.log('[Auth] signIn success', { hasSupabaseSessionUser: Boolean(current) });
       if (current) {
         setSupabaseUser(current);
@@ -240,7 +243,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
 
       if (error) throw error;
-      const current = supabase.auth.session()?.user ?? null;
+      const {
+        data: { session: currentSession },
+      } = await supabase!.auth.getSession();
+      const current = currentSession?.user ?? null;
       console.log('[Auth] signUp success', { hasSupabaseSessionUser: Boolean(current) });
       if (current) {
         setSupabaseUser(current);
