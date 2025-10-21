@@ -65,6 +65,7 @@ if (typeof window !== 'undefined') {
     hasClient: Boolean(supabase),
     isConfigured: isSupabaseConfigured(),
   };
+  (window as any).__SUPABASE_CLIENT = supabase;
 
   console.log('[Supabase runtime]', {
     supabaseUrl,
