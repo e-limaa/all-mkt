@@ -56,7 +56,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isConfigured = isSupabaseConfigured();
 
   const clearAuthState = () => {
-    console.log('[Auth] clearAuthState called');
     setUser(null);
     setSupabaseUser(null);
     setSession(null);
@@ -64,7 +63,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const fetchUserProfile = useCallback(async (currentSession: Session | null | undefined) => {
     if (!supabase || !currentSession?.user) {
-      console.warn('[Auth] fetchUserProfile aborted - missing session user');
       setUser(null);
       return null;
     }
@@ -73,9 +71,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const accessToken = currentSession.access_token;
 
     try {
-      console.log('[Auth] fetchUserProfile start', { userId });
       if (!accessToken) {
-        console.warn('[Auth] fetchUserProfile missing access token', { userId });
         const fallback = buildFallbackUser(currentSession.user);
         setUser(fallback);
         return fallback;
@@ -97,31 +93,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
       } catch (error) {
         clearTimeout(fetchTimeoutId);
-        if ((error as DOMException)?.name === 'AbortError') {
-          console.error('[Auth] fetchUserProfile fetch aborted by timeout', { userId });
-          toast.error('Tempo limite ao carregar o perfil do usuario.');
-        } else {
-          console.error('[Auth] fetchUserProfile fetch failed', { userId, error });
-          toast.error('Erro na requisicao de perfil do usuario.');
-        }
+        toast.error('Erro na requisicao de perfil do usuario.');
         setUser(null);
         return null;
       } finally {
         clearTimeout(fetchTimeoutId);
       }
 
-      console.log('[Auth] fetchUserProfile http status', {
-        status: response.status,
-        ok: response.ok,
-      });
-
       if (!response.ok) {
         const body = await response.json().catch(() => null);
-        console.error('[Auth] fetchUserProfile http error', {
-          userId,
-          status: response.status,
-          body,
-        });
         const message = body?.message || 'Nao foi possivel carregar o perfil do usuario';
         toast.error(message);
         setUser(null);
@@ -132,17 +112,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const record = Array.isArray(rows) ? rows[0] : rows;
 
       if (!record) {
-        console.warn('[Auth] fetchUserProfile no data, using fallback user', { userId });
         const fallback = buildFallbackUser(currentSession.user);
         setUser(fallback);
         return fallback;
       }
 
-      console.log('[Auth] fetchUserProfile success', { userId });
       setUser(record);
       return record;
     } catch (error) {
-      console.error('[Auth] fetchUserProfile error', { userId, error });
       toast.error('Erro ao carregar perfil do usuario');
       setUser(null);
       return null;
@@ -154,12 +131,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const storageKey = (supabase as any)?.auth?.storageKey as string | undefined;
       if (storageKey) {
-        console.log('[Auth] purgeStoredSession removing', storageKey);
         window.localStorage.removeItem(storageKey);
         window.localStorage.removeItem(`${storageKey}-global`);
       }
-    } catch (error) {
-      console.warn('[Auth] purgeStoredSession error', error);
+    } catch (_error) {
+      /* ignore storage purge failures */
     }
   };
 
@@ -167,7 +143,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
 
     const initialize = async () => {
-      console.log('[Auth] initialize start', { isConfigured, hasSupabase: Boolean(supabase) });
       if (!isConfigured) {
         console.error('[Auth] initialize aborted - supabase not configured');
         setLoading(false);
@@ -190,19 +165,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (cancelled) return;
 
         const currentSession = data.session ?? null;
-        console.log('[Auth] getSession result', { hasSession: Boolean(currentSession) });
         setSession(currentSession);
         setSupabaseUser(currentSession?.user ?? null);
 
         if (currentSession?.user) {
-          console.log('[Auth] initialize refreshing profile', { userId: currentSession.user.id });
           const profile = await fetchUserProfile(currentSession);
           if (!profile) {
-            console.log('[Auth] initialize using fallback user');
             setUser(buildFallbackUser(currentSession.user));
           }
         } else {
-          console.log('[Auth] initialize with no session user, clearing');
           clearAuthState();
         }
       } catch (error) {
@@ -210,7 +181,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         clearAuthState();
       } finally {
         if (!cancelled) {
-          console.log('[Auth] initialize completed');
           setLoading(false);
         }
       }
@@ -226,8 +196,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, nextSession) => {
-      console.log('[Auth] onAuthStateChange', { event, hasSession: Boolean(nextSession) });
+    } = supabase.auth.onAuthStateChange(async (_event, nextSession) => {
       if (cancelled) return;
 
       setSession(nextSession ?? null);
@@ -236,20 +205,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (nextSession?.user) {
         setLoading(true);
         try {
-          console.log('[Auth] onAuthStateChange refreshing profile', { userId: nextSession.user.id });
           const profile = await fetchUserProfile(nextSession);
           if (!profile) {
-            console.log('[Auth] onAuthStateChange using fallback user');
             setUser(buildFallbackUser(nextSession.user));
           }
         } finally {
           if (!cancelled) {
-            console.log('[Auth] onAuthStateChange completed profile refresh');
             setLoading(false);
           }
         }
       } else {
-        console.log('[Auth] onAuthStateChange without user, clearing');
         clearAuthState();
         setLoading(false);
       }
@@ -282,7 +247,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         data: { session: currentSession },
       } = await supabase!.auth.getSession();
       const current = currentSession?.user ?? null;
-      console.log('[Auth] signIn success', { hasSupabaseSessionUser: Boolean(current) });
       if (current) {
         setSupabaseUser(current);
         setUser(buildFallbackUser(current));
@@ -318,7 +282,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         data: { session: currentSession },
       } = await supabase!.auth.getSession();
       const current = currentSession?.user ?? null;
-      console.log('[Auth] signUp success', { hasSupabaseSessionUser: Boolean(current) });
       if (current) {
         setSupabaseUser(current);
         setUser(buildFallbackUser(current));
@@ -340,7 +303,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const { error } = await supabase!.auth.signOut({ scope: 'global' });
       if (error) throw error;
-      console.log('[Auth] signOut success');
       toast.success('Logout realizado com sucesso!');
     } catch (error: any) {
       console.error('[Auth] Falha ao realizar logout', error);
@@ -449,7 +411,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw error;
     }
 
-    console.log('[Auth] resetPassword success', { email });
     toast.success('Email de recuperacao enviado!');
   };
 

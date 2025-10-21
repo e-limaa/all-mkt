@@ -29,13 +29,6 @@ const supabaseUrl = initialEnv.url;
 const supabaseAnonKey = initialEnv.anonKey;
 const hasValidConfig = Boolean(supabaseUrl && supabaseAnonKey && supabaseUrl.startsWith('https://'));
 
-if (process.env.NODE_ENV !== 'production') {
-  const redactedKey = supabaseAnonKey.length > 8
-    ? `${supabaseAnonKey.slice(0, 4)}...${supabaseAnonKey.slice(-4)}`
-    : supabaseAnonKey;
-  console.log('[Supabase] URL:', supabaseUrl || '(não configurado)');
-  console.log('[Supabase] ANON KEY:', redactedKey || '(não configurado)');
-}
 
 export const supabase = hasValidConfig
   ? createClient<Database>(supabaseUrl, supabaseAnonKey, {
@@ -53,26 +46,6 @@ export const isSupabaseConfigured = () => {
   const env = getSupabaseEnv();
   return Boolean(env.url && env.anonKey && env.url.startsWith('https://'));
 };
-
-if (typeof window !== 'undefined') {
-  const anonKeySnippet =
-    supabaseAnonKey.length > 8
-      ? `${supabaseAnonKey.slice(0, 4)}...${supabaseAnonKey.slice(-4)}`
-      : supabaseAnonKey || null;
-
-  (window as any).__SUPABASE_DEBUG = {
-    supabaseUrl,
-    hasClient: Boolean(supabase),
-    isConfigured: isSupabaseConfigured(),
-  };
-  (window as any).__SUPABASE_CLIENT = supabase;
-
-  console.log('[Supabase runtime]', {
-    supabaseUrl,
-    hasClient: Boolean(supabase),
-    anonKeySnippet,
-  });
-}
 
 const getAbsoluteStorageUrl = (publicUrl: string): string => {
   if (publicUrl.startsWith('http')) {
@@ -136,3 +109,4 @@ export const deleteFile = async (bucket: string, path: string) => {
   if (error) throw error;
   return data;
 };
+
