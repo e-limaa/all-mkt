@@ -1,4 +1,4 @@
-// @ts-nocheck
+﻿// @ts-nocheck
 import React, { createContext, useContext, useState, useEffect, useMemo, ReactNode } from 'react';
 import { supabase, isSupabaseConfigured, uploadFile, getPublicUrl, deleteFile } from '../lib/supabase';
 import { useAuth } from './AuthContext';
@@ -75,16 +75,28 @@ const normalizeProjectStatusValue = (status?: string | null) => {
   }
 };
 
-const formatUserDisplayName = (raw?: string | null) => {
-  if (!raw) return 'Desconhecido';
-  const trimmed = raw.trim();
-  if (!trimmed) return 'Desconhecido';
-  if (trimmed.toLowerCase() === 'desconhecido') {
-    return 'Desconhecido';
+const formatUserDisplayName = (
+  raw?: string | null,
+  fallbackId?: string | null,
+) => {
+  if (raw) {
+    const trimmed = raw.trim();
+    if (trimmed) {
+      const parts = trimmed.split(/\s+/).filter(Boolean);
+      if (parts.length > 0) {
+        return parts.slice(0, Math.min(parts.length, 2)).join(' ');
+      }
+    }
   }
-  const parts = trimmed.split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return 'Desconhecido';
-  return parts.slice(0, Math.min(parts.length, 2)).join(' ');
+
+  const fallbackTrimmed = fallbackId?.trim();
+  if (fallbackTrimmed) {
+    return fallbackTrimmed.length > 12
+      ? `${fallbackTrimmed.slice(0, 6)}...${fallbackTrimmed.slice(-4)}`
+      : fallbackTrimmed;
+  }
+
+  return 'Desconhecido';
 };
 
 const fillMissingUserNames = async (
@@ -280,6 +292,23 @@ export function AssetProvider({ children }: { children: ReactNode }) {
       if (error) throw error;
 
       const rows = (data ?? []) as AssetRow[];
+      const uploaderIds = Array.from(
+        new Set(
+          rows
+            .map((item) => item.uploaded_by)
+            .filter((id): id is string => typeof id === 'string' && id.trim().length > 0),
+        ),
+      );
+      let uploaderMap = new Map<string, string>();
+      rows.forEach((item) => {
+        if (item.uploaded_by && item.uploaded_by_user?.name) {
+          uploaderMap.set(item.uploaded_by, item.uploaded_by_user.name);
+        }
+      });
+
+      if (uploaderIds.length > 0) {
+        uploaderMap = await fillMissingUserNames(uploaderIds, uploaderMap);
+      }
 
       const transformedAssets: Asset[] = rows.map((item) => {
         const metadataValue = item.metadata;
@@ -318,7 +347,10 @@ export function AssetProvider({ children }: { children: ReactNode }) {
           downloadCount: item.download_count,
           metadata: normalizedMetadata,
           uploadedAt: item.created_at,
-          uploadedBy: item.uploaded_by_user?.name || 'Usuario',
+          uploadedBy: formatUserDisplayName(
+            uploaderMap.get(item.uploaded_by ?? '') ?? null,
+            item.uploaded_by ?? null,
+          ),
         };
       });
 
@@ -380,6 +412,7 @@ export function AssetProvider({ children }: { children: ReactNode }) {
         const createdById = item.created_by ?? 'system';
         const creatorDisplayName = formatUserDisplayName(
           creatorMap.get(item.created_by ?? '') ?? null,
+          createdById,
         );
         const tagsValue: string[] = [];
 
@@ -470,6 +503,7 @@ export function AssetProvider({ children }: { children: ReactNode }) {
         createdBy: item.created_by,
         createdByName: formatUserDisplayName(
           creatorMap.get(item.created_by ?? '') ?? null,
+          item.created_by ?? null,
         ),
       }));
 
@@ -527,13 +561,13 @@ export function AssetProvider({ children }: { children: ReactNode }) {
       setUserCount(count ?? 0);
     } catch (error) {
       console.error('Error fetching user count:', error);
-      toast.error('Erro ao carregar estatísticas de usuários');
+      toast.error('Erro ao carregar estatÃ­sticas de usuÃ¡rios');
       setUserCount(0);
     }
   };
 
   const uploadAsset = async (file: File, projectId?: string, campaignId?: string, metadata?: any) => {
-    if (!user) throw new Error('Usuário não encontrado');
+    if (!user) throw new Error('UsuÃ¡rio nÃ£o encontrado');
 
     if (!isConfigured) {
       // Modo de desenvolvimento - simular upload
@@ -587,7 +621,7 @@ export function AssetProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    if (!supabase) throw new Error('Supabase não configurado');
+    if (!supabase) throw new Error('Supabase nÃ£o configurado');
 
     setLoading(true);
     try {
@@ -663,7 +697,7 @@ export function AssetProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    if (!supabase) throw new Error('Supabase não configurado');
+    if (!supabase) throw new Error('Supabase nÃ£o configurado');
 
     try {
       const { error } = await supabase
@@ -691,15 +725,15 @@ export function AssetProvider({ children }: { children: ReactNode }) {
   const deleteAsset = async (id: string) => {
     if (!isConfigured) {
       setAssets(prev => prev.filter(asset => asset.id !== id));
-      toast.success('Material excluído com sucesso! (Modo desenvolvimento)');
+      toast.success('Material excluÃ­do com sucesso! (Modo desenvolvimento)');
       return;
     }
 
-    if (!supabase) throw new Error('Supabase não configurado');
+    if (!supabase) throw new Error('Supabase nÃ£o configurado');
 
     try {
       const asset = assets.find(a => a.id === id);
-      if (!asset) throw new Error('Material não encontrado');
+      if (!asset) throw new Error('Material nÃ£o encontrado');
 
       const filename = asset.url.split('/').pop();
       if (filename) {
@@ -714,7 +748,7 @@ export function AssetProvider({ children }: { children: ReactNode }) {
       if (error) throw error;
 
       await fetchAssets();
-      toast.success('Material excluído com sucesso!');
+      toast.success('Material excluÃ­do com sucesso!');
     } catch (error: any) {
       console.error('Error deleting asset:', error);
       toast.error(error.message || 'Erro ao excluir material');
@@ -786,7 +820,7 @@ export function AssetProvider({ children }: { children: ReactNode }) {
   };
 
   const createCampaign = async (campaign: Omit<Campaign, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'>) => {
-    if (!user) throw new Error('Usuário não encontrado');
+    if (!user) throw new Error('UsuÃ¡rio nÃ£o encontrado');
 
     if (!isConfigured) {
       const status = computeCampaignStatus(campaign.startDate, campaign.endDate);
@@ -797,7 +831,10 @@ export function AssetProvider({ children }: { children: ReactNode }) {
         id: uuidv4(),
         createdAt: new Date().toISOString(),
         createdBy: user.id,
-        createdByName: formatUserDisplayName(user.name ?? user.email ?? null),
+        createdByName: formatUserDisplayName(
+          user.name ?? user.email ?? null,
+          user.id,
+        ),
         tags: []
       };
       setCampaigns(prev => [newCampaign, ...prev]);
@@ -805,7 +842,7 @@ export function AssetProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    if (!supabase) throw new Error('Supabase não configurado');
+    if (!supabase) throw new Error('Supabase nÃ£o configurado');
 
     try {
       const payload = mapCampaignToDb({ ...campaign, createdBy: user.id });
@@ -840,7 +877,7 @@ export function AssetProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    if (!supabase) throw new Error('Supabase não configurado');
+    if (!supabase) throw new Error('Supabase nÃ£o configurado');
 
     try {
       const mappedUpdates = mapCampaignToDb(updates);
@@ -864,11 +901,11 @@ export function AssetProvider({ children }: { children: ReactNode }) {
   const deleteCampaign = async (id: string) => {
     if (!isConfigured) {
       setCampaigns(prev => prev.filter(campaign => campaign.id !== id));
-      toast.success('Campanha excluída com sucesso! (Modo desenvolvimento)');
+      toast.success('Campanha excluÃ­da com sucesso! (Modo desenvolvimento)');
       return;
     }
 
-    if (!supabase) throw new Error('Supabase não configurado');
+    if (!supabase) throw new Error('Supabase nÃ£o configurado');
 
     try {
       const { error } = await supabase
@@ -879,7 +916,7 @@ export function AssetProvider({ children }: { children: ReactNode }) {
       if (error) throw error;
 
       await fetchCampaigns();
-      toast.success('Campanha excluída com sucesso!');
+      toast.success('Campanha excluÃ­da com sucesso!');
     } catch (error: any) {
       console.error('Error deleting campaign:', error);
       toast.error(error.message || 'Erro ao excluir campanha');
@@ -888,7 +925,7 @@ export function AssetProvider({ children }: { children: ReactNode }) {
   };
 
   const createProject = async (project: Omit<Project, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'>) => {
-    if (!user) throw new Error('Usuário não encontrado');
+    if (!user) throw new Error('UsuÃ¡rio nÃ£o encontrado');
 
     if (!isConfigured) {
       const newProject: Project = {
@@ -896,7 +933,10 @@ export function AssetProvider({ children }: { children: ReactNode }) {
         id: uuidv4(),
         createdAt: new Date().toISOString(),
         createdBy: user.id,
-        createdByName: formatUserDisplayName(user.name ?? user.email ?? null),
+        createdByName: formatUserDisplayName(
+          user.name ?? user.email ?? null,
+          user.id,
+        ),
         tags: [],
       };
       setProjects((prev) => [newProject, ...prev]);
@@ -904,7 +944,7 @@ export function AssetProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    if (!supabase) throw new Error('Supabase não configurado');
+    if (!supabase) throw new Error('Supabase nÃ£o configurado');
 
     try {
       const payload = buildProjectPayload({
@@ -941,7 +981,7 @@ export function AssetProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    if (!supabase) throw new Error('Supabase não configurado');
+    if (!supabase) throw new Error('Supabase nÃ£o configurado');
 
     try {
       const payload = buildProjectPayload(updates as Record<string, unknown>);
@@ -966,11 +1006,11 @@ export function AssetProvider({ children }: { children: ReactNode }) {
   const deleteProject = async (id: string) => {
     if (!isConfigured) {
       setProjects(prev => prev.filter(project => project.id !== id));
-      toast.success('Projeto excluído com sucesso! (Modo desenvolvimento)');
+      toast.success('Projeto excluÃ­do com sucesso! (Modo desenvolvimento)');
       return;
     }
 
-    if (!supabase) throw new Error('Supabase não configurado');
+    if (!supabase) throw new Error('Supabase nÃ£o configurado');
 
     try {
       const { error } = await supabase
@@ -981,7 +1021,7 @@ export function AssetProvider({ children }: { children: ReactNode }) {
       if (error) throw error;
 
       await fetchProjects();
-      toast.success('Projeto excluído com sucesso!');
+      toast.success('Projeto excluÃ­do com sucesso!');
     } catch (error: any) {
       console.error('Error deleting project:', error);
       toast.error(error.message || 'Erro ao excluir projeto');
@@ -1031,3 +1071,5 @@ export function useAssets() {
   }
   return context;
 }
+
+
