@@ -79,9 +79,50 @@ const formatUserDisplayName = (raw?: string | null) => {
   if (!raw) return 'Desconhecido';
   const trimmed = raw.trim();
   if (!trimmed) return 'Desconhecido';
+  if (trimmed.toLowerCase() === 'desconhecido') {
+    return 'Desconhecido';
+  }
   const parts = trimmed.split(/\s+/).filter(Boolean);
   if (parts.length === 0) return 'Desconhecido';
   return parts.slice(0, Math.min(parts.length, 2)).join(' ');
+};
+
+const fillMissingUserNames = async (
+  ids: string[],
+  existingMap: Map<string, string>,
+) => {
+  const missing = ids.filter(
+    (id) => id && id.trim() && !existingMap.has(id.trim()),
+  );
+  if (missing.length === 0 || typeof window === 'undefined') {
+    return existingMap;
+  }
+
+  try {
+    const response = await fetch('/api/users/lookup', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ ids: missing }),
+    });
+
+    if (!response.ok) {
+      console.error('[AssetContext] Fallback user lookup failed', response.status);
+      return existingMap;
+    }
+
+    const payload: Array<{ id: string; name: string | null }> = await response.json();
+    payload.forEach((user) => {
+      if (user?.id) {
+        existingMap.set(user.id, user.name ?? '');
+      }
+    });
+  } catch (error) {
+    console.error('[AssetContext] Failed to load user names fallback', error);
+  }
+
+  return existingMap;
 };
 
 const buildProjectPayload = (raw: Record<string, unknown>) => {
@@ -323,6 +364,8 @@ export function AssetProvider({ children }: { children: ReactNode }) {
             creatorData.map((user) => [user.id, user.name ?? '']),
           );
         }
+
+        creatorMap = await fillMissingUserNames(creatorIds, creatorMap);
       }
 
       const transformedCampaigns: Campaign[] = campaignRows.map(item => {
@@ -409,6 +452,8 @@ export function AssetProvider({ children }: { children: ReactNode }) {
             creatorData.map((user) => [user.id, user.name ?? '']),
           );
         }
+
+        creatorMap = await fillMissingUserNames(creatorIds, creatorMap);
       }
 
       const transformedProjects: Project[] = projectRows.map(item => ({
