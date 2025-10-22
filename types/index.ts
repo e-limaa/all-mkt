@@ -17,6 +17,7 @@ export interface Campaign {
   image?: string;
   createdAt: string;
   createdBy: string;
+  createdByName?: string;
   tags: string[];
   assetCount?: number;
   metrics?: {
@@ -39,6 +40,7 @@ export interface Project {
   imageType?: 'upload' | 'url';
   createdAt: string;
   createdBy: string;
+  createdByName?: string;
   tags?: string[];
   assetCount?: number;
   projectPhase?: 'vem-ai' | 'breve-lancamento' | 'lancamento';

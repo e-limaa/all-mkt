@@ -62,6 +62,16 @@ export function CampaignManager({ onNavigateToMaterials }: CampaignManagerProps)
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingCampaign, setEditingCampaign] = useState<Campaign | null>(null);
+  const getCreatorDisplayName = (name?: string, fallbackId?: string): string => {
+    if (name && name.trim()) {
+      return name.trim();
+    }
+    if (fallbackId && fallbackId.trim()) {
+      const truncated = fallbackId.trim();
+      return truncated.length > 10 ? `${truncated.slice(0, 10)}...` : truncated;
+    }
+    return 'Não informado';
+  };
   
   // Permissões para modificações
   const canCreateCampaigns = hasPermission(Permission.CREATE_CAMPAIGNS);
@@ -360,7 +370,7 @@ export function CampaignManager({ onNavigateToMaterials }: CampaignManagerProps)
                   <div className="flex items-center gap-2 text-sm">
                     <UsersIcon className="w-4 h-4 text-muted-foreground" />
                     <span className="text-muted-foreground">Criado por:</span>
-                    <span className="font-medium text-foreground truncate">{campaign.createdBy}</span>
+                    <span className="font-medium text-foreground truncate">{getCreatorDisplayName(campaign.createdByName, campaign.createdBy)}</span>
                   </div>
                 </div>
                 
@@ -568,6 +578,7 @@ function CampaignForm({
     </form>
   );
 }
+
 
 
 

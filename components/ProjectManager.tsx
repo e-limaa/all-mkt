@@ -120,6 +120,20 @@ export function ProjectManager({
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
 
+  const getCreatorDisplayName = (
+    name?: string,
+    fallbackId?: string,
+  ): string => {
+    if (name && name.trim()) {
+      return name.trim();
+    }
+    if (fallbackId && fallbackId.trim()) {
+      const truncated = fallbackId.trim();
+      return truncated.length > 10 ? `${truncated.slice(0, 10)}...` : truncated;
+    }
+    return "Não informado";
+  };
+
   // Debug: Log projects count
   console.log("ðŸ“Š ProjectManager - Total projects:", projects.length);
   console.log("ðŸ“Š ProjectManager - Projects:", projects);
@@ -226,6 +240,7 @@ export function ProjectManager({
       createdAt,
       updatedAt,
       createdBy,
+      createdByName,
       launchDate,
       ...safeUpdates
     } = updates as Record<string, unknown>;
@@ -587,7 +602,7 @@ export function ProjectManager({
                     <UsersIcon className="w-4 h-4 text-muted-foreground" />
                     <span className="text-muted-foreground">Criado por:</span>
                     <span className="font-medium text-foreground truncate">
-                      {project.createdBy}
+                      {getCreatorDisplayName(project.createdByName, project.createdBy)}
                     </span>
                   </div>
                 </div>
@@ -1022,6 +1037,7 @@ function ProjectForm({
     </form>
   );
 }
+
 
 
 

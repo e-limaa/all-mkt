@@ -75,6 +75,15 @@ const normalizeProjectStatusValue = (status?: string | null) => {
   }
 };
 
+const formatUserDisplayName = (raw?: string | null) => {
+  if (!raw) return 'Desconhecido';
+  const trimmed = raw.trim();
+  if (!trimmed) return 'Desconhecido';
+  const parts = trimmed.split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return 'Desconhecido';
+  return parts.slice(0, Math.min(parts.length, 2)).join(' ');
+};
+
 const buildProjectPayload = (raw: Record<string, unknown>) => {
   const {
     projectPhase,
@@ -294,6 +303,27 @@ export function AssetProvider({ children }: { children: ReactNode }) {
       if (error) throw error;
 
       const campaignRows = (data ?? []) as CampaignRow[];
+      const creatorIds = Array.from(
+        new Set(
+          campaignRows
+            .map((item) => item.created_by)
+            .filter((id): id is string => typeof id === 'string' && id.trim().length > 0),
+        ),
+      );
+
+      let creatorMap = new Map<string, string>();
+      if (creatorIds.length > 0) {
+        const { data: creatorData, error: creatorError } = await supabaseClient
+          .from('users')
+          .select('id, name')
+          .in('id', creatorIds);
+
+        if (!creatorError && creatorData) {
+          creatorMap = new Map(
+            creatorData.map((user) => [user.id, user.name ?? '']),
+          );
+        }
+      }
 
       const transformedCampaigns: Campaign[] = campaignRows.map(item => {
         const normalizedStart = normalizeDateString(item.start_date);
@@ -304,7 +334,10 @@ export function AssetProvider({ children }: { children: ReactNode }) {
         const startDateValue = normalizedStart ?? item.start_date ?? new Date().toISOString();
         const endDateValue = normalizedEnd ?? undefined;
         const createdAtValue = item.created_at ?? new Date().toISOString();
-        const createdByValue = item.created_by ?? 'system';
+        const createdById = item.created_by ?? 'system';
+        const creatorDisplayName = formatUserDisplayName(
+          creatorMap.get(item.created_by ?? '') ?? null,
+        );
         const tagsValue: string[] = [];
 
         return {
@@ -316,7 +349,8 @@ export function AssetProvider({ children }: { children: ReactNode }) {
           startDate: startDateValue,
           endDate: endDateValue,
           createdAt: createdAtValue,
-          createdBy: createdByValue,
+          createdBy: createdById,
+          createdByName: creatorDisplayName,
           tags: tagsValue
         };
       });
@@ -345,7 +379,8 @@ export function AssetProvider({ children }: { children: ReactNode }) {
     if (!supabase) return;
     
     try {
-      const { data, error } = await supabase
+      const supabaseClient = supabase as SupabaseClient<Database>;
+      const { data, error } = await supabaseClient
         .from('projects')
         .select('*')
         .order('created_at', { ascending: false });
@@ -354,6 +389,27 @@ export function AssetProvider({ children }: { children: ReactNode }) {
 
       type ProjectRow = Database['public']['Tables']['projects']['Row'];
       const projectRows = (data ?? []) as ProjectRow[];
+      const creatorIds = Array.from(
+        new Set(
+          projectRows
+            .map((item) => item.created_by)
+            .filter((id): id is string => typeof id === 'string' && id.trim().length > 0),
+        ),
+      );
+
+      let creatorMap = new Map<string, string>();
+      if (creatorIds.length > 0) {
+        const { data: creatorData, error: creatorError } = await supabaseClient
+          .from('users')
+          .select('id, name')
+          .in('id', creatorIds);
+
+        if (!creatorError && creatorData) {
+          creatorMap = new Map(
+            creatorData.map((user) => [user.id, user.name ?? '']),
+          );
+        }
+      }
 
       const transformedProjects: Project[] = projectRows.map(item => ({
         id: item.id,
@@ -366,7 +422,10 @@ export function AssetProvider({ children }: { children: ReactNode }) {
         location: item.location || '',
         createdAt: item.created_at,
         updatedAt: item.updated_at,
-        createdBy: item.created_by
+        createdBy: item.created_by,
+        createdByName: formatUserDisplayName(
+          creatorMap.get(item.created_by ?? '') ?? null,
+        ),
       }));
 
       setProjects(transformedProjects);
@@ -693,6 +752,7 @@ export function AssetProvider({ children }: { children: ReactNode }) {
         id: uuidv4(),
         createdAt: new Date().toISOString(),
         createdBy: user.id,
+        createdByName: formatUserDisplayName(user.name ?? user.email ?? null),
         tags: []
       };
       setCampaigns(prev => [newCampaign, ...prev]);
@@ -791,6 +851,7 @@ export function AssetProvider({ children }: { children: ReactNode }) {
         id: uuidv4(),
         createdAt: new Date().toISOString(),
         createdBy: user.id,
+        createdByName: formatUserDisplayName(user.name ?? user.email ?? null),
         tags: [],
       };
       setProjects((prev) => [newProject, ...prev]);
