@@ -102,6 +102,44 @@ const normalizeProjectStatus = (status?: string): Project["status"] => {
   }
 };
 
+const normalizeLaunchDateInput = (
+  value: string | Date | null | undefined,
+): string | null | undefined => {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+
+  if (value instanceof Date) {
+    return value.toISOString().split("T")[0];
+  }
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(trimmed)) {
+      const [day, month, year] = trimmed.split("/");
+      return `${year}-${month}-${day}`;
+    }
+
+    const datePortion = trimmed.includes("T")
+      ? trimmed.split("T")[0]
+      : trimmed;
+
+    if (/^\d{4}-\d{2}-\d{2}$/.test(datePortion)) {
+      return datePortion;
+    }
+
+    const parsed = new Date(trimmed);
+    if (!Number.isNaN(parsed.getTime())) {
+      return parsed.toISOString().split("T")[0];
+    }
+
+    return datePortion;
+  }
+
+  return undefined;
+};
+
 interface ProjectManagerProps {
   onPageChange?: (page: string) => void;
   onNavigateToMaterials?: (projectId: string, projectName: string) => void;
@@ -202,6 +240,7 @@ export function ProjectManager({
         imageUrl = "";
       }
       const normalizedStatus = normalizeProjectStatus(projectData.projectPhase || projectData.status);
+      const launchDateToPersist = normalizeLaunchDateInput(projectData.launchDate);
 
       const projectToCreate = {
         name: projectData.name || "",
@@ -211,6 +250,7 @@ export function ProjectManager({
         color: projectData.color || "#3b82f6",
         image: imageUrl || "",
         created_by: userId,
+        ...(launchDateToPersist !== undefined ? { launchDate: launchDateToPersist } : {}),
       };
       const newProject = await createProject(projectToCreate);
       toast.success(`Empreendimento "${projectData.name}" criado com sucesso!`);
@@ -237,13 +277,25 @@ export function ProjectManager({
     };
 
     const {
+      id: _ignoredId,
       createdAt,
       updatedAt,
       createdBy,
       createdByName,
-      launchDate,
       ...safeUpdates
     } = updates as Record<string, unknown>;
+
+    if ("launchDate" in safeUpdates) {
+      const normalizedLaunchDate = normalizeLaunchDateInput(
+        safeUpdates.launchDate as string | Date | null | undefined
+      );
+
+      if (normalizedLaunchDate === undefined) {
+        delete safeUpdates.launchDate;
+      } else {
+        safeUpdates.launchDate = normalizedLaunchDate;
+      }
+    }
 
     try {
       await updateProject(updatedProject.id, safeUpdates as Partial<Project>);
@@ -697,7 +749,8 @@ function ProjectForm({
     status: project?.status || "vem-ai",
     color: project?.color || "#3b82f6",
     image: project?.image || "",
-    launchDate: project?.launchDate ? project.launchDate.split("T")[0] : "",
+    launchDate:
+      normalizeLaunchDateInput(project?.launchDate) ?? "",
     createdBy: project?.createdBy || "Usuário Atual",
     projectPhase: project?.projectPhase || "",
   });

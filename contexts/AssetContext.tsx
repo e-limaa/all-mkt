@@ -13,7 +13,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 // Dashboard statistics interface
 type SharedLinkRow = Database['public']['Tables']['shared_links']['Row'];
 
-interface DashboardStats {
+export interface DashboardStats {
   totalAssets: number;
   downloadCount: number;
   totalUsers: number;
@@ -137,6 +137,42 @@ const fillMissingUserNames = async (
   return existingMap;
 };
 
+const normalizeDateValue = (value: unknown): string | null | undefined => {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+
+  if (value instanceof Date) {
+    return value.toISOString().split('T')[0];
+  }
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(trimmed)) {
+      const [day, month, year] = trimmed.split('/');
+      return `${year}-${month}-${day}`;
+    }
+
+    const datePortion = trimmed.includes('T')
+      ? trimmed.split('T')[0]
+      : trimmed;
+
+    if (/^\d{4}-\d{2}-\d{2}$/.test(datePortion)) {
+      return datePortion;
+    }
+
+    const parsed = new Date(trimmed);
+    if (!Number.isNaN(parsed.getTime())) {
+      return parsed.toISOString().split('T')[0];
+    }
+
+    return datePortion;
+  }
+
+  return undefined;
+};
+
 const buildProjectPayload = (raw: Record<string, unknown>) => {
   const {
     projectPhase,
@@ -153,6 +189,19 @@ const buildProjectPayload = (raw: Record<string, unknown>) => {
   const payload: Record<string, unknown> = {
     ...rest,
   };
+
+  const launchDateFromRaw = normalizeDateValue(
+    launchDate ?? (raw as Record<string, unknown>)['launch_date'],
+  );
+
+  if (launchDateFromRaw === undefined) {
+    delete payload.launch_date;
+  } else {
+    payload.launch_date = launchDateFromRaw;
+  }
+
+  delete payload.launchDate;
+  delete payload.id;
 
   const statusSource =
     typeof projectPhase === 'string' && projectPhase.trim()
@@ -498,6 +547,7 @@ export function AssetProvider({ children }: { children: ReactNode }) {
         status: item.status as Project['status'],
         projectPhase: item.status as Project['projectPhase'],
         location: item.location || '',
+        launchDate: normalizeDateValue(item.launch_date) ?? undefined,
         createdAt: item.created_at,
         updatedAt: item.updated_at,
         createdBy: item.created_by,
@@ -933,6 +983,7 @@ export function AssetProvider({ children }: { children: ReactNode }) {
         id: uuidv4(),
         createdAt: new Date().toISOString(),
         createdBy: user.id,
+        launchDate: normalizeDateValue(project.launchDate) ?? undefined,
         createdByName: formatUserDisplayName(
           user.name ?? user.email ?? null,
           user.id,
@@ -987,12 +1038,21 @@ export function AssetProvider({ children }: { children: ReactNode }) {
       const payload = buildProjectPayload(updates as Record<string, unknown>);
       payload.updated_at = new Date().toISOString();
 
-      const { error } = await supabase
+      const { data: updatedRows, error } = await supabase
         .from('projects')
         .update(payload)
-        .eq('id', id);
+        .eq('id', id)
+        .select('id, launch_date');
 
-      if (error) throw error;
+      if (error) {
+        console.error('[updateProject] Supabase error payload:', { payload, error });
+        throw error;
+      }
+
+      if (!updatedRows || updatedRows.length === 0) {
+        console.error('[updateProject] Supabase returned 0 rows after update', { id, payload });
+        throw new Error('Nenhuma linha foi atualizada. Verifique suas permissões.');
+      }
 
       await fetchProjects();
       toast.success('Projeto atualizado com sucesso!');

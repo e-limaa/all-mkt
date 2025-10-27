@@ -1,4 +1,4 @@
-﻿import React, { useMemo } from 'react';
+﻿import React, { useMemo, useState } from 'react';
 import { PageHeader } from './PageHeader';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
@@ -41,6 +41,11 @@ import {
 import { useAssets } from '../contexts/AssetContext';
 import { formatFileSize, formatNumber, timeAgo } from '../utils/format';
 import { useConfig } from '../contexts/ConfigContext';
+import { ExportReportDialog, IndicatorOption } from './ExportReportDialog';
+import { generateReport, type IndicatorId } from '../lib/report/generateReport';
+import { format } from 'date-fns';
+import { toast } from 'sonner';
+
 
 const COLORS = ['#dc2626', '#f97316', '#eab308', '#22c55e', '#3b82f6'];
 
@@ -48,26 +53,53 @@ export function Dashboard() {
   const { dashboardStats } = useAssets();
   const { systemSettings } = useConfig();
 
+  const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+
   const storagePercentage = (dashboardStats.storageUsed / dashboardStats.storageLimit) * 100;
-  
-  const assetTypeData = [
-    { name: 'Imagens', value: dashboardStats.assetsByType.image, color: '#dc2626', icon: Image },
-    { name: 'Vídeos', value: dashboardStats.assetsByType.video, color: '#f97316', icon: Video },
-    { name: 'Documentos', value: dashboardStats.assetsByType.document, color: '#eab308', icon: FileText },
-    { name: 'Arquivos', value: dashboardStats.assetsByType.archive, color: '#22c55e', icon: Archive }
-  ];
 
-  const campaignData = Object.entries(dashboardStats.assetsByCampaign).map(([name, count]) => ({
-    name: name.length > 15 ? name.substring(0, 15) + '...' : name,
-    assets: count
-  }));
+  const assetTypeData = useMemo(
+    () => [
+      { name: 'Imagens', value: dashboardStats.assetsByType.image, color: '#dc2626', icon: Image },
+      { name: 'Vídeos', value: dashboardStats.assetsByType.video, color: '#f97316', icon: Video },
+      { name: 'Documentos', value: dashboardStats.assetsByType.document, color: '#eab308', icon: FileText },
+      { name: 'Arquivos', value: dashboardStats.assetsByType.archive, color: '#22c55e', icon: Archive }
+    ],
+    [
+      dashboardStats.assetsByType.archive,
+      dashboardStats.assetsByType.document,
+      dashboardStats.assetsByType.image,
+      dashboardStats.assetsByType.video
+    ],
+  );
 
-  const projectData = Object.entries(dashboardStats.assetsByProject).map(([name, count]) => ({
-    name: name.length > 15 ? name.substring(0, 15) + '...' : name,
-    assets: count
-  }));
+  const campaignEntries = useMemo(
+    () => Object.entries(dashboardStats.assetsByCampaign),
+    [dashboardStats.assetsByCampaign],
+  );
+  const projectEntries = useMemo(
+    () => Object.entries(dashboardStats.assetsByProject),
+    [dashboardStats.assetsByProject],
+  );
 
-  // Dados simulados para gráfico de tendência
+  const campaignData = useMemo(
+    () =>
+      campaignEntries.map(([name, count]) => ({
+        name: name.length > 15 ? name.substring(0, 15) + '...' : name,
+        assets: count
+      })),
+    [campaignEntries],
+  );
+
+  const projectData = useMemo(
+    () =>
+      projectEntries.map(([name, count]) => ({
+        name: name.length > 15 ? name.substring(0, 15) + '...' : name,
+        assets: count
+      })),
+    [projectEntries],
+  );
+// Dados simulados para gráfico de tendência
   const trendData = [
     { month: 'Jan', uploads: 45, downloads: 120 },
     { month: 'Fev', uploads: 52, downloads: 145 },
@@ -79,37 +111,88 @@ export function Dashboard() {
 
   const systemStatus = useMemo(() => ([
     {
-      label: 'Notificações por Email',
-      description: 'Envio de alertas automáticos para administradores e equipes.',
+      label: 'Notifica\u00e7\u00f5es por Email',
+      description: 'Envio de alertas autom\u00e1ticos para administradores e equipes.',
       enabled: systemSettings.emailNotifications,
     },
     {
       label: 'Alertas do Sistema',
-      description: 'Exibe toasts e avisos em tempo real dentro da aplicação.',
+      description: 'Exibe toasts e avisos em tempo real dentro da aplica\u00e7\u00e3o.',
       enabled: systemSettings.systemNotifications,
     },
     {
-      label: 'Autenticação em Duas Etapas',
-      description: 'Solicita um segundo fator de verificação no login.',
+      label: 'Autentica\u00e7\u00e3o em Duas Etapas',
+      description: 'Solicita um segundo fator de verifica\u00e7\u00e3o no login.',
       enabled: systemSettings.twoFactor,
     },
     {
-      label: 'Múltiplas Sessões',
-      description: 'Permite acesso simultâneo em mais de um dispositivo.',
+      label: 'M\u00faltiplas Sess\u00f5es',
+      description: 'Permite acesso simult\u00e2neo em mais de um dispositivo.',
       enabled: systemSettings.multiSessions,
     },
     {
-      label: 'Backup Automático',
-      description: 'Gera cópias de segurança recorrentes dos materiais.',
+      label: 'Backup Autom\u00e1tico',
+      description: 'Gera c\u00f3pias de seguran\u00e7a recorrentes dos materiais.',
       enabled: systemSettings.autoBackup,
     },
   ]), [systemSettings]);
+  const indicatorOptions = useMemo<IndicatorOption[]>(
+    () => [
+      { id: 'totalMaterials', label: 'Total de Materiais', description: 'Quantidade total de assets cadastrados.' },
+      { id: 'downloads', label: 'Downloads', description: 'Total de downloads realizados no per\u00edodo.' },
+      { id: 'activeUsers', label: 'Usu\u00e1rios Ativos', description: 'Usu\u00e1rios ativos no DAM.' },
+      { id: 'activeLinks', label: 'Links Ativos', description: 'Links compartilhados atualmente v\u00e1lidos.' },
+      { id: 'assetTypes', label: 'Tipos de Material', description: 'Distribui\u00e7\u00e3o dos materiais por categoria.' },
+      { id: 'campaignDistribution', label: 'Materiais por Campanha', description: 'Volume de materiais por campanha de marketing.' },
+      { id: 'projectDistribution', label: 'Materiais por Empreendimento', description: 'Volume de materiais por empreendimento.' },
+      { id: 'recentActivity', label: 'Atividade Recente', description: '\u00daltimos uploads realizados pela equipe.' },
+      { id: 'trend', label: 'Tend\u00eancia de Uploads e Downloads', description: 'Resumo de uploads e downloads nos \u00faltimos meses.' },
+    ],
+    [],
+  );
+  const defaultDateRange = useMemo(() => {
+    const today = new Date();
+    const end = format(today, 'yyyy-MM-dd');
+    const startDateObject = new Date(today);
+    startDateObject.setDate(startDateObject.getDate() - 29);
+    const start = format(startDateObject, 'yyyy-MM-dd');
+    return { startDate: start, endDate: end };
+  }, []);
+
+  const handleGenerateReport = async (config: { indicators: string[]; dateRange: { startDate: string; endDate: string } }) => {
+    setIsGeneratingReport(true);
+    try {
+      await generateReport({
+        indicators: config.indicators as IndicatorId[],
+        dateRange: config.dateRange,
+        data: {
+          stats: dashboardStats,
+          assetTypeData: assetTypeData.map(({ name, value, color }) => ({ name, value, color })),
+          campaignData: campaignEntries.map(([name, count]) => ({ name, assets: count })),
+          projectData: projectEntries.map(([name, count]) => ({ name, assets: count })),
+          trendData,
+          companyName: systemSettings.companyName,
+        },
+      });
+      toast.success('Relatório exportado com sucesso.');
+      setIsExportDialogOpen(false);
+    } catch (error) {
+      console.error('[Dashboard] erro ao gerar PDF', error);
+      toast.error('Não foi possível gerar o relatório. Tente novamente.');
+    } finally {
+      setIsGeneratingReport(false);
+    }
+  };
 
   const headerDescription = "Acompanhe o desempenho dos seus materiais em tempo real.";
   const headerAction = (
-    <Button variant="outline" className="w-full sm:w-auto">
+    <Button
+      variant="outline"
+      className="w-full sm:w-auto"
+      onClick={() => setIsExportDialogOpen(true)}
+    >
       <Download className="mr-2 h-4 w-4" />
-      Exportar relatorio
+      Exportar relatório
     </Button>
   );
 
@@ -157,7 +240,7 @@ export function Dashboard() {
           <CardContent>
             <div className="text-2xl font-bold text-foreground">{formatNumber(dashboardStats.totalUsers)}</div>
             <p className="text-xs text-muted-foreground">
-              <span className="text-green-500">+3</span> novos usuários
+              <span className="text-green-500">+3</span> Nãos usuários
             </p>
           </CardContent>
         </Card>
@@ -212,7 +295,7 @@ export function Dashboard() {
                 return (
                   <div key={item.name} className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
+                      <div className="w-3 h-3 rounded-full" style={{ backgrouNãolor: item.color }} />
                       <Icon className="w-4 h-4 text-muted-foreground" />
                       <span className="text-sm font-medium">{item.name}</span>
                     </div>
@@ -243,7 +326,7 @@ export function Dashboard() {
                   <div className="w-2 h-2 bg-primary rounded-full mt-2 flex-shrink-0" />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate">
-                      {activity.userName} {activity.type === 'upload' ? 'enviou' : activity.type === 'download' ? 'baixou' : 'compartilhou'} &quot;{activity.assetName}&quot;
+                      {activity.userName} {activity.type === 'upload' ? 'eNãou' : activity.type === 'download' ? 'baixou' : 'compartilhou'} &quot;{activity.assetName}&quot;
                     </p>
                     <div className="flex items-center gap-2 mt-1">
                       {activity.categoryName && (
@@ -279,13 +362,13 @@ export function Dashboard() {
                   stroke="var(--muted-foreground)"
                   fontSize={12}
                   angle={-45}
-                  textAnchor="end"
+                  textANãor="end"
                   height={80}
                 />
                 <YAxis stroke="var(--muted-foreground)" fontSize={12} />
                 <Tooltip 
                   contentStyle={{ 
-                    backgroundColor: 'var(--card)', 
+                    backgrouNãolor: 'var(--card)', 
                     border: '1px solid var(--border)',
                     borderRadius: '8px',
                     color: 'var(--foreground)'
@@ -312,13 +395,13 @@ export function Dashboard() {
                   stroke="var(--muted-foreground)"
                   fontSize={12}
                   angle={-45}
-                  textAnchor="end"
+                  textANãor="end"
                   height={80}
                 />
                 <YAxis stroke="var(--muted-foreground)" fontSize={12} />
                 <Tooltip 
                   contentStyle={{ 
-                    backgroundColor: 'var(--card)', 
+                    backgrouNãolor: 'var(--card)', 
                     border: '1px solid var(--border)',
                     borderRadius: '8px',
                     color: 'var(--foreground)'
@@ -337,7 +420,7 @@ export function Dashboard() {
             <ShieldCheck className="w-5 h-5 text-primary" />
             Status do Sistema
           </CardTitle>
-          <CardDescription>Resumo das funcionalidades globais configuradas</CardDescription>
+          <CardDescription>Resumo das fuNãonalidades globais configuradas</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           {systemStatus.map((item) => (
@@ -373,7 +456,7 @@ export function Dashboard() {
             <TrendingUp className="w-5 h-5 text-primary" />
             Tendência de Uploads e Downloads
           </CardTitle>
-          <CardDescription>Atividade dos últimos 6 meses</CardDescription>
+          <CardDescription>Atividade dosúltimos 6 meses</CardDescription>
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={400}>
@@ -383,14 +466,14 @@ export function Dashboard() {
               <YAxis stroke="var(--muted-foreground)" />
               <Tooltip 
                 contentStyle={{ 
-                  backgroundColor: 'var(--card)', 
+                  backgrouNãolor: 'var(--card)', 
                   border: '1px solid var(--border)',
                   borderRadius: '8px',
                   color: 'var(--foreground)'
                 }}
               />
               <Line 
-                type="monotone" 
+                type="moNãone" 
                 dataKey="uploads" 
                 stroke="#dc2626" 
                 strokeWidth={3}
@@ -398,7 +481,7 @@ export function Dashboard() {
                 name="Uploads"
               />
               <Line 
-                type="monotone" 
+                type="moNãone" 
                 dataKey="downloads" 
                 stroke="#3b82f6" 
                 strokeWidth={3}
@@ -409,9 +492,45 @@ export function Dashboard() {
           </ResponsiveContainer>
         </CardContent>
       </Card>
+      <ExportReportDialog
+        open={isExportDialogOpen}
+        onOpenChange={setIsExportDialogOpen}
+        indicators={indicatorOptions}
+        defaultSelected={indicatorOptions.map((indicator) => indicator.id)}
+        defaultDateRange={defaultDateRange}
+        onGenerate={handleGenerateReport}
+        isGenerating={isGeneratingReport}
+      />
     </div>
   );
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

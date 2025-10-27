@@ -34,7 +34,7 @@ export interface Project {
   description?: string;
   location: string;
   status: 'vem-ai' | 'breve-lancamento' | 'lancamento';
-  launchDate?: string;
+  launchDate?: string | null;
   color: string;
   image: string;
   imageType?: 'upload' | 'url';

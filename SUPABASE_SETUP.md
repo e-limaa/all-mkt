@@ -168,6 +168,14 @@ Configure backups automáticos:
 - `color`: Cor hex
 - `status`: vem-ai | breve-lancamento | lancamento
 - `location`: Localização
+- `launch_date`: Data (opcional) para previs?o de lan?amento
+> Caso o seu projeto j� esteja em produ��o, garanta que a coluna `launch_date` exista na tabela `projects`:
+```sql
+alter table public.projects
+  add column if not exists launch_date date;
+```
+
+
 
 ### Assets
 - `id`: UUID
@@ -276,3 +284,4 @@ Seu projeto DAM agora está integrado com o Supabase. Você pode:
 - Compartilhar links
 
 Para dúvidas, consulte a [documentação oficial do Supabase](https://supabase.com/docs).
+

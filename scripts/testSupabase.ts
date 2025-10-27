@@ -72,7 +72,7 @@ ALTER TABLE public.campaigns ENABLE ROW LEVEL SECURITY;
 `,
   },
   projects: {
-    columns: ['id', 'name', 'description', 'image', 'color', 'status', 'location', 'created_at', 'updated_at', 'created_by'],
+    columns: ['id', 'name', 'description', 'image', 'color', 'status', 'location', 'launch_date', 'created_at', 'updated_at', 'created_by'],
     createSql: `
 CREATE TABLE public.projects (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -82,6 +82,7 @@ CREATE TABLE public.projects (
   color text NOT NULL,
   status text NOT NULL DEFAULT 'vem-ai' CHECK (status IN ('vem-ai','breve-lancamento','lancamento')),
   location text,
+  launch_date date,
   created_at timestamptz NOT NULL DEFAULT timezone('utc', now()),
   updated_at timestamptz NOT NULL DEFAULT timezone('utc', now()),
   created_by uuid REFERENCES public.users (id)
