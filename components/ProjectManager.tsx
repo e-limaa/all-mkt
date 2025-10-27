@@ -407,20 +407,6 @@ export function ProjectManager({
         }
       />
 
-      
-
-      {/* Debug Info - apenas em desenvolvimento */}
-      {process.env.NODE_ENV === "development" && (
-        <Alert className="border-blue-500/50 bg-blue-500/10">
-          <AlertCircle className="h-4 w-4 text-blue-500" />
-          <AlertDescription className="text-blue-200">
-            <strong>Debug:</strong> Total de projetos: {projects.length} | Com
-            imagem: {projectsWithImages.length} | Filtrados:{" "}
-            {filteredProjects.length}
-          </AlertDescription>
-        </Alert>
-      )}
-
       {/* Alert sobre empreendimentos incompletos - apenas para não-visualizadores */}
       {!isViewer() && stats.totalProjectsIncomplete > 0 && (
         <Alert className="border-orange-500/50 bg-orange-500/10">
