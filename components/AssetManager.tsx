@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -40,6 +40,7 @@ import { Permission } from '../types/enums';
 import { formatFileSize, formatDate } from '../utils/format';
 import { useAssets } from '../contexts/AssetContext';
 import { usePermissions, PermissionGuard } from '../contexts/hooks/usePermissions';
+import { useAuth } from '../contexts/AuthContext';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { AssetViewer } from './AssetViewer';
 import { Progress } from './ui/progress';
@@ -60,13 +61,25 @@ interface AssetManagerProps {
 export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCampaigns }: AssetManagerProps) {
   const { assets, campaigns, projects, updateAsset, deleteAsset, refreshData } = useAssets();
   const { hasPermission, isViewer, isEditor, isAdmin } = usePermissions();
+  const { user } = useAuth();
+
+  const userRegional = (user?.regional || '').trim().toUpperCase();
+  const viewerGlobalFlag =
+    (user as { viewerAccessToAll?: boolean } | null)?.viewerAccessToAll ??
+    (user as { viewer_access_to_all?: boolean } | null)?.viewer_access_to_all ??
+    false;
+  const viewerHasGlobalAccess = user?.role === 'viewer' && !!viewerGlobalFlag;
+  const isRegionalRestricted = user?.role === 'editor_trade' || (user?.role === 'viewer' && !viewerHasGlobalAccess);
+  const initialRegionalFilter = isRegionalRestricted && userRegional ? userRegional : 'all';
   
   // Local state for filters
   const [searchFilters, setSearchFilters] = useState({
     query: '',
     type: 'all',
     categoryType: 'all',
-    categoryId: ''
+    categoryId: '',
+    origin: 'all',
+    regional: initialRegionalFilter
   });
   
   // Local state for filtered assets - agora controlamos localmente
@@ -77,7 +90,31 @@ export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCa
   const [selectedAssets, setSelectedAssets] = useState<string[]>([]);
   const [viewingAsset, setViewingAsset] = useState<Asset | null>(null);
 
-  // Função para aplicar todos os filtros
+  useEffect(() => {
+    if (isRegionalRestricted && userRegional) {
+      setSearchFilters(prev => (prev.regional === userRegional ? prev : { ...prev, regional: userRegional }));
+    } else if (!isRegionalRestricted) {
+      setSearchFilters(prev => (prev.regional === 'all' ? prev : { ...prev, regional: 'all' }));
+    }
+  }, [isRegionalRestricted, userRegional]);
+
+  const availableRegionals = useMemo(() => {
+    const unique = new Set<string>();
+    assets.forEach(asset => {
+      if (asset.regional) {
+        const normalized = asset.regional.trim().toUpperCase();
+        if (normalized) {
+          unique.add(normalized);
+        }
+      }
+    });
+    if (userRegional) {
+      unique.add(userRegional);
+    }
+    return Array.from(unique).sort();
+  }, [assets, userRegional]);
+
+  // Funo para aplicar todos os filtros
   const applyFilters = (newFilters = searchFilters) => {
     let filtered = [...assets];
     
@@ -96,7 +133,7 @@ export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCa
       }
     }
     
-    // Filtro adicional por categoria (se aplicado pelo usuário)
+    // Filtro adicional por categoria (se aplicado pelo usurio)
     if (newFilters.categoryType !== 'all' && newFilters.categoryId) {
       if (newFilters.categoryType === 'project') {
         filtered = filtered.filter(asset => 
@@ -115,7 +152,19 @@ export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCa
     if (newFilters.type !== 'all') {
       filtered = filtered.filter(asset => asset.type === newFilters.type);
     }
-    
+
+    // Filtro por origem
+    if (newFilters.origin && newFilters.origin !== 'all') {
+      filtered = filtered.filter(asset => asset.origin === newFilters.origin);
+    }
+
+    // Filtro por regional
+    if (newFilters.regional && newFilters.regional !== 'all') {
+      filtered = filtered.filter(
+        asset => ((asset.regional || '').trim().toUpperCase()) === newFilters.regional,
+      );
+    }
+
     // Filtro por busca textual
     if (newFilters.query.trim()) {
       const query = newFilters.query.toLowerCase().trim();
@@ -183,7 +232,7 @@ export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCa
   const getTypeBadge = (type: string) => {
     const badges = {
       image: { label: 'Imagem', variant: 'default' as const },
-      video: { label: 'Vídeo', variant: 'secondary' as const },
+      video: { label: 'Vdeo', variant: 'secondary' as const },
       document: { label: 'Documento', variant: 'outline' as const },
       archive: { label: 'Arquivo', variant: 'destructive' as const }
     };
@@ -191,16 +240,23 @@ export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCa
   };
 
   const handleSearch = (query: string) => {
-    setSearchFilters({ ...searchFilters, query });
+    setSearchFilters(prev => ({ ...prev, query }));
   };
 
   const handleTypeFilter = (type: string) => {
-    setSearchFilters({ ...searchFilters, type });
+    setSearchFilters(prev => ({ ...prev, type }));
+  };
+
+  const handleOriginFilter = (origin: string) => {
+    setSearchFilters(prev => ({ ...prev, origin }));
+  };
+
+  const handleRegionalFilter = (regional: string) => {
+    setSearchFilters(prev => ({ ...prev, regional }));
   };
 
   const handleCategoryFilter = (categoryType: string, categoryId: string = '') => {
-    const newFilters = { ...searchFilters, categoryType, categoryId };
-    setSearchFilters(newFilters);
+    setSearchFilters(prev => ({ ...prev, categoryType, categoryId }));
   };
 
   const clearFilters = () => {
@@ -208,7 +264,9 @@ export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCa
       query: '',
       type: 'all',
       categoryType: 'all',
-      categoryId: ''
+      categoryId: '',
+      origin: 'all',
+      regional: isRegionalRestricted && userRegional ? userRegional : 'all'
     };
     setSearchFilters(newFilters);
   };
@@ -221,18 +279,18 @@ export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCa
     }
   };
 
-  // Função para selecionar/deselecionar todos
+  // Funo para selecionar/deselecionar todos
   const handleSelectAll = () => {
     if (selectedAssets.length === filteredAssets.length) {
-      // Se todos estão selecionados, desmarcar todos
+      // Se todos esto selecionados, desmarcar todos
       setSelectedAssets([]);
     } else {
-      // Selecionar todos os assets visíveis
+      // Selecionar todos os assets visveis
       setSelectedAssets(filteredAssets.map(asset => asset.id));
     }
   };
 
-  // Limpar seleção
+  // Limpar seleo
   const handleClearSelection = () => {
     setSelectedAssets([]);
   };
@@ -289,11 +347,11 @@ export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCa
 
   const handleDownload = (asset: Asset) => {
     if (!hasPermission(Permission.DOWNLOAD_MATERIALS)) {
-      toast.error('Você não tem permissão para baixar materiais');
+      toast.error('Voc no tem permisso para baixar materiais');
       return;
     }
     
-    // Download real do arquivo (compatível com Supabase Storage e URLs públicas)
+    // Download real do arquivo (compatvel com Supabase Storage e URLs pblicas)
     if (asset.url) {
       fetch(asset.url)
         .then(response => response.blob())
@@ -311,14 +369,14 @@ export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCa
           toast.error('Erro ao baixar o arquivo.');
         });
     } else {
-      toast.error('URL do arquivo não encontrada.');
+      toast.error('URL do arquivo no encontrada.');
     }
   };
 
-  // Função de download em massa
+  // Funo de download em massa
   const handleBulkDownload = async () => {
     if (!hasPermission(Permission.DOWNLOAD_MATERIALS)) {
-      toast.error('Você não tem permissão para baixar materiais');
+      toast.error('Voc no tem permisso para baixar materiais');
       return;
     }
 
@@ -331,7 +389,7 @@ export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCa
     const assetsWithUrl = selectedAssetsData.filter(asset => Boolean(asset.url));
 
     if (assetsWithUrl.length === 0) {
-      toast.error('Os materiais selecionados não possuem arquivos disponíveis para download.');
+      toast.error('Os materiais selecionados no possuem arquivos disponveis para download.');
       return;
     }
 
@@ -347,7 +405,7 @@ export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCa
 
         const response = await fetch(asset.url);
         if (!response.ok) {
-          throw new Error(`Não foi possível baixar ${asset.name || 'um dos materiais.'}`);
+          throw new Error(`No foi possvel baixar ${asset.name || 'um dos materiais.'}`);
         }
 
         const buffer = await response.arrayBuffer();
@@ -383,10 +441,10 @@ export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCa
     }
   };
 
-  // Função de exclusão em massa
+  // Funo de excluso em massa
   const handleBulkDelete = async () => {
     if (!hasPermission(Permission.DELETE_MATERIALS)) {
-      toast.error('Você não tem permissão para excluir materiais');
+      toast.error('Voc no tem permisso para excluir materiais');
       return;
     }
 
@@ -402,12 +460,12 @@ export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCa
     if (!confirmDelete) return;
 
     try {
-      // Simular exclusão em massa
+      // Simular excluso em massa
       for (const assetId of selectedAssets) {
         await deleteAsset(assetId);
       }
       
-      toast.success(`${selectedAssets.length} material${selectedAssets.length > 1 ? 'is excluídos' : ' excluído'} com sucesso!`);
+      toast.success(`${selectedAssets.length} material${selectedAssets.length > 1 ? 'is excludos' : ' excludo'} com sucesso!`);
       setSelectedAssets([]);
     } catch (error) {
       toast.error('Erro ao excluir materiais');
@@ -416,17 +474,17 @@ export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCa
 
   const handleShare = (asset: Asset) => {
     if (!hasPermission(Permission.SHARE_MATERIALS)) {
-      toast.error('Você não tem permissão para compartilhar materiais');
+      toast.error('Voc no tem permisso para compartilhar materiais');
       return;
     }
     
     navigator.clipboard.writeText(`https://dam.allmkt.com/assets/${asset.id}`);
-    toast.success(`Link de "${asset.name}" copiado para a área de transferência!`);
+    toast.success(`Link de "${asset.name}" copiado para a rea de transferncia!`);
   };
 
   const handleEditAsset = async (asset: Asset, updates: Partial<Asset>) => {
     if (!hasPermission(Permission.EDIT_MATERIALS)) {
-      toast.error('Você não tem permissão para editar materiais');
+      toast.error('Voc no tem permisso para editar materiais');
       return;
     }
     
@@ -442,7 +500,7 @@ export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCa
 
   const handleDeleteAsset = async (assetId: string) => {
     if (!hasPermission(Permission.DELETE_MATERIALS)) {
-      toast.error('Você não tem permissão para excluir materiais');
+      toast.error('Voc no tem permisso para excluir materiais');
       return;
     }
     
@@ -454,14 +512,14 @@ export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCa
     try {
       await deleteAsset(assetId);
       setViewingAsset(null);
-      toast.success('Material excluído com sucesso!');
+      toast.success('Material excludo com sucesso!');
     } catch (error) {
       toast.error('Erro ao excluir material');
     }
   };
 
   const getCategoryName = (asset: Asset) => {
-    // Prioridade: utilizar os dados mais recentes das coleções carregadas
+    // Prioridade: utilizar os dados mais recentes das colees carregadas
     if (asset.categoryType === 'project' && asset.categoryId) {
       const project = projects.find(p => p.id === asset.categoryId);
       if (project?.name) {
@@ -494,13 +552,13 @@ export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCa
     return 'Sem categoria';
   };
 
-  // Função para obter a fase do projeto de um asset
+  // Funo para obter a fase do projeto de um asset
   const getProjectPhase = (asset: Asset) => {
     if (asset.metadata?.projectPhase) {
       const phases = {
-        'vem-ai': { label: 'Vem Aí', variant: 'secondary' as const },
-        'breve-lancamento': { label: 'Breve Lançamento', variant: 'default' as const },
-        'lancamento': { label: 'Lançamento', variant: 'destructive' as const }
+        'vem-ai': { label: 'Vem A', variant: 'secondary' as const },
+        'breve-lancamento': { label: 'Breve Lanamento', variant: 'default' as const },
+        'lancamento': { label: 'Lanamento', variant: 'destructive' as const }
       };
       return phases[asset.metadata.projectPhase as keyof typeof phases];
     }
@@ -518,7 +576,7 @@ export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCa
   // Determine which back function to use
   const backFunction = onBackToProjects || onBackToCampaigns;
 
-  // Estado de seleção para "selecionar todos"
+  // Estado de seleo para "selecionar todos"
   const isAllSelected = filteredAssets.length > 0 && selectedAssets.length === filteredAssets.length;
   const isPartiallySelected = selectedAssets.length > 0 && selectedAssets.length < filteredAssets.length;
 
@@ -527,7 +585,7 @@ export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCa
     <Alert className="border-yellow-500/50 bg-yellow-500/10">
       <ShieldX className="h-4 w-4 text-yellow-500" />
       <AlertDescription className="text-yellow-200">
-        <strong>Modo somente leitura:</strong> Você pode visualizar e baixar materiais, mas não pode fazer upload, editar ou excluir.
+        <strong>Modo somente leitura:</strong> Voc pode visualizar e baixar materiais, mas no pode fazer upload, editar ou excluir.
       </AlertDescription>
     </Alert>
   );
@@ -560,7 +618,8 @@ export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCa
     const [formData, setFormData] = useState({
       categoryType: preSelectedCategory?.categoryType || '',
       categoryId: preSelectedCategory?.categoryId || '',
-      projectPhase: ''
+      projectPhase: '',
+      origin: '',
     });
 
     const [items, setItems] = useState<UploadItem[]>([]);
@@ -600,13 +659,21 @@ export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCa
       };
     }, []);
 
-    const availableProjects = projects.filter(project => project.image && project.image.trim() !== '');
-    const availableCampaigns = campaigns;
+    const availableProjects = projects
+      .filter(project => project.image && project.image.trim() !== '')
+      .filter(project => {
+        if (!isRegionalRestricted) return true;
+        return (project.regional || '').trim().toUpperCase() === userRegional;
+      });
+    const availableCampaigns = campaigns.filter(campaign => {
+      if (!isRegionalRestricted) return true;
+      return (campaign.regional || '').trim().toUpperCase() === userRegional;
+    });
 
     const getProjectPhases = () => [
-      { value: 'vem-ai', label: 'Vem Aí' },
-      { value: 'breve-lancamento', label: 'Breve Lançamento' },
-      { value: 'lancamento', label: 'Lançamento' }
+      { value: 'vem-ai', label: 'Vem A' },
+      { value: 'breve-lancamento', label: 'Breve Lanamento' },
+      { value: 'lancamento', label: 'Lanamento' }
     ];
 
     const generateId = () => (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
@@ -701,7 +768,7 @@ export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCa
         markItem(newItem.id, {
           status: 'error',
           progress: 0,
-          error: 'Sessão expirada. Faça login novamente.',
+          error: 'Sesso expirada. Faa login novamente.',
         });
         return;
       }
@@ -729,7 +796,7 @@ export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCa
           markItem(newItem.id, {
             status: 'error',
             progress: 0,
-            error: 'Falha ao enviar arquivo. Verifique sua conexão e tente novamente.',
+            error: 'Falha ao enviar arquivo. Verifique sua conexo e tente novamente.',
           });
         };
 
@@ -883,6 +950,7 @@ export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCa
       });
     };
 
+
     const validateForm = () => {
       const newErrors: Record<string, string> = {};
 
@@ -891,18 +959,22 @@ export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCa
       }
 
       if (!formData.categoryType) {
-        newErrors.categoryType = 'Tipo de categoria é obrigatório';
+        newErrors.categoryType = 'Tipo de categoria eh obrigatorio';
       }
 
       if (!formData.categoryId) {
         newErrors.categoryId =
           formData.categoryType === 'campaign'
-            ? 'Campanha é obrigatória'
-            : 'Empreendimento é obrigatório';
+            ? 'Campanha eh obrigatoria'
+            : 'Empreendimento eh obrigatorio';
       }
 
       if (formData.categoryType === 'project' && !formData.projectPhase) {
-        newErrors.projectPhase = 'Fase do empreendimento é obrigatória';
+        newErrors.projectPhase = 'Fase do empreendimento eh obrigatoria';
+      }
+
+      if (!formData.origin) {
+        newErrors.origin = 'Origem do material eh obrigatoria';
       }
 
       setErrors(newErrors);
@@ -925,7 +997,7 @@ export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCa
       }
 
       if (readyItems.length !== items.length) {
-        toast.error('Alguns arquivos ainda estão sendo enviados.');
+        toast.error('Alguns arquivos ainda esto sendo enviados.');
         return;
       }
 
@@ -939,7 +1011,7 @@ export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCa
       const accessToken = await getAccessToken();
 
       if (!accessToken) {
-        toast.error('Sessão expirada. Faça login novamente.');
+        toast.error('Sesso expirada. Faa login novamente.');
         return;
       }
 
@@ -956,6 +1028,7 @@ export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCa
             categoryType: formData.categoryType,
             categoryId: formData.categoryId,
             projectPhase: formData.categoryType === 'project' ? formData.projectPhase : null,
+            origin: formData.origin,
             items: readyItems.map(item => ({
               tempPath: item.tempPath,
               originalName: item.file.name,
@@ -993,7 +1066,7 @@ export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCa
       const variants: Record<UploadStatus, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
         pending: { label: 'Pendente', variant: 'outline' },
         uploading: { label: 'Enviando', variant: 'secondary' },
-        success: { label: 'Concluído', variant: 'default' },
+        success: { label: 'Concludo', variant: 'default' },
         error: { label: 'Erro', variant: 'destructive' }
       };
 
@@ -1069,7 +1142,7 @@ export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCa
                       <span className="flex-shrink-0">{statusBadge(item.status)}</span>
                     </div>
                     <p className="text-xs text-muted-foreground whitespace-normal break-words leading-relaxed">
-                      {formatFileSize(item.file.size)} · {item.mimeType || 'Arquivo'}
+                      {formatFileSize(item.file.size)}  {item.mimeType || 'Arquivo'}
                     </p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
@@ -1200,9 +1273,28 @@ export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCa
           )}
         </div>
 
+        <div>
+          <Label className="mb-2">Origem do material *</Label>
+          <Select
+            value={formData.origin}
+            onValueChange={(value) =>
+              setFormData((prev) => ({ ...prev, origin: value }))
+            }
+            disabled={isFinalizing}
+          >
+            <SelectTrigger className={cn('bg-input-background border-border', errors.origin && 'border-red-500')}>
+              <SelectValue placeholder="Selecione a origem" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="house">House (Tenda)</SelectItem>
+              <SelectItem value="ev">EV (Imobiliaria Parceira)</SelectItem>
+            </SelectContent>
+          </Select>
+          {errors.origin && <p className="text-xs text-red-500 mt-1">{errors.origin}</p>}
+        </div>
         <div className="flex flex-col gap-4 border-t border-border/60 pt-4 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-xs text-muted-foreground">
-            Os arquivos começam a ser enviados imediatamente. Ao confirmar, apenas associamos ao empreendimento ou campanha escolhida.
+            Os arquivos comeam a ser enviados imediatamente. Ao confirmar, apenas associamos ao empreendimento ou campanha escolhida.
           </p>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <Button type="button" variant="outline" onClick={onClose} disabled={isFinalizing}>
@@ -1251,8 +1343,8 @@ export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCa
                   <DialogHeader>
                     <DialogTitle>Enviar Novo Material</DialogTitle>
                     <DialogDescription>
-                      Selecione um ou mais arquivos e associe todos à mesma campanha ou empreendimento. Os uploads
-                      acontecem em lotes de até três materiais simultâneos.
+                      Selecione um ou mais arquivos e associe todos  mesma campanha ou empreendimento. Os uploads
+                      acontecem em lotes de at trs materiais simultneos.
                     </DialogDescription>
                   </DialogHeader>
                   <UploadForm onClose={() => setIsUploadOpen(false)} preSelectedCategory={initialFilters} />
@@ -1309,9 +1401,40 @@ export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCa
                   <SelectContent>
                     <SelectItem value="all">Todos os tipos</SelectItem>
                     <SelectItem value="image">Imagens</SelectItem>
-                    <SelectItem value="video">Vídeos</SelectItem>
+                    <SelectItem value="video">Vdeos</SelectItem>
                     <SelectItem value="document">Documentos</SelectItem>
                     <SelectItem value="archive">Arquivos</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                <Select
+                  value={searchFilters.regional}
+                  onValueChange={handleRegionalFilter}
+                  disabled={isRegionalRestricted}
+                >
+                  <SelectTrigger className="w-40 bg-input-background border-border">
+                    <SelectValue placeholder="Regional" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {!isRegionalRestricted && (
+                      <SelectItem value="all">Todas as regionais</SelectItem>
+                    )}
+                    {availableRegionals.map(regional => (
+                      <SelectItem key={regional} value={regional}>
+                        {regional}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Select value={searchFilters.origin} onValueChange={handleOriginFilter}>
+                  <SelectTrigger className="w-40 bg-input-background border-border">
+                    <SelectValue placeholder="Origem" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas as origens</SelectItem>
+                    <SelectItem value="house">House (Tenda)</SelectItem>
+                    <SelectItem value="ev">EV</SelectItem>
                   </SelectContent>
                 </Select>
 
@@ -1366,7 +1489,7 @@ export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCa
                     onClick={handleClearSelection}
                     className="text-muted-foreground hover:text-foreground"
                   >
-                    Limpar seleção
+                    Limpar seleo
                   </Button>
                 )}
               </div>
@@ -1379,7 +1502,7 @@ export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCa
           <Card className="bg-card/50 backdrop-blur-sm border-border/50">
             <CardContent className="p-4">
               <div className="flex items-center gap-2">
-                <span className="text-sm font-medium">Ações em massa:</span>
+                <span className="text-sm font-medium">Aes em massa:</span>
                 <PermissionGuard permissions={[Permission.DOWNLOAD_MATERIALS]}>
                   <Button
                     variant="outline"
@@ -1489,6 +1612,14 @@ export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCa
                             {getProjectPhase(asset)?.label}
                           </Badge>
                         )}
+                        <Badge variant="secondary" className="max-w-full truncate text-[0.65rem] sm:text-xs">
+                          {asset.origin === 'house' ? 'House' : 'EV'}
+                        </Badge>
+                        {asset.regional && (
+                          <Badge variant="outline" className="max-w-full truncate text-[0.65rem] sm:text-xs">
+                            {asset.regional}
+                          </Badge>
+                        )}
                       </div>
                       
                       <div className="flex gap-1 pt-2 opacity-0 transition-opacity group-hover:opacity-100">
@@ -1503,7 +1634,7 @@ export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCa
                         >
                           <Eye className="h-3 w-3" />
                         </Button>
-
+                        
                         <Button
                           size="sm"
                           variant="outline"
@@ -1515,7 +1646,6 @@ export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCa
                         >
                           <Download className="h-3 w-3" />
                         </Button>
-
                         <PermissionGuard permissions={[Permission.SHARE_MATERIALS]}>
                           <Button
                             size="sm"
@@ -1609,7 +1739,7 @@ export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCa
                             <h3 className="font-medium truncate mb-1" title={asset.name}>
                               {asset.name}
                             </h3>
-                            <div className="flex flex-wrap items-center gap-2 mb-2 min-w-0">
+                                                        <div className="flex flex-wrap items-center gap-2 mb-2 min-w-0">
                               <Badge variant={typeBadge.variant} className="max-w-full truncate text-[0.65rem] sm:text-xs">
                                 {typeBadge.label}
                               </Badge>
@@ -1619,6 +1749,14 @@ export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCa
                               {getProjectPhase(asset) && (
                                 <Badge variant={getProjectPhase(asset)?.variant} className="max-w-full truncate text-[0.65rem] sm:text-xs">
                                   {getProjectPhase(asset)?.label}
+                                </Badge>
+                              )}
+                              <Badge variant="secondary" className="max-w-full truncate text-[0.65rem] sm:text-xs">
+                                {asset.origin === 'house' ? 'House' : 'EV'}
+                              </Badge>
+                              {asset.regional && (
+                                <Badge variant="outline" className="max-w-full truncate text-[0.65rem] sm:text-xs">
+                                  {asset.regional}
                                 </Badge>
                               )}
                             </div>
@@ -1711,7 +1849,7 @@ export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCa
                 fallback={
                   isViewer() ? (
                     <p className="text-xs text-muted-foreground">
-                      Você não possui permissão para enviar materiais
+                      Voc no possui permisso para enviar materiais
                     </p>
                   ) : null
                 }

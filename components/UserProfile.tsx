@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+﻿import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from '../contexts/hooks/usePermissions';
 import { useConfig } from '../contexts/ConfigContext';
@@ -31,7 +31,7 @@ const MAX_AVATAR_SIZE = 5 * 1024 * 1024; // 5MB
 
 export function UserProfile() {
   const { user, signOut, loading, updateProfile } = useAuth();
-  const { isViewer, isEditor, isAdmin } = usePermissions();
+  const { isViewer, isAdmin, isEditorMarketing, isEditorTrade } = usePermissions();
   const { systemSettings } = useConfig();
 
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -61,10 +61,11 @@ export function UserProfile() {
 
   const roleInfo = useMemo(() => {
     if (isAdmin()) return { label: 'Administrador', className: 'text-yellow-500' };
-    if (isEditor()) return { label: 'Editor', className: 'text-blue-500' };
+    if (isEditorMarketing()) return { label: 'Editor Marketing', className: 'text-blue-500' };
+    if (isEditorTrade()) return { label: 'Editor Trade', className: 'text-amber-500' };
     if (isViewer()) return { label: 'Visualizador', className: 'text-green-500' };
-    return { label: 'Usuário', className: 'text-muted-foreground' };
-  }, [isAdmin, isEditor, isViewer]);
+    return { label: 'Usuario', className: 'text-muted-foreground' };
+  }, [isAdmin, isEditorMarketing, isEditorTrade, isViewer]);
 
   useEffect(() => {
     if (isProfileOpen && user) {
@@ -98,12 +99,12 @@ export function UserProfile() {
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
-      toast.error('Selecione um arquivo de imagem válido.');
+      toast.error('Selecione um arquivo de imagem vÃ¡lido.');
       return;
     }
 
     if (file.size > MAX_AVATAR_SIZE) {
-      toast.error('A imagem deve ter no máximo 5MB.');
+      toast.error('A imagem deve ter no mÃ¡ximo 5MB.');
       return;
     }
 
@@ -156,7 +157,7 @@ export function UserProfile() {
       setRemoveAvatar(false);
       setIsEditingProfile(false);
     } catch (error) {
-      // erros já tratados em updateProfile
+      // erros jÃ¡ tratados em updateProfile
     } finally {
       setIsSavingProfile(false);
     }
@@ -190,7 +191,7 @@ export function UserProfile() {
     }
 
     if (newPassword !== confirmPassword) {
-      toast.error('As senhas não coincidem.');
+      toast.error('As senhas nÃ£o coincidem.');
       return;
     }
 
@@ -203,7 +204,7 @@ export function UserProfile() {
       setConfirmPassword('');
       setIsPasswordSectionOpen(false);
     } catch (error) {
-      // erros já tratados em updateProfile
+      // erros jÃ¡ tratados em updateProfile
     } finally {
       setIsSavingPassword(false);
     }
@@ -287,7 +288,7 @@ export function UserProfile() {
           <DialogHeader>
             <DialogTitle>Meu Perfil</DialogTitle>
             <DialogDescription>
-              Atualize suas informações pessoais e sua foto de perfil.
+              Atualize suas informaÃ§Ãµes pessoais e sua foto de perfil.
             </DialogDescription>
           </DialogHeader>
 
@@ -297,7 +298,7 @@ export function UserProfile() {
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
                   <Avatar className="h-20 w-20">
                     {avatarPreview ? (
-                      <AvatarImage src={avatarPreview} alt="Pré-visualização do avatar" />
+                      <AvatarImage src={avatarPreview} alt="PrÃ©-visualizaÃ§Ã£o do avatar" />
                     ) : user.avatar_url ? (
                       <AvatarImage src={user.avatar_url} alt={user.name ?? 'Avatar'} />
                     ) : (
@@ -329,7 +330,7 @@ export function UserProfile() {
                       )}
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      JPG ou PNG até 5MB.
+                      JPG ou PNG atÃ© 5MB.
                     </p>
                     <input
                       ref={fileInputRef}
@@ -377,7 +378,7 @@ export function UserProfile() {
                     Cancelar
                   </Button>
                   <Button type="submit" disabled={isSavingProfile}>
-                    {isSavingProfile ? 'Salvando...' : 'Salvar alterações'}
+                    {isSavingProfile ? 'Salvando...' : 'Salvar alteraÃ§Ãµes'}
                   </Button>
                 </div>
               </form>
@@ -417,7 +418,7 @@ export function UserProfile() {
 
                 <div className="flex justify-end">
                   <Button type="button" onClick={() => setIsEditingProfile(true)}>
-                    Editar informações
+                    Editar informaÃ§Ãµes
                   </Button>
                 </div>
               </div>
@@ -430,7 +431,7 @@ export function UserProfile() {
                 <div>
                   <h3 className="text-sm font-semibold">Senha de acesso</h3>
                   <p className="text-xs text-muted-foreground">
-                    Altere sua senha separadamente das demais informações.
+                    Altere sua senha separadamente das demais informaÃ§Ãµes.
                   </p>
                 </div>
                 <Button
@@ -492,7 +493,7 @@ export function UserProfile() {
 
             <div className="flex flex-col gap-2 text-xs text-muted-foreground">
               {systemSettings.twoFactor && <span>2FA ativo na sua conta.</span>}
-              {!systemSettings.multiSessions && <span>Sessão única habilitada para sua conta.</span>}
+              {!systemSettings.multiSessions && <span>SessÃ£o Ãºnica habilitada para sua conta.</span>}
             </div>
           </div>
         </DialogContent>
@@ -500,3 +501,5 @@ export function UserProfile() {
     </>
   );
 }
+
+

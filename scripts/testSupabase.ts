@@ -39,14 +39,18 @@ const client = createClient(supabaseUrl, authKey, {
 
 const TABLES = {
   users: {
-    columns: ['id', 'email', 'name', 'avatar_url', 'role', 'created_at', 'updated_at'],
+    columns: ['id', 'email', 'name', 'avatar_url', 'role', 'regional', 'material_origin_scope', 'viewer_access_to_all', 'created_by', 'created_at', 'updated_at'],
     createSql: `
 CREATE TABLE public.users (
   id uuid PRIMARY KEY REFERENCES auth.users (id) ON DELETE CASCADE,
   email text NOT NULL UNIQUE,
   name text NOT NULL,
   avatar_url text,
-  role text NOT NULL DEFAULT 'viewer' CHECK (role IN ('admin','editor','viewer')),
+  role text NOT NULL DEFAULT 'viewer' CHECK (role IN ('admin','editor_marketing','editor_trade','viewer')),
+  regional text,
+  material_origin_scope text CHECK (material_origin_scope IN ('house','ev')),
+  viewer_access_to_all boolean NOT NULL DEFAULT false,
+  created_by uuid REFERENCES public.users (id),
   created_at timestamptz NOT NULL DEFAULT timezone('utc', now()),
   updated_at timestamptz NOT NULL DEFAULT timezone('utc', now())
 );
@@ -54,7 +58,7 @@ ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 `,
   },
   campaigns: {
-    columns: ['id', 'name', 'description', 'color', 'status', 'start_date', 'end_date', 'created_at', 'updated_at', 'created_by'],
+    columns: ['id', 'name', 'description', 'color', 'status', 'start_date', 'end_date', 'regional', 'created_at', 'updated_at', 'created_by'],
     createSql: `
 CREATE TABLE public.campaigns (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -64,6 +68,7 @@ CREATE TABLE public.campaigns (
   status text NOT NULL DEFAULT 'active' CHECK (status IN ('active','inactive','archived')),
   start_date timestamptz,
   end_date timestamptz,
+  regional text NOT NULL,
   created_at timestamptz NOT NULL DEFAULT timezone('utc', now()),
   updated_at timestamptz NOT NULL DEFAULT timezone('utc', now()),
   created_by uuid REFERENCES public.users (id)
@@ -72,7 +77,7 @@ ALTER TABLE public.campaigns ENABLE ROW LEVEL SECURITY;
 `,
   },
   projects: {
-    columns: ['id', 'name', 'description', 'image', 'color', 'status', 'location', 'launch_date', 'created_at', 'updated_at', 'created_by'],
+    columns: ['id', 'name', 'description', 'image', 'color', 'status', 'launch_date', 'regional', 'created_at', 'updated_at', 'created_by'],
     createSql: `
 CREATE TABLE public.projects (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -81,8 +86,8 @@ CREATE TABLE public.projects (
   image text,
   color text NOT NULL,
   status text NOT NULL DEFAULT 'vem-ai' CHECK (status IN ('vem-ai','breve-lancamento','lancamento')),
-  location text,
   launch_date date,
+  regional text NOT NULL,
   created_at timestamptz NOT NULL DEFAULT timezone('utc', now()),
   updated_at timestamptz NOT NULL DEFAULT timezone('utc', now()),
   created_by uuid REFERENCES public.users (id)
@@ -92,7 +97,7 @@ ALTER TABLE public.projects ENABLE ROW LEVEL SECURITY;
   },
   assets: {
     columns: [
-      'id','name','description','type','format','size','url','thumbnail_url','tags','category_type','category_id','category_name','project_phase','is_public','download_count','metadata','created_at','updated_at','uploaded_by'
+      'id','name','description','type','format','size','url','thumbnail_url','tags','origin','category_type','category_id','category_name','project_phase','regional','is_public','download_count','metadata','created_at','updated_at','uploaded_by'
     ],
     createSql: `
 CREATE TABLE public.assets (
@@ -105,10 +110,12 @@ CREATE TABLE public.assets (
   url text NOT NULL,
   thumbnail_url text,
   tags text[] DEFAULT ARRAY[]::text[],
+  origin text NOT NULL CHECK (origin IN ('house','ev')),
   category_type text NOT NULL CHECK (category_type IN ('campaign','project')),
   category_id uuid NOT NULL,
   category_name text,
   project_phase text CHECK (project_phase IN ('vem-ai','breve-lancamento','lancamento')),
+  regional text NOT NULL,
   is_public boolean NOT NULL DEFAULT false,
   download_count integer NOT NULL DEFAULT 0,
   metadata jsonb,

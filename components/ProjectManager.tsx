@@ -1,4 +1,4 @@
-﻿import { PageHeader } from './PageHeader';
+import { PageHeader } from './PageHeader';
 import React, { useRef, useState } from "react";
 import {
   Card,
@@ -43,7 +43,6 @@ import {
   Edit,
   Trash2,
   Eye,
-  MapPin,
   Users as UsersIcon,
   FolderOpen,
   Calendar,
@@ -60,20 +59,21 @@ import { Project } from "../types";
 import { formatDate } from "../utils/format";
 import { useAssets } from "../contexts/AssetContext";
 import { usePermissions } from "../contexts/hooks/usePermissions";
-import { Permission } from "../types/enums";
+import { Permission, UserRole } from "../types/enums";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
+import { REGIONAL_OPTIONS } from "../lib/regionals";
 import { uploadFile, getPublicUrl } from "../lib/supabase";
 import { useAuth } from "../contexts/AuthContext";
 
 const getStatusBadge = (status: string) => {
   const badges = {
     "em-desenvolvimento": {
-      label: "Vem Aí",
+      label: "Vem A",
       variant: "secondary" as const,
       icon: Construction,
     },
     lancamento: {
-      label: "Lançamento",
+      label: "Lanamento",
       variant: "default" as const,
       icon: Building,
     },
@@ -153,6 +153,14 @@ export function ProjectManager({
     useAssets();
   const { hasPermission, isViewer } = usePermissions();
   const { user } = useAuth();
+  const userRegional = (user?.regional || "").trim().toUpperCase();
+  const viewerGlobalFlag =
+    (user as { viewerAccessToAll?: boolean } | null)?.viewerAccessToAll ??
+    (user as { viewer_access_to_all?: boolean } | null)?.viewer_access_to_all ??
+    false;
+  const isRegionalRestricted =
+    user?.role === UserRole.EDITOR_TRADE ||
+    (user?.role === UserRole.VIEWER && !viewerGlobalFlag);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("all");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -169,14 +177,14 @@ export function ProjectManager({
       const truncated = fallbackId.trim();
       return truncated.length > 10 ? `${truncated.slice(0, 10)}...` : truncated;
     }
-    return "Não informado";
+    return "No informado";
   };
 
   // Debug: Log projects count
-  console.log("ðŸ“Š ProjectManager - Total projects:", projects.length);
-  console.log("ðŸ“Š ProjectManager - Projects:", projects);
+  console.log(" ProjectManager - Total projects:", projects.length);
+  console.log(" ProjectManager - Projects:", projects);
 
-  // Permissões para modificações
+  // Permisses para modificaes
   const canCreateProjects = hasPermission(Permission.CREATE_PROJECTS);
   const canEditProjects = hasPermission(Permission.EDIT_PROJECTS);
   const canDeleteProjects = hasPermission(Permission.DELETE_PROJECTS);
@@ -189,35 +197,54 @@ export function ProjectManager({
     (project) => project.image && project.image.trim() !== ""
   );
 
+  const scopedProjects =
+    isRegionalRestricted && userRegional
+      ? projectsWithImages.filter(
+          (project) =>
+            (project.regional || "").trim().toUpperCase() === userRegional
+        )
+      : projectsWithImages;
+
   console.log(
-    "ðŸ“Š ProjectManager - Projects with images:",
+    " ProjectManager - Projects with images:",
     projectsWithImages.length
   );
+  console.log(
+    " ProjectManager - Projects in scope:",
+    scopedProjects.length
+  );
 
-  const filteredProjects = projectsWithImages.filter((project) => {
+  const filteredProjects = scopedProjects.filter((project) => {
     const matchesSearch =
       project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       project.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      project.location?.toLowerCase().includes(searchQuery.toLowerCase());
+      project.regional?.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus =
       selectedStatus === "all" || project.status === selectedStatus;
 
     return matchesSearch && matchesStatus;
   });
 
-  // Altere a função handleCreateProject para lidar com upload de imagem
+  // Altere a funo handleCreateProject para lidar com upload de imagem
   const handleCreateProject = async (
     projectData: Partial<Project>,
     imageFile?: File
   ) => {
-    console.log("ðŸ”„ Creating project with data:", projectData);
+    console.log(" Creating project with data:", projectData);
     if (!canCreateProjects) {
-      toast.error("Você não possui permissão para criar empreendimentos");
+      toast.error("Voc no possui permisso para criar empreendimentos");
       return;
     }
+
+    const normalizedRegional = (projectData.regional || "").trim().toUpperCase();
+    if (!normalizedRegional) {
+      toast.error("Regional e obrigatoria");
+      return;
+    }
+
     try {
       let imageUrl = projectData.image;
-      // Use o id do usuário autenticado para o caminho do arquivo
+      // Use o id do usurio autenticado para o caminho do arquivo
       const userId = user?.id || "";
       if (imageFile && userId) {
         const fileExt = imageFile.name.split(".").pop();
@@ -228,14 +255,14 @@ export function ProjectManager({
         try {
           await uploadFile(imageFile, "assets", filePath);
           imageUrl = getPublicUrl("assets", filePath);
-          console.log("[DEBUG] URL pública da imagem após upload:", imageUrl);
+          console.log("[DEBUG] URL pblica da imagem aps upload:", imageUrl);
         } catch (uploadError) {
           toast.error("Erro ao fazer upload da imagem.");
           console.error("[UPLOAD ERROR]", uploadError);
           return;
         }
       }
-      // Garante que só salva a URL pública do Supabase
+      // Garante que s salva a URL pblica do Supabase
       if (imageUrl && imageUrl.startsWith("blob:")) {
         imageUrl = "";
       }
@@ -245,11 +272,11 @@ export function ProjectManager({
       const projectToCreate = {
         name: projectData.name || "",
         description: projectData.description || "",
-        location: projectData.location || "",
         status: normalizedStatus,
         color: projectData.color || "#3b82f6",
         image: imageUrl || "",
         created_by: userId,
+        regional: normalizedRegional,
         ...(launchDateToPersist !== undefined ? { launchDate: launchDateToPersist } : {}),
       };
       const newProject = await createProject(projectToCreate);
@@ -257,13 +284,13 @@ export function ProjectManager({
       setIsCreateOpen(false);
     } catch (error) {
       toast.error("Erro ao criar empreendimento");
-      console.error("âŒ Error creating project:", error);
+      console.error(" Error creating project:", error);
     }
   };
 
   const handleUpdateProject = async (updatedProject: Project) => {
     if (!canEditProjects) {
-      toast.error("Você não possui permissão para editar empreendimentos");
+      toast.error("Voc no possui permisso para editar empreendimentos");
       return;
     }
 
@@ -297,6 +324,13 @@ export function ProjectManager({
       }
     }
 
+    const nextRegional = (safeUpdates.regional ?? updatedProject.regional ?? "").toString().trim().toUpperCase();
+    if (!nextRegional) {
+      toast.error("Regional e obrigatoria");
+      return;
+    }
+    safeUpdates.regional = nextRegional;
+
     try {
       await updateProject(updatedProject.id, safeUpdates as Partial<Project>);
       setEditingProject(null);
@@ -309,7 +343,7 @@ export function ProjectManager({
 
   const handleDeleteProject = async (projectId: string) => {
     if (!canDeleteProjects) {
-      toast.error("Você não possui permissão para excluir empreendimentos");
+      toast.error("Voc no possui permisso para excluir empreendimentos");
       return;
     }
 
@@ -334,15 +368,15 @@ export function ProjectManager({
       return;
     }
 
-    // Se existe função de callback para navegação, usa ela
+    // Se existe funo de callback para navegao, usa ela
     if (onNavigateToMaterials) {
       onNavigateToMaterials(project.id, project.name);
     } else if (onPageChange) {
-      // Fallback: navegar para a página de materiais
+      // Fallback: navegar para a pgina de materiais
       onPageChange("materials");
       toast.success(`Navegando para materiais de "${project.name}"`);
     } else {
-      // Fallback: mostrar toast com informações
+      // Fallback: mostrar toast com informaes
       toast.success(
         `${projectAssets.length} material${
           projectAssets.length > 1 ? "is" : ""
@@ -361,11 +395,20 @@ export function ProjectManager({
   };
 
   const getStats = () => {
-    const totalProjects = projectsWithImages.length;
-    const totalProjectsIncomplete = projects.length - projectsWithImages.length;
-    const awaiting = projectsWithImages.filter((p) => p.status === 'vem-ai').length;
-    const comingSoon = projectsWithImages.filter((p) => p.status === 'breve-lancamento').length;
-    const launching = projectsWithImages.filter((p) => p.status === 'lancamento').length;
+    const scopedProjectsWithImages = scopedProjects;
+    const projectsWithoutImage = isRegionalRestricted && userRegional
+      ? projects.filter(
+          (project) =>
+            (project.regional || "").trim().toUpperCase() === userRegional &&
+            (!project.image || project.image.trim() === "")
+        )
+      : projects.filter((project) => !project.image || project.image.trim() === "");
+
+    const totalProjects = scopedProjectsWithImages.length;
+    const totalProjectsIncomplete = projectsWithoutImage.length;
+    const awaiting = scopedProjectsWithImages.filter((p) => p.status === "vem-ai").length;
+    const comingSoon = scopedProjectsWithImages.filter((p) => p.status === "breve-lancamento").length;
+    const launching = scopedProjectsWithImages.filter((p) => p.status === "lancamento").length;
 
     return {
       totalProjects,
@@ -397,7 +440,7 @@ export function ProjectManager({
                 <DialogHeader>
                   <DialogTitle>Criar Novo Empreendimento</DialogTitle>
                   <DialogDescription>
-                    Configure um novo empreendimento com imagem obrigatória. Todos os novos empreendimentos começam com status "Vem Aí".
+                    Configure um novo empreendimento com imagem obrigatria. Todos os novos empreendimentos comeam com status "Vem A".
                   </DialogDescription>
                 </DialogHeader>
                 <ProjectForm onSubmit={handleCreateProject} />
@@ -407,7 +450,7 @@ export function ProjectManager({
         }
       />
 
-      {/* Alert sobre empreendimentos incompletos - apenas para não-visualizadores */}
+      {/* Alert sobre empreendimentos incompletos - apenas para no-visualizadores */}
       {!isViewer() && stats.totalProjectsIncomplete > 0 && (
         <Alert className="border-orange-500/50 bg-orange-500/10">
           <AlertCircle className="h-4 w-4 text-orange-500" />
@@ -415,12 +458,12 @@ export function ProjectManager({
             <strong>{stats.totalProjectsIncomplete}</strong> empreendimento
             {stats.totalProjectsIncomplete > 1 ? "s" : ""}
             {stats.totalProjectsIncomplete > 1
-              ? " estão ocultos"
-              : " está oculto"}{" "}
-            da listagem por não possuir
+              ? " esto ocultos"
+              : " est oculto"}{" "}
+            da listagem por no possuir
             {stats.totalProjectsIncomplete > 1 ? "em" : ""} imagem cadastrada.
             Adicione uma imagem para que{" "}
-            {stats.totalProjectsIncomplete > 1 ? "apareçam" : "apareça"} na
+            {stats.totalProjectsIncomplete > 1 ? "apaream" : "aparea"} na
             listagem principal.
           </AlertDescription>
         </Alert>
@@ -430,7 +473,7 @@ export function ProjectManager({
       <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-5 gap-4">
         <Card className="bg-card/50 backdrop-blur-sm border-border/50">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Visíveis</CardTitle>
+            <CardTitle className="text-sm font-medium">Visveis</CardTitle>
             <Building className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
@@ -443,7 +486,7 @@ export function ProjectManager({
 
         <Card className="bg-card/50 backdrop-blur-sm border-border/50">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Vem Aí</CardTitle>
+            <CardTitle className="text-sm font-medium">Vem A</CardTitle>
             <Construction className="h-4 w-4 text-blue-500" />
           </CardHeader>
           <CardContent>
@@ -455,7 +498,7 @@ export function ProjectManager({
 
         <Card className="bg-card/50 backdrop-blur-sm border-border/50">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Breve Lançamento</CardTitle>
+            <CardTitle className="text-sm font-medium">Breve Lanamento</CardTitle>
             <Clock className="h-4 w-4 text-yellow-500" />
           </CardHeader>
           <CardContent>
@@ -467,7 +510,7 @@ export function ProjectManager({
 
         <Card className="bg-card/50 backdrop-blur-sm border-border/50">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Lançamento</CardTitle>
+            <CardTitle className="text-sm font-medium">Lanamento</CardTitle>
             <Building className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
@@ -499,8 +542,8 @@ export function ProjectManager({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todos os status</SelectItem>
-                  <SelectItem value="em-desenvolvimento">Vem Aí</SelectItem>
-                  <SelectItem value="lancamento">Lançamento</SelectItem>
+                  <SelectItem value="em-desenvolvimento">Vem A</SelectItem>
+                  <SelectItem value="lancamento">Lanamento</SelectItem>
                   <SelectItem value="vendas">Em Vendas</SelectItem>
                   <SelectItem value="entregue">Entregue</SelectItem>
                 </SelectContent>
@@ -510,7 +553,7 @@ export function ProjectManager({
         </CardContent>
       </Card>
 
-      {/* Projects Grid - Layout igual ao visual de referência */}
+      {/* Projects Grid - Layout igual ao visual de referncia */}
       <div className="grid grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
         {filteredProjects.map((project) => {
           const statusBadge = getStatusBadge(project.status);
@@ -551,7 +594,7 @@ export function ProjectManager({
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Ações</DropdownMenuLabel>
+                        <DropdownMenuLabel>Aes</DropdownMenuLabel>
                         <DropdownMenuSeparator />
                         {canEditProjects && (
                           <DropdownMenuItem
@@ -586,7 +629,7 @@ export function ProjectManager({
               </div>
 
               <CardContent className="p-4 space-y-3">
-                {/* Nome e Descrição */}
+                {/* Nome e Descrio */}
                 <div>
                   <h3 className="text-lg font-semibold text-foreground mb-1">
                     {project.name}
@@ -598,16 +641,7 @@ export function ProjectManager({
                   )}
                 </div>
 
-                {/* Localização */}
-                <div className="flex items-center gap-2 text-sm">
-                  <MapPin className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                  <span className="text-muted-foreground">Localização:</span>
-                  <span className="font-medium text-foreground">
-                    {project.location}
-                  </span>
-                </div>
-
-                {/* Data de Criação */}
+                {/* Data de Criao */}
                 <div className="flex items-center gap-2 text-sm">
                   <Calendar className="w-4 h-4 text-muted-foreground flex-shrink-0" />
                   <span className="text-muted-foreground">Criado em:</span>
@@ -616,18 +650,18 @@ export function ProjectManager({
                   </span>
                 </div>
 
-                {/* Previsão de Lançamento */}
+                {/* Previso de Lanamento */}
                 {project.launchDate && (
                   <div className="flex items-center gap-2 text-sm">
                     <Clock className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                    <span className="text-muted-foreground">Lançamento:</span>
+                    <span className="text-muted-foreground">Lanamento:</span>
                     <span className="text-foreground">
                       {formatDate(project.launchDate)}
                     </span>
                   </div>
                 )}
 
-                {/* Estatísticas */}
+                {/* Estatsticas */}
                 <div className="grid grid-cols-2 gap-4 pt-2">
                   <div className="flex items-center gap-2 text-sm">
                     <FolderOpen className="w-4 h-4 text-muted-foreground" />
@@ -685,7 +719,7 @@ export function ProjectManager({
             <p className="text-muted-foreground mb-4">
               {searchQuery
                 ? "Tente ajustar sua pesquisa"
-                : "Não há empreendimentos disponíveis"}
+                : "No h empreendimentos disponveis"}
             </p>
     
           </CardContent>
@@ -702,7 +736,7 @@ export function ProjectManager({
             <DialogHeader>
               <DialogTitle>Editar Empreendimento</DialogTitle>
               <DialogDescription>
-                Atualize as informações do empreendimento
+                Atualize as informaes do empreendimento
               </DialogDescription>
             </DialogHeader>
             {editingProject && (
@@ -720,7 +754,7 @@ export function ProjectManager({
   );
 }
 
-// Project Form Component com validação obrigatória de imagem
+// Project Form Component com validao obrigatria de imagem
 
 function ProjectForm({
   project,
@@ -731,14 +765,13 @@ function ProjectForm({
 }) {
   const [formData, setFormData] = useState({
     name: project?.name || "",
-    location: project?.location || "",
     status: project?.status || "vem-ai",
     color: project?.color || "#3b82f6",
     image: project?.image || "",
-    launchDate:
-      normalizeLaunchDateInput(project?.launchDate) ?? "",
-    createdBy: project?.createdBy || "Usuário Atual",
+    launchDate: normalizeLaunchDateInput(project?.launchDate) ?? "",
+    createdBy: project?.createdBy || "Usuario Atual",
     projectPhase: project?.projectPhase || "",
+    regional: (project?.regional || "").toUpperCase(),
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -749,11 +782,11 @@ function ProjectForm({
     const newErrors: Record<string, string> = {};
 
     if (!formData.name.trim()) {
-      newErrors.name = "Nome é obrigatório";
+      newErrors.name = "Nome e obrigatorio";
     }
 
-    if (!formData.location.trim()) {
-      newErrors.location = "Localização é obrigatória";
+    if (!formData.regional.trim()) {
+      newErrors.regional = "Regional e obrigatoria";
     }
 
     const hasExistingImage = !!(
@@ -764,11 +797,11 @@ function ProjectForm({
     );
 
     if (!imageFile && !hasExistingImage) {
-      newErrors.image = "Imagem é obrigatória";
+      newErrors.image = "Imagem e obrigatoria";
     }
 
     if (!formData.projectPhase) {
-      newErrors.projectPhase = "Fase do empreendimento é obrigatória";
+      newErrors.projectPhase = "Fase do empreendimento e obrigatoria";
     }
 
     setErrors(newErrors);
@@ -791,7 +824,7 @@ function ProjectForm({
     if (file.size > 5 * 1024 * 1024) {
       setErrors((prev) => ({
         ...prev,
-        image: "Arquivo deve ter no máximo 5MB",
+        image: "Arquivo deve ter no mximo 5MB",
       }));
       return;
     }
@@ -847,15 +880,16 @@ function ProjectForm({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    console.log("📝 Form submit - Form data:", formData);
+    console.log("[Form submit] data:", formData);
 
     if (!validateForm()) {
-      console.log("❌ Form validation failed:", errors);
-      toast.error("Por favor, corrija os erros do formulário");
+      console.log("[Form validation failed]:", errors);
+      toast.error("Por favor, corrija os erros do formulrio");
       return;
     }
 
     const statusToPersist = normalizeProjectStatus(formData.projectPhase || formData.status);
+    const normalizedRegional = formData.regional.trim().toUpperCase();
 
     onSubmit(
       {
@@ -863,15 +897,16 @@ function ProjectForm({
         status: statusToPersist,
         projectPhase: statusToPersist,
         image: formData.image || "",
+        regional: normalizedRegional,
       },
       imageFile || undefined
     );
   };
 
   const getProjectPhases = () => [
-    { value: "vem-ai", label: "Vem Aí" },
-    { value: "breve-lancamento", label: "Breve Lançamento" },
-    { value: "lancamento", label: "Lançamento" },
+    { value: "vem-ai", label: "Vem A" },
+    { value: "breve-lancamento", label: "Breve Lanamento" },
+    { value: "lancamento", label: "Lanamento" },
   ];
 
   return (
@@ -896,28 +931,47 @@ function ProjectForm({
         </div>
 
         <div className="col-span-2 md:col-span-1">
-          <Label htmlFor="location" className="mb-2">
-            Localização *
+          <Label htmlFor="regional" className="mb-2">
+            Regional *
           </Label>
-          <Input
-            id="location"
-            value={formData.location}
-            onChange={(e) =>
-              setFormData({ ...formData, location: e.target.value })
-            }
-            placeholder="Ex: São Paulo - SP"
-            className={`bg-input-background border-border ${
-              errors.location ? "border-red-500" : ""
-            }`}
-          />
-          {errors.location && (
-            <p className="text-xs text-red-500 mt-1">{errors.location}</p>
+          <Select
+            value={formData.regional}
+            onValueChange={(value) => {
+              setFormData({ ...formData, regional: value });
+              setErrors((prev) => {
+                if (!prev.regional) {
+                  return prev;
+                }
+                const next = { ...prev };
+                delete next.regional;
+                return next;
+              });
+            }}
+          >
+            <SelectTrigger
+              id="regional"
+              className={`bg-input-background border-border ${
+                errors.regional ? "border-red-500" : ""
+              }`}
+            >
+              <SelectValue placeholder="Selecione a regional" />
+            </SelectTrigger>
+            <SelectContent>
+              {REGIONAL_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {errors.regional && (
+            <p className="text-xs text-red-500 mt-1">{errors.regional}</p>
           )}
         </div>
 
         <div className="col-span-2 md:col-span-1">
           <Label htmlFor="launchDate" className="mb-2">
-            Previsão de Lançamento
+            Previso de Lanamento
           </Label>
           <Input
             id="launchDate"
@@ -992,7 +1046,7 @@ function ProjectForm({
         <div className="md:col-span-2 space-y-3">
           <Label className="text-base">Imagem do Empreendimento *</Label>
           <p className="text-xs text-muted-foreground">
-            A imagem será usada como miniatura nos cards. É obrigatória para o
+            A imagem ser usada como miniatura nos cards.  obrigatria para o
             empreendimento aparecer na listagem.
           </p>
 
@@ -1021,7 +1075,7 @@ function ProjectForm({
               <div className="flex flex-col items-center gap-2 text-muted-foreground">
                 <ImageIcon className="h-10 w-10" />
                 <p className="text-sm font-medium">Clique para enviar imagem</p>
-                <p className="text-xs">JPG, PNG ou WebP até 5MB</p>
+                <p className="text-xs">JPG, PNG ou WebP at 5MB</p>
               </div>
             )}
 
@@ -1054,7 +1108,7 @@ function ProjectForm({
           </div>
 
           <p className="text-xs text-muted-foreground">
-            Recomendamos imagens com proporção 4:3 e pelo menos 1200×900 px.
+            Recomendamos imagens com proporo 4:3 e pelo menos 1200900 px.
           </p>
 
           {errors.image && (
@@ -1076,10 +1130,3 @@ function ProjectForm({
     </form>
   );
 }
-
-
-
-
-
-
-

@@ -1,8 +1,9 @@
-﻿// @ts-nocheck
-import React, { createContext, useContext, useState, useEffect, useMemo, ReactNode } from 'react';
+// @ts-nocheck
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, ReactNode } from 'react';
 import { supabase, isSupabaseConfigured, uploadFile, getPublicUrl, deleteFile } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 import { Asset, Campaign, Project } from '../types';
+import { UserRole } from '../types/enums';
 import { toast } from 'sonner';
 import { v4 as uuidv4 } from 'uuid';
 import { useConfig } from './ConfigContext';
@@ -190,6 +191,14 @@ const buildProjectPayload = (raw: Record<string, unknown>) => {
     ...rest,
   };
 
+  if (payload.regional !== undefined) {
+    const regionalValue =
+      typeof payload.regional === 'string' && payload.regional.trim().length > 0
+        ? payload.regional.trim().toUpperCase()
+        : null;
+    payload.regional = regionalValue;
+  }
+
   const launchDateFromRaw = normalizeDateValue(
     launchDate ?? (raw as Record<string, unknown>)['launch_date'],
   );
@@ -228,6 +237,85 @@ export function AssetProvider({ children }: { children: ReactNode }) {
   const [sharedLinks, setSharedLinks] = useState<SharedLinkRow[]>([]);
   const [userCount, setUserCount] = useState(0);
   const [activeSharedLinksCount, setActiveSharedLinksCount] = useState(0);
+
+  const filterAssetsByPermissions = useCallback(
+    (assetList: Asset[]): Asset[] => {
+      if (!user) return [];
+
+      const normalizedUserRegional = (user.regional || '').trim().toUpperCase();
+      const normalizedUserOrigin =
+        (() => {
+          const rawOrigin =
+            (user as unknown as { material_origin_scope?: string }).material_origin_scope ??
+            (user as unknown as { materialOriginScope?: string }).materialOriginScope ??
+            null;
+          if (typeof rawOrigin !== 'string') return '';
+          const normalized = rawOrigin.trim().toLowerCase();
+          return normalized === 'house' || normalized === 'ev' ? normalized : '';
+        })();
+      const viewerGlobalAccess = Boolean(
+        (user as unknown as { viewer_access_to_all?: boolean }).viewer_access_to_all ??
+          (user as unknown as { viewerAccessToAll?: boolean }).viewerAccessToAll ??
+          false,
+      );
+
+      if (user.role === UserRole.ADMIN || user.role === UserRole.EDITOR_MARKETING) {
+        return assetList;
+      }
+
+      if (user.role === UserRole.EDITOR_TRADE) {
+        if (!normalizedUserRegional) return [];
+        return assetList.filter(
+          asset => {
+            const assetRegional = (asset.regional || '').trim().toUpperCase();
+            const assetOrigin = (asset.origin || '').trim().toLowerCase();
+            if (assetRegional !== normalizedUserRegional) {
+              return false;
+            }
+            if (!normalizedUserOrigin) {
+              return true;
+            }
+            return assetOrigin === normalizedUserOrigin;
+          },
+        );
+      }
+
+      if (user.role === UserRole.VIEWER) {
+        if (viewerGlobalAccess) {
+          return assetList;
+        }
+        if (!normalizedUserRegional) {
+          return [];
+        }
+        return assetList.filter(
+          asset => {
+            const assetRegional = (asset.regional || '').trim().toUpperCase();
+            const assetOrigin = (asset.origin || '').trim().toLowerCase();
+            if (assetRegional !== normalizedUserRegional) {
+              return false;
+            }
+            if (!normalizedUserOrigin) {
+              return true;
+            }
+            return assetOrigin === normalizedUserOrigin;
+          },
+        );
+      }
+
+      return [];
+    },
+    [user],
+  );
+
+  useEffect(() => {
+    setAssets(prev => {
+      const filtered = filterAssetsByPermissions(prev);
+      if (filtered.length === prev.length && filtered.every((asset, index) => asset === prev[index])) {
+        return prev;
+      }
+      return filtered;
+    });
+  }, [filterAssetsByPermissions]);
 
   const isConfigured = isSupabaseConfigured();
 
@@ -341,6 +429,66 @@ export function AssetProvider({ children }: { children: ReactNode }) {
       if (error) throw error;
 
       const rows = (data ?? []) as AssetRow[];
+      const projectRegionalMapFromState = new Map(
+        projects.map(project => [
+          project.id,
+          project.regional ? project.regional.trim().toUpperCase() : null,
+        ]),
+      );
+      const campaignRegionalMapFromState = new Map(
+        campaigns.map(campaign => [
+          campaign.id,
+          campaign.regional ? campaign.regional.trim().toUpperCase() : null,
+        ]),
+      );
+
+      const projectRegionalLookup = new Map(projectRegionalMapFromState);
+      const campaignRegionalLookup = new Map(campaignRegionalMapFromState);
+
+      const missingProjectIds = new Set<string>();
+      const missingCampaignIds = new Set<string>();
+
+      rows.forEach((item) => {
+        const hasExplicitRegional = typeof item.regional === 'string' && item.regional.trim().length > 0;
+        if (!hasExplicitRegional && item.category_type === 'project' && item.category_id) {
+          if (!projectRegionalLookup.get(item.category_id)) {
+            missingProjectIds.add(item.category_id);
+          }
+        }
+        if (!hasExplicitRegional && item.category_type === 'campaign' && item.category_id) {
+          if (!campaignRegionalLookup.get(item.category_id)) {
+            missingCampaignIds.add(item.category_id);
+          }
+        }
+      });
+
+      if (missingProjectIds.size > 0) {
+        const { data: projectRegionalRows, error: projectRegionalError } = await supabaseClient
+          .from('projects')
+          .select('id, regional')
+          .in('id', Array.from(missingProjectIds));
+
+        if (!projectRegionalError && projectRegionalRows) {
+          projectRegionalRows.forEach(row => {
+            const normalized = row.regional ? row.regional.trim().toUpperCase() : null;
+            projectRegionalLookup.set(row.id, normalized);
+          });
+        }
+      }
+
+      if (missingCampaignIds.size > 0) {
+        const { data: campaignRegionalRows, error: campaignRegionalError } = await supabaseClient
+          .from('campaigns')
+          .select('id, regional')
+          .in('id', Array.from(missingCampaignIds));
+
+        if (!campaignRegionalError && campaignRegionalRows) {
+          campaignRegionalRows.forEach(row => {
+            const normalized = row.regional ? row.regional.trim().toUpperCase() : null;
+            campaignRegionalLookup.set(row.id, normalized);
+          });
+        }
+      }
       const uploaderIds = Array.from(
         new Set(
           rows
@@ -377,6 +525,17 @@ export function AssetProvider({ children }: { children: ReactNode }) {
           };
         }
 
+        const assetRegional =
+          typeof item.regional === 'string' && item.regional.trim().length > 0
+            ? item.regional.trim().toUpperCase()
+            : null;
+        const fallbackRegional =
+          item.category_type === 'project'
+            ? projectRegionalLookup.get(item.category_id ?? '') ?? null
+            : item.category_type === 'campaign'
+              ? campaignRegionalLookup.get(item.category_id ?? '') ?? null
+              : null;
+
         return {
           id: item.id,
           name: item.name,
@@ -387,6 +546,7 @@ export function AssetProvider({ children }: { children: ReactNode }) {
           url: item.url,
           thumbnailUrl: item.thumbnail_url || undefined,
           tags: item.tags || [],
+          origin: (item.origin as 'house' | 'ev') ?? 'house',
           categoryType: item.category_type,
           categoryId: item.category_id,
           categoryName: item.category_name || '',
@@ -400,10 +560,16 @@ export function AssetProvider({ children }: { children: ReactNode }) {
             uploaderMap.get(item.uploaded_by ?? '') ?? null,
             item.uploaded_by ?? null,
           ),
+          regional: assetRegional ?? fallbackRegional,
         };
       });
 
-      setAssets(transformedAssets);
+      const normalizedAssets = transformedAssets.map(asset => ({
+        ...asset,
+        regional: asset.regional ? asset.regional.trim().toUpperCase() : null,
+      }));
+
+      setAssets(filterAssetsByPermissions(normalizedAssets));
     } catch (error) {
       console.error('Error fetching assets:', error);
       toast.error('Erro ao carregar materiais');
@@ -476,6 +642,7 @@ export function AssetProvider({ children }: { children: ReactNode }) {
           createdAt: createdAtValue,
           createdBy: createdById,
           createdByName: creatorDisplayName,
+          regional: item.regional ? item.regional.trim().toUpperCase() : '',
           tags: tagsValue
         };
       });
@@ -483,17 +650,26 @@ export function AssetProvider({ children }: { children: ReactNode }) {
 
       setCampaigns(transformedCampaigns);
       const campaignNameMap = new Map(transformedCampaigns.map(item => [item.id, item.name]));
-      setAssets(prev =>
-        prev.map(asset => {
+      const campaignRegionalMap = new Map(transformedCampaigns.map(item => [item.id, item.regional]));
+      setAssets(prev => {
+        const updatedAssets = prev.map(asset => {
           if (asset.categoryType === 'campaign' && asset.categoryId) {
             const updatedName = campaignNameMap.get(asset.categoryId);
+            const updatedRegional = campaignRegionalMap.get(asset.categoryId) ?? null;
+
             if (updatedName && asset.categoryName !== updatedName) {
-              return { ...asset, categoryName: updatedName };
+              return { ...asset, categoryName: updatedName, regional: updatedRegional ?? asset.regional };
+            }
+
+            if (updatedRegional && asset.regional !== updatedRegional) {
+              return { ...asset, regional: updatedRegional };
             }
           }
           return asset;
-        }),
-      );
+        });
+
+        return filterAssetsByPermissions(updatedAssets);
+      });
     } catch (error) {
       console.error('Error fetching campaigns:', error);
       toast.error('Erro ao carregar campanhas');
@@ -546,7 +722,6 @@ export function AssetProvider({ children }: { children: ReactNode }) {
         color: item.color,
         status: item.status as Project['status'],
         projectPhase: item.status as Project['projectPhase'],
-        location: item.location || '',
         launchDate: normalizeDateValue(item.launch_date) ?? undefined,
         createdAt: item.created_at,
         updatedAt: item.updated_at,
@@ -555,21 +730,31 @@ export function AssetProvider({ children }: { children: ReactNode }) {
           creatorMap.get(item.created_by ?? '') ?? null,
           item.created_by ?? null,
         ),
+        regional: item.regional ? item.regional.trim().toUpperCase() : '',
       }));
 
       setProjects(transformedProjects);
       const projectNameMap = new Map(transformedProjects.map(item => [item.id, item.name]));
-      setAssets(prev =>
-        prev.map(asset => {
+      const projectRegionalMap = new Map(transformedProjects.map(item => [item.id, item.regional]));
+      setAssets(prev => {
+        const updatedAssets = prev.map(asset => {
           if (asset.categoryType === 'project' && asset.categoryId) {
             const updatedName = projectNameMap.get(asset.categoryId);
+            const updatedRegional = projectRegionalMap.get(asset.categoryId) ?? null;
+
             if (updatedName && asset.categoryName !== updatedName) {
-              return { ...asset, categoryName: updatedName };
+              return { ...asset, categoryName: updatedName, regional: updatedRegional ?? asset.regional };
+            }
+
+            if (updatedRegional && asset.regional !== updatedRegional) {
+              return { ...asset, regional: updatedRegional };
             }
           }
           return asset;
-        }),
-      );
+        });
+
+        return filterAssetsByPermissions(updatedAssets);
+      });
     } catch (error) {
       console.error('Error fetching projects:', error);
       toast.error('Erro ao carregar projetos');
@@ -611,13 +796,13 @@ export function AssetProvider({ children }: { children: ReactNode }) {
       setUserCount(count ?? 0);
     } catch (error) {
       console.error('Error fetching user count:', error);
-      toast.error('Erro ao carregar estatÃ­sticas de usuÃ¡rios');
+      toast.error('Erro ao carregar estatsticas de Usuarios');
       setUserCount(0);
     }
   };
 
   const uploadAsset = async (file: File, projectId?: string, campaignId?: string, metadata?: any) => {
-    if (!user) throw new Error('UsuÃ¡rio nÃ£o encontrado');
+    if (!user) throw new Error('Usuario nao encontrado');
 
     if (!isConfigured) {
       // Modo de desenvolvimento - simular upload
@@ -637,6 +822,9 @@ export function AssetProvider({ children }: { children: ReactNode }) {
           categoryName = campaign?.name || '';
         }
 
+        const normalizedOrigin = metadata?.origin === 'ev' ? 'ev' : 'house';
+        const selectedProject = projectId ? projects.find(p => p.id === projectId) : undefined;
+        const selectedCampaign = campaignId ? campaigns.find(c => c.id === campaignId) : undefined;
         const newAsset: Asset = {
           id: uuidv4(),
           name: metadata?.name || file.name,
@@ -647,11 +835,13 @@ export function AssetProvider({ children }: { children: ReactNode }) {
           url: 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=800',
           thumbnailUrl: fileType === 'image' ? 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=200' : undefined,
           tags: metadata?.tags || [],
+          origin: normalizedOrigin,
           categoryType,
           categoryId,
           categoryName,
           projectId: projectId,
           campaignId: campaignId,
+          regional: null,
           isPublic: false,
           downloadCount: 0,
           metadata: metadata ? {
@@ -663,7 +853,18 @@ export function AssetProvider({ children }: { children: ReactNode }) {
           uploadedBy: user.name
         };
 
-        setAssets(prev => [newAsset, ...prev]);
+        setAssets(prev =>
+          filterAssetsByPermissions([
+            {
+              ...newAsset,
+              regional:
+                selectedProject?.regional?.trim().toUpperCase() ??
+                selectedCampaign?.regional?.trim().toUpperCase() ??
+                null,
+            },
+            ...prev,
+          ]),
+        );
         toast.success('Material enviado com sucesso! (Modo desenvolvimento)');
         setLoading(false);
       }, 2000);
@@ -671,7 +872,7 @@ export function AssetProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    if (!supabase) throw new Error('Supabase nÃ£o configurado');
+    if (!supabase) throw new Error('Supabase nao configurado');
 
     setLoading(true);
     try {
@@ -700,6 +901,15 @@ export function AssetProvider({ children }: { children: ReactNode }) {
         categoryName = campaign?.name || '';
       }
 
+      const normalizedOrigin = metadata?.origin === 'ev' ? 'ev' : 'house';
+      const selectedProject = projectId ? projects.find(p => p.id === projectId) : undefined;
+      const selectedCampaign = campaignId ? campaigns.find(c => c.id === campaignId) : undefined;
+      const categoryRegional = (selectedProject?.regional ?? selectedCampaign?.regional ?? null)?.toUpperCase() ?? null;
+
+      if (!categoryRegional) {
+        throw new Error('Regional nao configurada para a categoria selecionada.');
+      }
+
       const { error } = await supabase
         .from('assets')
         .insert({
@@ -711,17 +921,19 @@ export function AssetProvider({ children }: { children: ReactNode }) {
           url: fileUrl,
           thumbnail_url: thumbnailUrl,
           tags: metadata?.tags || [],
+          origin: normalizedOrigin,
           category_type: categoryType,
           category_id: categoryId,
           category_name: categoryName,
           project_phase: metadata?.projectPhase || null,
+          regional: categoryRegional,
           is_public: false,
           metadata: metadata ? {
             ...metadata,
             originalName: file.name,
             mimeType: file.type
           } : null,
-          uploaded_by: user.id
+          uploaded_by: user.id,
         });
 
       if (error) throw error;
@@ -739,26 +951,112 @@ export function AssetProvider({ children }: { children: ReactNode }) {
 
   // Mock implementations for development mode
   const updateAsset = async (id: string, updates: Partial<Asset>) => {
+    const existingAsset = assets.find(asset => asset.id === id);
+    if (!existingAsset) {
+      const message = 'Material nao encontrado';
+      toast.error(message);
+      throw new Error(message);
+    }
+
+    const normalizeRegionalValue = (value?: string | null) =>
+      value && value.trim().length > 0 ? value.trim().toUpperCase() : null;
+
+    const targetCategoryType = updates.categoryType ?? existingAsset.categoryType;
+    const targetCategoryId = updates.categoryId ?? existingAsset.categoryId;
+    let targetCategoryName = updates.categoryName ?? existingAsset.categoryName ?? '';
+    let targetRegional: string | null;
+
+    if (updates.regional !== undefined) {
+      targetRegional = normalizeRegionalValue(updates.regional);
+    } else if (
+      (updates.categoryId && updates.categoryId !== existingAsset.categoryId) ||
+      (updates.categoryType && updates.categoryType !== existingAsset.categoryType)
+    ) {
+      if (targetCategoryType === 'project' && targetCategoryId) {
+        const project = projects.find(p => p.id === targetCategoryId);
+        targetCategoryName = project?.name ?? targetCategoryName;
+        targetRegional = normalizeRegionalValue(project?.regional ?? null);
+      } else if (targetCategoryType === 'campaign' && targetCategoryId) {
+        const campaign = campaigns.find(c => c.id === targetCategoryId);
+        targetCategoryName = campaign?.name ?? targetCategoryName;
+        targetRegional = normalizeRegionalValue(campaign?.regional ?? null);
+      } else {
+        targetRegional = normalizeRegionalValue(existingAsset.regional);
+      }
+    } else {
+      targetRegional = normalizeRegionalValue(existingAsset.regional);
+    }
+
+    if (!targetRegional) {
+      targetRegional = normalizeRegionalValue(existingAsset.regional);
+    }
+
+    if (!targetRegional) {
+      const message = 'Regional nao configurada para a categoria selecionada.';
+      if (!isConfigured) {
+        toast.error(message);
+        return;
+      }
+      throw new Error(message);
+    }
+
     if (!isConfigured) {
-      setAssets(prev => prev.map(asset => 
-        asset.id === id ? { ...asset, ...updates } : asset
-      ));
+      setAssets(prev =>
+        filterAssetsByPermissions(
+          prev.map(asset =>
+            asset.id === id
+              ? {
+                  ...asset,
+                  ...updates,
+                  categoryType: targetCategoryType,
+                  categoryId: targetCategoryId ?? asset.categoryId,
+                  categoryName: targetCategoryName || asset.categoryName,
+                  regional: targetRegional,
+                  origin: updates.origin ?? asset.origin,
+                }
+              : asset,
+          ),
+        ),
+      );
       toast.success('Material atualizado com sucesso! (Modo desenvolvimento)');
       return;
     }
 
-    if (!supabase) throw new Error('Supabase nÃ£o configurado');
+    if (!supabase) throw new Error('Supabase nao configurado');
 
     try {
+      const updatePayload: Record<string, any> = {
+        name: updates.name,
+        description: updates.description,
+        tags: updates.tags,
+        is_public: updates.isPublic,
+        metadata: updates.metadata,
+        regional: targetRegional,
+      };
+
+      if (updates.origin) {
+        updatePayload.origin = updates.origin;
+      }
+
+      if (targetCategoryId) {
+        updatePayload.category_id = targetCategoryId;
+      }
+
+      if (targetCategoryType === 'project' || targetCategoryType === 'campaign') {
+        updatePayload.category_type = targetCategoryType;
+      }
+
+      if (targetCategoryName) {
+        updatePayload.category_name = targetCategoryName;
+      }
+
+      if (updates.metadata && 'projectPhase' in updates.metadata) {
+        updatePayload.project_phase = updates.metadata.projectPhase || null;
+      }
+
       const { error } = await supabase
         .from('assets')
-        .update({
-          name: updates.name,
-          description: updates.description,
-          tags: updates.tags,
-          is_public: updates.isPublic,
-          metadata: updates.metadata
-        })
+        .update(updatePayload)
         .eq('id', id);
 
       if (error) throw error;
@@ -775,15 +1073,15 @@ export function AssetProvider({ children }: { children: ReactNode }) {
   const deleteAsset = async (id: string) => {
     if (!isConfigured) {
       setAssets(prev => prev.filter(asset => asset.id !== id));
-      toast.success('Material excluÃ­do com sucesso! (Modo desenvolvimento)');
+      toast.success('Material excluido com sucesso! (Modo desenvolvimento)');
       return;
     }
 
-    if (!supabase) throw new Error('Supabase nÃ£o configurado');
+    if (!supabase) throw new Error('Supabase nao configurado');
 
     try {
       const asset = assets.find(a => a.id === id);
-      if (!asset) throw new Error('Material nÃ£o encontrado');
+      if (!asset) throw new Error('Material nao encontrado');
 
       const filename = asset.url.split('/').pop();
       if (filename) {
@@ -798,7 +1096,7 @@ export function AssetProvider({ children }: { children: ReactNode }) {
       if (error) throw error;
 
       await fetchAssets();
-      toast.success('Material excluÃ­do com sucesso!');
+      toast.success('Material excluido com sucesso!');
     } catch (error: any) {
       console.error('Error deleting asset:', error);
       toast.error(error.message || 'Erro ao excluir material');
@@ -855,6 +1153,13 @@ export function AssetProvider({ children }: { children: ReactNode }) {
     if (payload.startDate !== undefined) mapped.start_date = payload.startDate ? normalizeDateString(payload.startDate) : null;
     if (payload.endDate !== undefined) mapped.end_date = payload.endDate ? normalizeDateString(payload.endDate) : null;
     if (payload.createdBy !== undefined) mapped.created_by = payload.createdBy;
+    if (payload.regional !== undefined) {
+      const regionalValue =
+        typeof payload.regional === 'string' && payload.regional.trim().length > 0
+          ? payload.regional.trim().toUpperCase()
+          : null;
+      mapped.regional = regionalValue;
+    }
 
     const shouldRecomputeStatus = payload.status !== undefined || payload.startDate !== undefined || payload.endDate !== undefined;
 
@@ -870,7 +1175,12 @@ export function AssetProvider({ children }: { children: ReactNode }) {
   };
 
   const createCampaign = async (campaign: Omit<Campaign, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'>) => {
-    if (!user) throw new Error('UsuÃ¡rio nÃ£o encontrado');
+    if (!user) throw new Error('Usuario nao encontrado');
+
+    const normalizedRegional = (campaign.regional || '').trim().toUpperCase();
+    if (!normalizedRegional) {
+      throw new Error('Regional e obrigatoria');
+    }
 
     if (!isConfigured) {
       const status = computeCampaignStatus(campaign.startDate, campaign.endDate);
@@ -885,17 +1195,18 @@ export function AssetProvider({ children }: { children: ReactNode }) {
           user.name ?? user.email ?? null,
           user.id,
         ),
-        tags: []
+        tags: [],
+        regional: normalizedRegional,
       };
       setCampaigns(prev => [newCampaign, ...prev]);
       toast.success('Campanha criada com sucesso! (Modo desenvolvimento)');
       return;
     }
 
-    if (!supabase) throw new Error('Supabase nÃ£o configurado');
+    if (!supabase) throw new Error('Supabase nao configurado');
 
     try {
-      const payload = mapCampaignToDb({ ...campaign, createdBy: user.id });
+      const payload = mapCampaignToDb({ ...campaign, createdBy: user.id, regional: normalizedRegional });
       const { error } = await supabase
         .from('campaigns')
         .insert(payload);
@@ -904,7 +1215,7 @@ export function AssetProvider({ children }: { children: ReactNode }) {
 
       await fetchCampaigns();
       toast.success('Campanha criada com sucesso!');
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error creating campaign:', error);
       toast.error(error.message || 'Erro ao criar campanha');
       throw error;
@@ -913,25 +1224,43 @@ export function AssetProvider({ children }: { children: ReactNode }) {
 
   const updateCampaign = async (id: string, updates: Partial<Campaign>) => {
     if (!isConfigured) {
-      setCampaigns(prev => prev.map(campaign => {
-        if (campaign.id !== id) return campaign;
-        const merged = { ...campaign, ...updates } as Campaign;
-        const status = computeCampaignStatus(merged.startDate, merged.endDate);
-        return {
-          ...merged,
-          status,
-          color: statusColors[status]
-        };
-      }));
+      setCampaigns(prev =>
+        prev.map(campaign => {
+          if (campaign.id !== id) return campaign;
+
+          const incomingRegional =
+            typeof updates.regional === 'string' ? updates.regional.trim().toUpperCase() : campaign.regional;
+          if (!incomingRegional) {
+            throw new Error('Regional e obrigatoria');
+          }
+
+          const merged = { ...campaign, ...updates, regional: incomingRegional } as Campaign;
+          const status = computeCampaignStatus(merged.startDate, merged.endDate);
+
+          return {
+            ...merged,
+            status,
+            color: statusColors[status],
+          };
+        }),
+      );
       toast.success('Campanha atualizada com sucesso! (Modo desenvolvimento)');
       return;
     }
 
-    if (!supabase) throw new Error('Supabase nÃ£o configurado');
+    if (!supabase) throw new Error('Supabase nao configurado');
+
+    const updatesWithRegional: Partial<Campaign> = { ...updates };
+    if (updatesWithRegional.regional !== undefined) {
+      const normalizedRegional = (updatesWithRegional.regional || '').trim().toUpperCase();
+      if (!normalizedRegional) {
+        throw new Error('Regional e obrigatoria');
+      }
+      updatesWithRegional.regional = normalizedRegional;
+    }
 
     try {
-      const mappedUpdates = mapCampaignToDb(updates);
-      mappedUpdates.updated_at = new Date().toISOString();
+      const mappedUpdates = mapCampaignToDb(updatesWithRegional);
       const { error } = await supabase
         .from('campaigns')
         .update(mappedUpdates)
@@ -941,9 +1270,9 @@ export function AssetProvider({ children }: { children: ReactNode }) {
 
       await fetchCampaigns();
       toast.success('Campanha atualizada com sucesso!');
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error updating campaign:', error);
-      toast.error(error.message || 'Erro ao atualizar campanha');
+      toast.error((error as Error).message || 'Erro ao atualizar campanha');
       throw error;
     }
   };
@@ -951,11 +1280,11 @@ export function AssetProvider({ children }: { children: ReactNode }) {
   const deleteCampaign = async (id: string) => {
     if (!isConfigured) {
       setCampaigns(prev => prev.filter(campaign => campaign.id !== id));
-      toast.success('Campanha excluÃ­da com sucesso! (Modo desenvolvimento)');
+      toast.success('Campanha excluida com sucesso! (Modo desenvolvimento)');
       return;
     }
 
-    if (!supabase) throw new Error('Supabase nÃ£o configurado');
+    if (!supabase) throw new Error('Supabase nao configurado');
 
     try {
       const { error } = await supabase
@@ -966,7 +1295,7 @@ export function AssetProvider({ children }: { children: ReactNode }) {
       if (error) throw error;
 
       await fetchCampaigns();
-      toast.success('Campanha excluÃ­da com sucesso!');
+      toast.success('Campanha excluida com sucesso!');
     } catch (error: any) {
       console.error('Error deleting campaign:', error);
       toast.error(error.message || 'Erro ao excluir campanha');
@@ -975,7 +1304,12 @@ export function AssetProvider({ children }: { children: ReactNode }) {
   };
 
   const createProject = async (project: Omit<Project, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'>) => {
-    if (!user) throw new Error('UsuÃ¡rio nÃ£o encontrado');
+    if (!user) throw new Error('Usuario nao encontrado');
+
+    const normalizedRegional = (project.regional || '').trim().toUpperCase();
+    if (!normalizedRegional) {
+      throw new Error('Regional e obrigatoria');
+    }
 
     if (!isConfigured) {
       const newProject: Project = {
@@ -989,18 +1323,20 @@ export function AssetProvider({ children }: { children: ReactNode }) {
           user.id,
         ),
         tags: [],
+        regional: normalizedRegional,
       };
       setProjects((prev) => [newProject, ...prev]);
       toast.success('Projeto criado com sucesso! (Modo desenvolvimento)');
       return;
     }
 
-    if (!supabase) throw new Error('Supabase nÃ£o configurado');
+    if (!supabase) throw new Error('Supabase nao configurado');
 
     try {
       const payload = buildProjectPayload({
         ...project,
         created_by: user.id,
+        regional: normalizedRegional,
       });
 
       if (!payload.status) {
@@ -1025,17 +1361,36 @@ export function AssetProvider({ children }: { children: ReactNode }) {
 
   const updateProject = async (id: string, updates: Partial<Project>) => {
     if (!isConfigured) {
-      setProjects(prev => prev.map(project => 
-        project.id === id ? { ...project, ...updates } : project
-      ));
+      const target = projects.find(project => project.id === id);
+      const regionalSource =
+        updates.regional !== undefined ? updates.regional : target?.regional;
+      const normalizedRegional = (regionalSource || '').trim().toUpperCase();
+      if (!normalizedRegional) {
+        throw new Error('Regional e obrigatoria');
+      }
+
+      setProjects(prev =>
+        prev.map(project =>
+          project.id === id ? { ...project, ...updates, regional: normalizedRegional } : project,
+        ),
+      );
       toast.success('Projeto atualizado com sucesso! (Modo desenvolvimento)');
       return;
     }
 
-    if (!supabase) throw new Error('Supabase nÃ£o configurado');
+    if (!supabase) throw new Error('Supabase nao configurado');
 
     try {
-      const payload = buildProjectPayload(updates as Record<string, unknown>);
+      const normalizedUpdates: Record<string, unknown> = { ...updates };
+      if (normalizedUpdates.regional !== undefined) {
+        const normalizedRegional = (normalizedUpdates.regional || '').toString().trim().toUpperCase();
+        if (!normalizedRegional) {
+          throw new Error('Regional e obrigatoria');
+        }
+        normalizedUpdates.regional = normalizedRegional;
+      }
+
+      const payload = buildProjectPayload(normalizedUpdates);
       payload.updated_at = new Date().toISOString();
 
       const { data: updatedRows, error } = await supabase
@@ -1051,7 +1406,7 @@ export function AssetProvider({ children }: { children: ReactNode }) {
 
       if (!updatedRows || updatedRows.length === 0) {
         console.error('[updateProject] Supabase returned 0 rows after update', { id, payload });
-        throw new Error('Nenhuma linha foi atualizada. Verifique suas permissões.');
+        throw new Error('Nenhuma linha foi atualizada. Verifique suas permisses.');
       }
 
       await fetchProjects();
@@ -1066,11 +1421,11 @@ export function AssetProvider({ children }: { children: ReactNode }) {
   const deleteProject = async (id: string) => {
     if (!isConfigured) {
       setProjects(prev => prev.filter(project => project.id !== id));
-      toast.success('Projeto excluÃ­do com sucesso! (Modo desenvolvimento)');
+      toast.success('Projeto excluido com sucesso! (Modo desenvolvimento)');
       return;
     }
 
-    if (!supabase) throw new Error('Supabase nÃ£o configurado');
+    if (!supabase) throw new Error('Supabase nao configurado');
 
     try {
       const { error } = await supabase
@@ -1081,7 +1436,7 @@ export function AssetProvider({ children }: { children: ReactNode }) {
       if (error) throw error;
 
       await fetchProjects();
-      toast.success('Projeto excluÃ­do com sucesso!');
+      toast.success('Projeto excluido com sucesso!');
     } catch (error: any) {
       console.error('Error deleting project:', error);
       toast.error(error.message || 'Erro ao excluir projeto');
@@ -1131,5 +1486,16 @@ export function useAssets() {
   }
   return context;
 }
+
+
+
+
+
+
+
+
+
+
+
 
 

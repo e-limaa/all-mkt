@@ -32,6 +32,8 @@ import { Asset } from '../types';
 import { formatFileSize, formatDate } from '../utils/format';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { useAssets } from '../contexts/AssetContext';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { usePermissions } from '../contexts/hooks/usePermissions';
 
 interface AssetViewerProps {
   asset: Asset | null;
@@ -57,9 +59,12 @@ export function AssetViewer({
   onDelete
 }: AssetViewerProps) {
   const { projects, campaigns } = useAssets();
+  const { isAdmin, isEditor } = usePermissions();
+  const canEditOrigin = isAdmin() || isEditor();
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState({
-    name: ''
+    name: '',
+    origin: 'house' as 'house' | 'ev',
   });
   const [isVideoMuted, setIsVideoMuted] = useState(false);
   const [imageZoom, setImageZoom] = useState(1);
@@ -71,7 +76,8 @@ export function AssetViewer({
   useEffect(() => {
     if (asset) {
       setEditForm({
-        name: asset.name || ''
+        name: asset.name || '',
+        origin: asset.origin || 'house',
       });
       setImageZoom(1);
     }
@@ -116,7 +122,11 @@ export function AssetViewer({
 
   const handleEdit = () => {
     if (asset && onEdit) {
-      onEdit(asset, { name: editForm.name });
+      const updates: Partial<Asset> = { name: editForm.name };
+      if (canEditOrigin) {
+        updates.origin = editForm.origin;
+      }
+      onEdit(asset, updates);
       setIsEditing(false);
       toast.success('Material atualizado com sucesso!');
     }
@@ -469,13 +479,42 @@ export function AssetViewer({
                         <Input
                           id="edit-name"
                           value={editForm.name}
-                          onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                          onChange={(e) => setEditForm(prev => ({ ...prev, name: e.target.value }))}
                           className="bg-input-background border-border mt-2"
                           aria-describedby="edit-name-help"
                         />
                         <p id="edit-name-help" className="sr-only">Digite o novo nome para o material</p>
                       </div>
-                      
+
+                      <div>
+                        <Label htmlFor="edit-origin">Origem</Label>
+                        {canEditOrigin ? (
+                          <Select
+                            value={editForm.origin}
+                            onValueChange={(value) => setEditForm(prev => ({ ...prev, origin: value as 'house' | 'ev' }))}
+                          >
+                            <SelectTrigger id="edit-origin" className="bg-input-background border-border mt-2">
+                              <SelectValue placeholder="Selecione a origem" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="house">House (Tenda)</SelectItem>
+                              <SelectItem value="ev">EV</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <p className="text-sm text-muted-foreground mt-2">
+                            {asset.origin === 'house' ? 'House (Tenda)' : 'EV'}
+                          </p>
+                        )}
+                      </div>
+
+                      <div>
+                        <Label>Regional</Label>
+                        <p className="text-sm text-muted-foreground mt-2">
+                          {asset.regional || 'Nao informado'}
+                        </p>
+                      </div>
+
                       <div className="flex gap-2 pt-4">
                         <Button onClick={handleEdit} className="flex-1">
                           <Save className="w-4 h-4 mr-2" />
@@ -572,6 +611,18 @@ export function AssetViewer({
                                 </Badge>
                               </div>
                             </div>
+                          </div>
+                          <div className="space-y-1">
+                            <span className="text-xs text-muted-foreground">Origem</span>
+                            <Badge variant="secondary" className="text-xs">
+                              {asset.origin === 'house' ? 'House' : 'EV'}
+                            </Badge>
+                          </div>
+                          <div className="space-y-1">
+                            <span className="text-xs text-muted-foreground">Regional</span>
+                            <Badge variant="outline" className="text-xs">
+                              {asset.regional || 'Nao informado'}
+                            </Badge>
                           </div>
                         </div>
                       </div>

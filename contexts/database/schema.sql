@@ -2,7 +2,7 @@
 ALTER DATABASE postgres SET "app.jwt_secret" TO 'your-jwt-secret';
 
 -- Create custom types
-CREATE TYPE user_role AS ENUM ('admin', 'editor', 'viewer');
+CREATE TYPE user_role AS ENUM ('admin', 'editor_marketing', 'editor_trade', 'viewer');
 CREATE TYPE asset_type AS ENUM ('image', 'video', 'document', 'archive');
 CREATE TYPE category_type AS ENUM ('campaign', 'project');
 CREATE TYPE project_status AS ENUM ('vem-ai', 'breve-lancamento', 'lancamento');
@@ -15,6 +15,10 @@ CREATE TABLE public.users (
   name TEXT NOT NULL,
   avatar_url TEXT,
   role user_role DEFAULT 'viewer'::user_role,
+  regional TEXT,
+  material_origin_scope TEXT CHECK (material_origin_scope IS NULL OR material_origin_scope IN ('house', 'ev')),
+  viewer_access_to_all BOOLEAN NOT NULL DEFAULT false,
+  created_by UUID REFERENCES public.users(id) ON DELETE SET NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -28,6 +32,7 @@ CREATE TABLE public.campaigns (
   status campaign_status DEFAULT 'active'::campaign_status,
   start_date DATE,
   end_date DATE,
+  regional TEXT NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   created_by UUID REFERENCES public.users(id) ON DELETE CASCADE NOT NULL
@@ -41,7 +46,8 @@ CREATE TABLE public.projects (
   image TEXT,
   color TEXT NOT NULL DEFAULT '#dc2626',
   status project_status DEFAULT 'vem-ai'::project_status,
-  location TEXT,
+  launch_date DATE,
+  regional TEXT NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   created_by UUID REFERENCES public.users(id) ON DELETE CASCADE NOT NULL
@@ -58,10 +64,12 @@ CREATE TABLE public.assets (
   url TEXT NOT NULL,
   thumbnail_url TEXT,
   tags TEXT[] DEFAULT '{}',
+  origin TEXT NOT NULL CHECK (origin IN ('house', 'ev')),
   category_type category_type NOT NULL,
   category_id UUID NOT NULL,
   category_name TEXT,
   project_phase project_status,
+  regional TEXT NOT NULL,
   is_public BOOLEAN DEFAULT false,
   download_count INTEGER DEFAULT 0,
   metadata JSONB,
@@ -105,10 +113,25 @@ CREATE TABLE public.system_settings (
 CREATE INDEX idx_assets_category ON public.assets(category_type, category_id);
 CREATE INDEX idx_assets_uploaded_by ON public.assets(uploaded_by);
 CREATE INDEX idx_assets_created_at ON public.assets(created_at DESC);
+CREATE INDEX idx_assets_regional ON public.assets(regional);
 CREATE INDEX idx_campaigns_created_by ON public.campaigns(created_by);
 CREATE INDEX idx_projects_created_by ON public.projects(created_by);
 CREATE INDEX idx_shared_links_token ON public.shared_links(token);
 CREATE INDEX idx_shared_links_asset_id ON public.shared_links(asset_id);
+
+-- Helper function to detect marketing editors without recursive RLS
+CREATE OR REPLACE FUNCTION public.is_editor_marketing()
+RETURNS boolean
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1
+    FROM public.users
+    WHERE id = auth.uid() AND role = 'editor_marketing'
+  );
+$$;
 
 -- Create updated_at trigger function
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -172,6 +195,21 @@ CREATE POLICY "Admins can update all users" ON public.users
     )
   );
 
+DROP POLICY IF EXISTS "Trade editors can view managed users" ON public.users;
+
+CREATE POLICY "Trade editors can view managed users" ON public.users
+  FOR SELECT USING (
+    created_by = auth.uid()
+  );
+
+DROP POLICY IF EXISTS "Marketing editors can view targeted users" ON public.users;
+
+CREATE POLICY "Marketing editors can view targeted users" ON public.users
+  FOR SELECT USING (
+    public.is_editor_marketing()
+    AND role IN ('editor_trade', 'viewer')
+  );
+
 -- RLS Policies for campaigns
 CREATE POLICY "Users can view campaigns" ON public.campaigns
   FOR SELECT USING (
@@ -181,11 +219,11 @@ CREATE POLICY "Users can view campaigns" ON public.campaigns
     )
   );
 
-CREATE POLICY "Editors and admins can manage campaigns" ON public.campaigns
+CREATE POLICY "Marketing editors and admins can manage campaigns" ON public.campaigns
   FOR ALL USING (
     EXISTS (
       SELECT 1 FROM public.users
-      WHERE id = auth.uid() AND role IN ('admin', 'editor')
+      WHERE id = auth.uid() AND role IN ('admin', 'editor_marketing')
     )
   );
 
@@ -198,28 +236,56 @@ CREATE POLICY "Users can view projects" ON public.projects
     )
   );
 
-CREATE POLICY "Editors and admins can manage projects" ON public.projects
+CREATE POLICY "Marketing editors and admins can manage projects" ON public.projects
   FOR ALL USING (
     EXISTS (
       SELECT 1 FROM public.users
-      WHERE id = auth.uid() AND role IN ('admin', 'editor')
+      WHERE id = auth.uid() AND role IN ('admin', 'editor_marketing')
     )
   );
 
 -- RLS Policies for assets
-CREATE POLICY "Users can view assets" ON public.assets
+CREATE POLICY "Scoped asset visibility" ON public.assets
   FOR SELECT USING (
     EXISTS (
-      SELECT 1 FROM public.users
-      WHERE id = auth.uid()
+      SELECT 1
+      FROM public.users u
+      WHERE u.id = auth.uid()
+        AND (
+          u.role IN ('admin', 'editor_marketing')
+          OR (
+            u.role = 'editor_trade'
+            AND u.regional IS NOT NULL
+            AND upper(u.regional) = upper(public.assets.regional)
+          )
+          OR (
+            u.role = 'viewer'
+            AND (
+              u.viewer_access_to_all IS TRUE
+              OR (
+                u.regional IS NOT NULL
+                AND upper(u.regional) = upper(public.assets.regional)
+              )
+            )
+          )
+        )
     )
   );
 
-CREATE POLICY "Users can upload assets" ON public.assets
+CREATE POLICY "Authorized users can upload assets" ON public.assets
   FOR INSERT WITH CHECK (
     EXISTS (
-      SELECT 1 FROM public.users
-      WHERE id = auth.uid() AND role IN ('admin', 'editor')
+      SELECT 1
+      FROM public.users u
+      WHERE u.id = auth.uid()
+        AND (
+          u.role IN ('admin', 'editor_marketing')
+          OR (
+            u.role = 'editor_trade'
+            AND u.regional IS NOT NULL
+            AND upper(u.regional) = upper(public.assets.regional)
+          )
+        )
     )
   );
 
@@ -255,7 +321,7 @@ CREATE POLICY "Users can create shared links" ON public.shared_links
   FOR INSERT WITH CHECK (
     EXISTS (
       SELECT 1 FROM public.users
-      WHERE id = auth.uid() AND role IN ('admin', 'editor')
+      WHERE id = auth.uid() AND role IN ('admin', 'editor_marketing', 'editor_trade')
     )
   );
 
@@ -351,3 +417,4 @@ CREATE POLICY "Users can delete their own avatar" ON storage.objects
     bucket_id = 'avatars' AND 
     auth.uid()::text = (storage.foldername(name))[1]
   );
+

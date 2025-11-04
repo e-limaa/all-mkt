@@ -1,7 +1,8 @@
 // Centralize enums to avoid circular dependencies
 export enum UserRole {
   ADMIN = 'admin',
-  EDITOR = 'editor',
+  EDITOR_MARKETING = 'editor_marketing',
+  EDITOR_TRADE = 'editor_trade',
   VIEWER = 'viewer'
 }
 
@@ -62,6 +63,41 @@ export enum AssetStatus {
 }
 
 // Role-based permission mapping
+const MARKETING_EDITOR_PERMISSIONS: Permission[] = [
+  Permission.VIEW_MATERIALS,
+  Permission.UPLOAD_MATERIALS,
+  Permission.EDIT_MATERIALS,
+  Permission.DOWNLOAD_MATERIALS,
+  Permission.SHARE_MATERIALS,
+  Permission.VIEW_CAMPAIGNS,
+  Permission.CREATE_CAMPAIGNS,
+  Permission.EDIT_CAMPAIGNS,
+  Permission.VIEW_PROJECTS,
+  Permission.CREATE_PROJECTS,
+  Permission.EDIT_PROJECTS,
+  Permission.VIEW_USERS,
+  Permission.CREATE_USERS,
+  Permission.EDIT_USERS,
+  Permission.VIEW_DASHBOARD,
+  Permission.VIEW_SHARED_LINKS,
+  Permission.CREATE_SHARED_LINKS,
+];
+
+const TRADE_EDITOR_PERMISSIONS: Permission[] = [
+  Permission.VIEW_MATERIALS,
+  Permission.UPLOAD_MATERIALS,
+  Permission.EDIT_MATERIALS,
+  Permission.DOWNLOAD_MATERIALS,
+  Permission.SHARE_MATERIALS,
+  Permission.VIEW_CAMPAIGNS,
+  Permission.VIEW_PROJECTS,
+  Permission.VIEW_SHARED_LINKS,
+  Permission.CREATE_SHARED_LINKS,
+  Permission.VIEW_DASHBOARD,
+  Permission.VIEW_USERS,
+  Permission.CREATE_USERS,
+];
+
 export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
   [UserRole.ADMIN]: [
     // All permissions
@@ -92,27 +128,8 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     Permission.CREATE_SHARED_LINKS,
     Permission.MANAGE_SHARED_LINKS
   ],
-  [UserRole.EDITOR]: [
-    // Material permissions (no delete)
-    Permission.VIEW_MATERIALS,
-    Permission.UPLOAD_MATERIALS,
-    Permission.EDIT_MATERIALS,
-    Permission.DOWNLOAD_MATERIALS,
-    Permission.SHARE_MATERIALS,
-    // Campaign permissions (no delete)
-    Permission.VIEW_CAMPAIGNS,
-    Permission.CREATE_CAMPAIGNS,
-    Permission.EDIT_CAMPAIGNS,
-    // Project permissions (no delete)
-    Permission.VIEW_PROJECTS,
-    Permission.CREATE_PROJECTS,
-    Permission.EDIT_PROJECTS,
-    // Limited dashboard
-    Permission.VIEW_DASHBOARD,
-    // Shared links
-    Permission.VIEW_SHARED_LINKS,
-    Permission.CREATE_SHARED_LINKS
-  ],
+  [UserRole.EDITOR_MARKETING]: MARKETING_EDITOR_PERMISSIONS,
+  [UserRole.EDITOR_TRADE]: TRADE_EDITOR_PERMISSIONS,
   [UserRole.VIEWER]: [
     // View and download only
     Permission.VIEW_MATERIALS,
@@ -122,3 +139,4 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     Permission.VIEW_SHARED_LINKS
   ]
 };
+

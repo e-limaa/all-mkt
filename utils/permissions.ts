@@ -79,8 +79,10 @@ export function getRestrictionsByRole(role: UserRole) {
   switch (role) {
     case UserRole.ADMIN:
       return ADMIN_PERMISSIONS;
-    case UserRole.EDITOR:
-      return EDITOR_RESTRICTIONS;
+    case UserRole.EDITOR_MARKETING:
+      return EDITOR_MARKETING_RESTRICTIONS;
+    case UserRole.EDITOR_TRADE:
+      return EDITOR_TRADE_RESTRICTIONS;
     case UserRole.VIEWER:
       return VIEWER_RESTRICTIONS;
     default:

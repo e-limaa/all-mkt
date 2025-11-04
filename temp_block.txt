@@ -1,0 +1,13 @@
+﻿  const fallbackOrigin =
+    normalizeOriginScope(requesterMetadata.material_origin_scope) ??
+    normalizeOriginScope(requesterAppMetadata.material_origin_scope);
+
+  const requesterRole =
+    (effectiveRequesterProfile?.role as AllowedRole) ?? fallbackRole;
+  const requesterRegional = normalizeRegional(
+    effectiveRequesterProfile?.regional ?? fallbackRegional
+  );
+  const requesterOriginScope =
+    normalizeOriginScope(effectiveRequesterProfile?.material_origin_scope) ??
+    fallbackOrigin ??
+    null;

@@ -1,4 +1,4 @@
-﻿import { PageHeader } from './PageHeader';
+import { PageHeader } from './PageHeader';
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
@@ -36,6 +36,7 @@ import {
   Megaphone
 } from 'lucide-react';
 import { Campaign } from '../types';
+import { REGIONAL_OPTIONS } from '../lib/regionals';
 import { formatDate } from '../utils/format';
 import { useAssets } from '../contexts/AssetContext';
 import { usePermissions } from '../contexts/hooks/usePermissions';
@@ -70,16 +71,16 @@ export function CampaignManager({ onNavigateToMaterials }: CampaignManagerProps)
       const truncated = fallbackId.trim();
       return truncated.length > 10 ? `${truncated.slice(0, 10)}...` : truncated;
     }
-    return 'Não informado';
+    return 'No informado';
   };
   
-  // Permissões para modificações
+  // Permisses para modificaes
   const canCreateCampaigns = hasPermission(Permission.CREATE_CAMPAIGNS);
   const canEditCampaigns = hasPermission(Permission.EDIT_CAMPAIGNS);
   const canDeleteCampaigns = hasPermission(Permission.DELETE_CAMPAIGNS);
   const headerDescription = isViewer()
     ? 'Visualize campanhas e seus materiais'
-    : 'Gerencie campanhas e organize materiais por ações de marketing';
+    : 'Gerencie campanhas e organize materiais por aes de marketing';
   
   const filteredCampaigns = campaigns.filter(campaign => {
     const matchesSearch = campaign.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -91,9 +92,16 @@ export function CampaignManager({ onNavigateToMaterials }: CampaignManagerProps)
 
   const handleCreateCampaign = async (campaignData: Partial<Campaign>) => {
     if (!canCreateCampaigns) {
-      toast.error('Você não possui permissão para criar campanhas');
+      toast.error('Voce nao possui permissao para criar campanhas');
       return;
     }
+
+    const normalizedRegional = (campaignData.regional || '').trim().toUpperCase();
+    if (!normalizedRegional) {
+      toast.error('Regional e obrigatoria');
+      return;
+    }
+
     try {
       await createCampaign({
         name: campaignData.name || '',
@@ -102,19 +110,32 @@ export function CampaignManager({ onNavigateToMaterials }: CampaignManagerProps)
         endDate: campaignData.endDate,
         status: (campaignData.status || 'inactive') as Campaign['status'],
         tags: campaignData.tags || [],
-        color: campaignData.color || '#E4002B'
+        color: campaignData.color || '#E4002B',
+        regional: normalizedRegional,
       });
       setIsCreateOpen(false);
     } catch (error) {
       console.error('[CampaignManager] Erro ao criar campanha', error);
+      if (error instanceof Error) {
+        toast.error(error.message);
+      } else {
+        toast.error('Erro ao criar campanha');
+      }
     }
   };
 
   const handleUpdateCampaign = async (updatedCampaign: Campaign) => {
     if (!canEditCampaigns) {
-      toast.error('Você não possui permissão para editar campanhas');
+      toast.error('Voce nao possui permissao para editar campanhas');
       return;
     }
+
+    const normalizedRegional = (updatedCampaign.regional || '').trim().toUpperCase();
+    if (!normalizedRegional) {
+      toast.error('Regional e obrigatoria');
+      return;
+    }
+
     try {
       await updateCampaign(updatedCampaign.id, {
         name: updatedCampaign.name,
@@ -123,17 +144,23 @@ export function CampaignManager({ onNavigateToMaterials }: CampaignManagerProps)
         endDate: updatedCampaign.endDate,
         status: updatedCampaign.status,
         createdBy: updatedCampaign.createdBy,
-        tags: updatedCampaign.tags
+        tags: updatedCampaign.tags,
+        regional: normalizedRegional,
       });
       setEditingCampaign(null);
     } catch (error) {
       console.error('[CampaignManager] Erro ao atualizar campanha', error);
+      if (error instanceof Error) {
+        toast.error(error.message);
+      } else {
+        toast.error('Erro ao atualizar campanha');
+      }
     }
   };
 
   const handleDeleteCampaign = async (campaignId: string) => {
     if (!canDeleteCampaigns) {
-      toast.error('Você não possui permissão para excluir campanhas');
+      toast.error('Voc no possui permisso para excluir campanhas');
       return;
     }
     try {
@@ -155,11 +182,11 @@ export function CampaignManager({ onNavigateToMaterials }: CampaignManagerProps)
       return;
     }
 
-    // Se existe função de callback para navegação, usa ela
+    // Se existe funo de callback para navegao, usa ela
     if (onNavigateToMaterials) {
       onNavigateToMaterials(campaign.id, campaign.name);
     } else {
-      // Fallback: mostrar toast com informações
+      // Fallback: mostrar toast com informaes
       toast.success(`${campaignAssets.length} material${campaignAssets.length > 1 ? 'is' : ''} encontrado${campaignAssets.length > 1 ? 's' : ''} para "${campaign.name}"`);
     }
   };
@@ -320,7 +347,7 @@ export function CampaignManager({ onNavigateToMaterials }: CampaignManagerProps)
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Ações</DropdownMenuLabel>
+                        <DropdownMenuLabel>Aes</DropdownMenuLabel>
                         <DropdownMenuSeparator />
                         {canEditCampaigns && (
                           <DropdownMenuItem onClick={() => setEditingCampaign(campaign)}>
@@ -378,7 +405,7 @@ export function CampaignManager({ onNavigateToMaterials }: CampaignManagerProps)
                 <div className="space-y-2">
                   <div className="flex items-center gap-2 text-sm">
                     <Calendar className="w-4 h-4 text-green-500" />
-                    <span className="text-muted-foreground">Início:</span>
+                    <span className="text-muted-foreground">Inicio:</span>
                     <span className="text-foreground">{formatDate(campaign.startDate)}</span>
                   </div>
                   {campaign.endDate && (
@@ -425,7 +452,7 @@ export function CampaignManager({ onNavigateToMaterials }: CampaignManagerProps)
             <Megaphone className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
             <h3 className="font-medium mb-2 text-foreground">Nenhuma campanha encontrada</h3>
             <p className="text-muted-foreground mb-4">
-              {searchQuery ? 'Tente ajustar sua pesquisa' : 'Não há campanhas disponíveis'}
+              {searchQuery ? 'Tente ajustar sua pesquisa' : 'No h campanhas disponveis'}
             </p>
     
           </CardContent>
@@ -439,7 +466,7 @@ export function CampaignManager({ onNavigateToMaterials }: CampaignManagerProps)
             <DialogHeader>
               <DialogTitle>Editar Campanha</DialogTitle>
               <DialogDescription>
-                Atualize as informações da campanha
+                Atualize as informaes da campanha
               </DialogDescription>
             </DialogHeader>
             {editingCampaign && (
@@ -468,8 +495,10 @@ function CampaignForm({
     description: campaign?.description || '',
     startDate: campaign?.startDate || '',
     endDate: campaign?.endDate || '',
-    createdBy: campaign?.createdBy || ''
+    createdBy: campaign?.createdBy || '',
+    regional: (campaign?.regional || '').toUpperCase(),
   });
+  const [regionalError, setRegionalError] = useState(false);
 
   useEffect(() => {
     setFormData({
@@ -477,8 +506,10 @@ function CampaignForm({
       description: campaign?.description || '',
       startDate: campaign?.startDate || '',
       endDate: campaign?.endDate || '',
-      createdBy: campaign?.createdBy || ''
+      createdBy: campaign?.createdBy || '',
+      regional: (campaign?.regional || '').toUpperCase(),
     });
+    setRegionalError(false);
   }, [campaign]);
 
   const determineStatus = (start?: string, end?: string): Campaign['status'] => {
@@ -508,6 +539,15 @@ function CampaignForm({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!formData.regional.trim()) {
+      setRegionalError(true);
+      toast.error('Regional e obrigatoria');
+      return;
+    }
+
+    setRegionalError(false);
+    const normalizedRegional = formData.regional.trim().toUpperCase();
     const computedStatus = determineStatus(formData.startDate, formData.endDate);
     onSubmit({
       name: formData.name,
@@ -515,7 +555,8 @@ function CampaignForm({
       status: computedStatus,
       startDate: formData.startDate,
       endDate: formData.endDate || undefined,
-      createdBy: formData.createdBy || 'Usuário Atual',
+      createdBy: formData.createdBy || 'Usurio Atual',
+      regional: normalizedRegional,
     });
   };
 
@@ -527,14 +568,14 @@ function CampaignForm({
           id="name"
           value={formData.name}
           onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-          placeholder="Ex: Lançamento Vista Alegre"
+          placeholder="Ex: Lancamento Vista Alegre"
           className="bg-input-background border-border"
           required
         />
       </div>
 
       <div>
-        <Label htmlFor="description" className="mb-2">Descrição</Label>
+        <Label htmlFor="description" className="mb-2">Descricao</Label>
         <Textarea
           id="description"
           value={formData.description}
@@ -547,7 +588,7 @@ function CampaignForm({
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <Label htmlFor="startDate" className="mb-2">Data de Início</Label>
+          <Label htmlFor="startDate" className="mb-2">Data de Inicio</Label>
           <Input
             id="startDate"
             type="date"
@@ -570,6 +611,33 @@ function CampaignForm({
         </div>
       </div>
 
+      <div>
+        <Label htmlFor="regional" className="mb-2">Regional *</Label>
+        <Select
+          value={formData.regional}
+          onValueChange={(value) => {
+            setFormData({ ...formData, regional: value });
+            if (regionalError) {
+              setRegionalError(false);
+            }
+          }}
+        >
+          <SelectTrigger
+            id="regional"
+            className={`bg-input-background border-border ${regionalError ? 'border-red-500' : ''}`}
+          >
+            <SelectValue placeholder="Selecione a regional" />
+          </SelectTrigger>
+          <SelectContent>
+            {REGIONAL_OPTIONS.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
       <div className="flex gap-2 pt-4">
         <Button type="submit" className="flex-1 bg-primary hover:bg-primary/90">
           {campaign ? 'Atualizar Campanha' : 'Criar Campanha'}
@@ -578,10 +646,6 @@ function CampaignForm({
     </form>
   );
 }
-
-
-
-
 
 
 

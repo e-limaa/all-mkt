@@ -14,6 +14,8 @@ export interface PermissionChecker {
   getUserPermissions: () => Permission[];
   isAdmin: () => boolean;
   isEditor: () => boolean;
+   isEditorMarketing: () => boolean;
+   isEditorTrade: () => boolean;
   isViewer: () => boolean;
 }
 
@@ -127,7 +129,15 @@ export function usePermissions(): PermissionChecker {
   };
 
   const isEditor = (): boolean => {
-    return user?.role === UserRole.EDITOR;
+    return user?.role === UserRole.EDITOR_MARKETING || user?.role === UserRole.EDITOR_TRADE;
+  };
+
+  const isEditorMarketing = (): boolean => {
+    return user?.role === UserRole.EDITOR_MARKETING;
+  };
+
+  const isEditorTrade = (): boolean => {
+    return user?.role === UserRole.EDITOR_TRADE;
   };
 
   const isViewer = (): boolean => {
@@ -143,6 +153,8 @@ export function usePermissions(): PermissionChecker {
     getUserPermissions,
     isAdmin,
     isEditor,
+    isEditorMarketing,
+    isEditorTrade,
     isViewer,
   };
 }
@@ -209,3 +221,7 @@ export function PermissionGuard({
 
   return React.createElement(React.Fragment, null, children);
 }
+
+
+
+

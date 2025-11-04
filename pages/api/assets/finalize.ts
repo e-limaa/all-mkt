@@ -16,6 +16,7 @@ interface FinalizeRequest {
   categoryType: 'project' | 'campaign';
   categoryId: string;
   projectPhase?: string | null;
+  origin: 'house' | 'ev';
   items: FinalizeItem[];
 }
 
@@ -41,37 +42,50 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   const { user } = authResult;
-  const { categoryType, categoryId, projectPhase, items }: FinalizeRequest = req.body;
+  const { categoryType, categoryId, projectPhase, origin, items }: FinalizeRequest = req.body;
 
   if (!categoryType || !categoryId || !Array.isArray(items) || items.length === 0) {
     return res.status(400).json({ message: 'Payload inválido' });
   }
 
+
+  if (origin !== 'house' && origin !== 'ev') {
+    return res.status(400).json({ message: 'Origem invalida' });
+  }
+
   const bucket = 'assets';
 
   let categoryName = '';
+  let categoryRegional: string | null = null;
   if (categoryType === 'project') {
     const { data, error } = await supabaseAdmin
       .from('projects')
-      .select('name')
+      .select('name, regional')
       .eq('id', categoryId)
       .maybeSingle();
     if (error) {
-      return res.status(400).json({ message: 'Empreendimento inválido' });
+      return res.status(400).json({ message: 'Empreendimento invalido' });
     }
     categoryName = data?.name ?? '';
+    categoryRegional = data?.regional ?? null;
   } else {
     const { data, error } = await supabaseAdmin
       .from('campaigns')
-      .select('name')
+      .select('name, regional')
       .eq('id', categoryId)
       .maybeSingle();
     if (error) {
-      return res.status(400).json({ message: 'Campanha inválida' });
+      return res.status(400).json({ message: 'Campanha invalida' });
     }
     categoryName = data?.name ?? '';
+    categoryRegional = data?.regional ?? null;
   }
 
+  if (!categoryRegional || typeof categoryRegional !== 'string' || !categoryRegional.trim()) {
+    return res.status(400).json({ message: 'Regional nao configurada para a categoria selecionada' });
+  }
+
+  const normalizedCategoryRegional = categoryRegional.trim().toUpperCase();
   try {
     for (const item of items) {
       if (!item.tempPath) {
@@ -104,12 +118,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         category_id: categoryId,
         category_name: categoryName,
         project_phase: categoryType === 'project' ? projectPhase || null : null,
+        regional: normalizedCategoryRegional,
         is_public: false,
         metadata: {
           originalName: item.originalName,
           mimeType: item.mimeType,
           storagePath: finalPath,
         },
+        origin,
         uploaded_by: user.id,
       });
 
@@ -124,3 +140,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ message: error?.message || 'Erro ao finalizar materiais' });
   }
 }
+
+

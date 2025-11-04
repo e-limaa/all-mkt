@@ -30,22 +30,65 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const PROFILE_TIMEOUT_MS = 8000;
 
-const buildFallbackUser = (sessionUser: SupabaseUser): User => ({
-  id: sessionUser.id,
-  email: sessionUser.email ?? '',
-  name:
-    (sessionUser.user_metadata?.name as string | undefined) ??
-    sessionUser.email ??
-    'Usuario',
-  avatar_url: (sessionUser.user_metadata?.avatar_url as string | undefined) ?? null,
-  role:
-    (sessionUser.user_metadata?.role as User['role'] | undefined) ??
-    'viewer',
-  created_at:
-    (sessionUser.user_metadata?.created_at as string | undefined) ??
-    new Date().toISOString(),
-  updated_at: new Date().toISOString(),
+const normalizeMaterialOriginScope = (
+  value: unknown,
+): "house" | "ev" | null => {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim().toLowerCase();
+  return normalized === "house" || normalized === "ev"
+    ? (normalized as "house" | "ev")
+    : null;
+};
+
+const sanitizeUserRecord = (record: User): User => ({
+  ...record,
+  regional:
+    typeof record.regional === "string" && record.regional.trim().length > 0
+      ? record.regional.trim().toUpperCase()
+      : null,
+  material_origin_scope: normalizeMaterialOriginScope(
+    record.material_origin_scope,
+  ),
 });
+
+const buildFallbackUser = (sessionUser: SupabaseUser): User => {
+  const regionalMeta = sessionUser.user_metadata?.regional as string | undefined;
+  const viewerAccessMeta = sessionUser.user_metadata?.viewer_access_to_all as
+    | boolean
+    | null
+    | undefined;
+  const createdByMeta = sessionUser.user_metadata?.created_by as
+    | string
+    | undefined;
+  const originScopeMeta = sessionUser.user_metadata
+    ?.material_origin_scope as string | undefined;
+
+  return {
+    id: sessionUser.id,
+    email: sessionUser.email ?? "",
+    name:
+      (sessionUser.user_metadata?.name as string | undefined) ??
+      sessionUser.email ??
+      "Usuario",
+    avatar_url:
+      (sessionUser.user_metadata?.avatar_url as string | undefined) ?? null,
+    role:
+      (sessionUser.user_metadata?.role as User["role"] | undefined) ?? "viewer",
+    regional: regionalMeta ? regionalMeta.trim().toUpperCase() : null,
+    material_origin_scope: normalizeMaterialOriginScope(originScopeMeta),
+    viewer_access_to_all:
+      viewerAccessMeta === undefined
+        ? false
+        : viewerAccessMeta === null
+        ? null
+        : Boolean(viewerAccessMeta),
+    created_by: createdByMeta ?? null,
+    created_at:
+      (sessionUser.user_metadata?.created_at as string | undefined) ??
+      new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+};
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -100,25 +143,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         clearTimeout(fetchTimeoutId);
       }
 
-      if (!response.ok) {
-        const body = await response.json().catch(() => null);
-        const message = body?.message || 'Nao foi possivel carregar o perfil do usuario';
-        toast.error(message);
-        setUser(null);
-        return null;
-      }
+        if (!response.ok) {
+          const body = await response.json().catch(() => null);
+          const message = body?.message || 'Nao foi possivel carregar o perfil do usuario';
+          toast.error(message);
+          setUser(null);
+          return null;
+        }
 
-      const rows = await response.json();
-      const record = Array.isArray(rows) ? rows[0] : rows;
+        const rows = await response.json();
+        const record = Array.isArray(rows) ? rows[0] : rows;
 
-      if (!record) {
-        const fallback = buildFallbackUser(currentSession.user);
-        setUser(fallback);
+        if (!record) {
+          const fallback = buildFallbackUser(currentSession.user);
+          setUser(fallback);
         return fallback;
       }
 
-      setUser(record);
-      return record;
+      const sanitizedRecord = sanitizeUserRecord(record as User);
+      const metadata = currentSession.user.user_metadata as Record<string, unknown> | undefined;
+      const metadataRegional = typeof metadata?.regional === 'string' ? metadata.regional.trim().toUpperCase() : null;
+      const metadataOrigin = normalizeMaterialOriginScope(metadata?.material_origin_scope);
+      const mergedRecord: User = {
+        ...sanitizedRecord,
+        regional: sanitizedRecord.regional ?? metadataRegional,
+        material_origin_scope:
+          sanitizedRecord.material_origin_scope ?? metadataOrigin ?? null,
+      };
+
+      setUser(mergedRecord);
+      return mergedRecord;
     } catch (error) {
       toast.error('Erro ao carregar perfil do usuario');
       setUser(null);
@@ -436,3 +490,4 @@ export function useAuth() {
   }
   return context;
 }
+

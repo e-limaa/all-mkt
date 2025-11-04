@@ -3,6 +3,20 @@ import { UserRole } from './enums';
 // Import enums from centralized location
 export { UserRole, Permission, ROLE_PERMISSIONS } from './enums';
 
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  role: UserRole;
+  regional?: string | null;
+  materialOriginScope?: 'house' | 'ev' | null;
+  material_origin_scope?: 'house' | 'ev' | null;
+  viewerAccessToAll?: boolean | null;
+  createdBy?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Campaign {
   id: string;
   name: string;
@@ -18,6 +32,7 @@ export interface Campaign {
   createdAt: string;
   createdBy: string;
   createdByName?: string;
+  regional: string;
   tags: string[];
   assetCount?: number;
   metrics?: {
@@ -32,7 +47,6 @@ export interface Project {
   id: string;
   name: string;
   description?: string;
-  location: string;
   status: 'vem-ai' | 'breve-lancamento' | 'lancamento';
   launchDate?: string | null;
   color: string;
@@ -41,6 +55,7 @@ export interface Project {
   createdAt: string;
   createdBy: string;
   createdByName?: string;
+  regional: string;
   tags?: string[];
   assetCount?: number;
   projectPhase?: 'vem-ai' | 'breve-lancamento' | 'lancamento';
@@ -75,6 +90,7 @@ export interface Asset {
   thumbnailUrl?: string;
   thumbnail?: string;
   tags: string[];
+  origin: 'house' | 'ev';
   categoryType: 'campaign' | 'project' | 'general';
   categoryId?: string;
   categoryName?: string;
@@ -87,6 +103,7 @@ export interface Asset {
   metadata: AssetMetadata;
   versions?: AssetVersion[];
   sharedLinks?: SharedLink[];
+  regional: string | null;
 }
 
 export interface AssetVersion {
