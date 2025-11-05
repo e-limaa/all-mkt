@@ -96,6 +96,7 @@ export interface Asset {
   categoryName?: string;
   projectId?: string;
   campaignId?: string;
+  sharePath?: string | null;
   uploadedAt: string;
   uploadedBy: string;
   downloadCount: number;

@@ -1,4 +1,5 @@
-﻿import React, { useState, useEffect, lazy, Suspense } from 'react';
+﻿import React, { useState, useEffect, lazy, Suspense, useMemo, useCallback } from 'react';
+import { useRouter } from 'next/router';
 import { Toaster } from './components/ui/sonner';
 import { ConfigProvider, useConfig } from './contexts/ConfigContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -16,11 +17,58 @@ interface MaterialFilters {
   categoryId?: string;
   categoryName?: string;
 }
+type AppPageKey =
+  | 'dashboard'
+  | 'materials'
+  | 'campaigns'
+  | 'projects'
+  | 'users'
+  | 'shared'
+  | 'settings';
 
-interface NavigationState {
-  page: string;
-  materialFilters?: MaterialFilters;
-}
+const DEFAULT_APP_PAGE: AppPageKey = 'dashboard';
+
+const PAGE_TO_ROUTE: Record<AppPageKey, string> = {
+  dashboard: '/dashboard',
+  materials: '/materials',
+  campaigns: '/campaigns',
+  projects: '/projects',
+  users: '/users',
+  shared: '/shared',
+  settings: '/settings',
+};
+
+const ROUTE_TO_PAGE: Record<string, AppPageKey> = Object.entries(PAGE_TO_ROUTE).reduce(
+  (acc, [page, route]) => {
+    acc[route] = page as AppPageKey;
+    return acc;
+  },
+  {} as Record<string, AppPageKey>
+);
+
+ROUTE_TO_PAGE['/'] = DEFAULT_APP_PAGE;
+
+const normalizePathname = (pathname?: string) => {
+  const fallbackRoute = PAGE_TO_ROUTE[DEFAULT_APP_PAGE];
+  if (!pathname) return fallbackRoute;
+
+  const questionIndex = pathname.indexOf('?');
+  const basePath = questionIndex >= 0 ? pathname.slice(0, questionIndex) : pathname;
+  const trimmed = basePath.replace(/\/+$/, '');
+  const normalized = trimmed.length === 0 ? '/' : trimmed;
+
+  if (normalized === '/') {
+    return fallbackRoute;
+  }
+
+  return normalized.toLowerCase();
+};
+
+
+const resolvePageFromPath = (pathname?: string): AppPageKey => {
+  const normalized = normalizePathname(pathname);
+  return ROUTE_TO_PAGE[normalized] ?? DEFAULT_APP_PAGE;
+};
 
 const AppLayout = lazy(() =>
   import('./components/AppLayout').then((module) => ({ default: module.AppLayout })),
@@ -99,12 +147,43 @@ function DevelopmentModeAlert() {
 }
 
 function AppContent() {
+  const router = useRouter();
   const { user, loading: authLoading } = useAuth();
   const { isViewer, isAdmin } = usePermissions();
   const { systemSettings } = useConfig();
-  const [navigationState, setNavigationState] = useState<NavigationState>({
-    page: 'dashboard'
-  });
+
+  const currentPath = useMemo(() => {
+    const basePath = (router.asPath || router.pathname || '').split('?')[0];
+    return basePath && basePath.length > 0 ? basePath : '/';
+  }, [router.asPath, router.pathname]);
+
+  const currentPage = useMemo<AppPageKey>(() => resolvePageFromPath(currentPath), [currentPath]);
+
+  const materialFilters = useMemo<MaterialFilters>(() => {
+    const { categoryType, categoryId, categoryName } = router.query;
+    const filters: MaterialFilters = {};
+
+    if (
+      typeof categoryType === 'string' &&
+      (categoryType === 'campaign' || categoryType === 'project') &&
+      typeof categoryId === 'string' &&
+      categoryId.length > 0
+    ) {
+      filters.categoryType = categoryType;
+      filters.categoryId = categoryId;
+
+      if (typeof categoryName === 'string' && categoryName.length > 0) {
+        filters.categoryName = categoryName;
+      }
+    }
+
+    return filters;
+  }, [router.query]);
+
+  const selectedAssetId = useMemo(() => {
+    const { assetId } = router.query;
+    return typeof assetId === 'string' && assetId.length > 0 ? assetId : undefined;
+  }, [router.query]);
 
   // Garantir que o tema escuro seja aplicado
   useEffect(() => {
@@ -122,12 +201,101 @@ function AppContent() {
     document.title = baseTitle;
   }, [systemSettings.companyName]);
 
-  // Redirecionar visualizadores para materiais ao entrar
+  // Redirecionar visualizadores diretamente para materiais quando necessario
   useEffect(() => {
-    if (user && isViewer() && navigationState.page === 'dashboard') {
-      setNavigationState({ page: 'materials' });
+    if (!router.isReady) {
+      return;
     }
-  }, [user, isViewer, navigationState.page]);
+
+    if (!user) {
+      return;
+    }
+
+    if (!isViewer()) {
+      return;
+    }
+
+    if (currentPage !== 'materials') {
+      void router.replace({ pathname: PAGE_TO_ROUTE.materials });
+    }
+  }, [router, user, isViewer, currentPage]);
+
+  const handlePageChange = useCallback((page: string) => {
+    const pageKey = Object.prototype.hasOwnProperty.call(PAGE_TO_ROUTE, page)
+      ? (page as AppPageKey)
+      : DEFAULT_APP_PAGE;
+    const targetRoute = PAGE_TO_ROUTE[pageKey] ?? PAGE_TO_ROUTE[DEFAULT_APP_PAGE];
+
+    if (!router.isReady) {
+      return;
+    }
+
+    const basePath = (router.asPath || '').split('?')[0];
+    if (basePath === targetRoute && Object.keys(router.query).length === 0) {
+      return;
+    }
+
+    void router.push(targetRoute);
+  }, [router]);
+
+  const handleNavigateToMaterials = useCallback((projectId: string, projectName: string) => {
+    const nextQuery: Record<string, string> = {
+      categoryType: 'project',
+      categoryId: projectId,
+    };
+
+    if (projectName) {
+      nextQuery.categoryName = projectName;
+    }
+
+    void router.push({
+      pathname: PAGE_TO_ROUTE.materials,
+      query: nextQuery,
+    });
+  }, [router]);
+
+  const handleNavigateToCampaignMaterials = useCallback((campaignId: string, campaignName: string) => {
+    const nextQuery: Record<string, string> = {
+      categoryType: 'campaign',
+      categoryId: campaignId,
+    };
+
+    if (campaignName) {
+      nextQuery.categoryName = campaignName;
+    }
+
+    void router.push({
+      pathname: PAGE_TO_ROUTE.materials,
+      query: nextQuery,
+    });
+  }, [router]);
+
+  const handleBackToProjects = useCallback(() => {
+    void router.push(PAGE_TO_ROUTE.projects);
+  }, [router]);
+
+  const handleBackToCampaigns = useCallback(() => {
+    void router.push(PAGE_TO_ROUTE.campaigns);
+  }, [router]);
+
+  const handleAssetNavigate = useCallback((assetId: string | null) => {
+    const baseQuery = { ...router.query };
+
+    if (assetId) {
+      baseQuery.assetId = assetId;
+    } else {
+      delete baseQuery.assetId;
+    }
+
+    void router.replace(
+      {
+        pathname: PAGE_TO_ROUTE.materials,
+        query: baseQuery,
+      },
+      undefined,
+      { shallow: true },
+    );
+  }, [router]);
 
   if (authLoading) {
     return <FullScreenLoader message={'Carregando sessao...'} />;
@@ -141,7 +309,7 @@ function AppContent() {
           <Alert className="border-yellow-500/40 bg-yellow-500/10 mb-4">
             <MailX className="h-4 w-4 text-yellow-500" />
             <AlertDescription className="text-yellow-100">
-              Notificações por email estão desativadas pelo administrador.
+              Notificacoes por email estao desativadas pelo administrador.
             </AlertDescription>
           </Alert>
         )}
@@ -149,46 +317,12 @@ function AppContent() {
       </>
     );
   }
-
-  const handlePageChange = (page: string) => {
-    setNavigationState({ page, materialFilters: undefined });
-  };
-
-  const handleNavigateToMaterials = (projectId: string, projectName: string) => {
-    setNavigationState({
-      page: 'materials',
-      materialFilters: {
-        categoryType: 'project',
-        categoryId: projectId,
-        categoryName: projectName
-      }
-    });
-  };
-
-  const handleNavigateToCampaignMaterials = (campaignId: string, campaignName: string) => {
-    setNavigationState({
-      page: 'materials',
-      materialFilters: {
-        categoryType: 'campaign',
-        categoryId: campaignId,
-        categoryName: campaignName
-      }
-    });
-  };
-
-  const handleBackToProjects = () => {
-    setNavigationState({ page: 'projects' });
-  };
-
-  const handleBackToCampaigns = () => {
-    setNavigationState({ page: 'campaigns' });
-  };
-
   const renderPage = () => {
-    // Provide safe defaults for material filters
-    const safeInitialFilters = navigationState.materialFilters || {};
-    
-    switch (navigationState.page) {
+    const safeInitialFilters = materialFilters;
+    const showBackToProjects = safeInitialFilters.categoryType === 'project' && !!safeInitialFilters.categoryId;
+    const showBackToCampaigns = safeInitialFilters.categoryType === 'campaign' && !!safeInitialFilters.categoryId;
+
+    switch (currentPage) {
       case 'dashboard':
         return (
           <PermissionGuard 
@@ -228,8 +362,10 @@ function AppContent() {
               <DevelopmentModeAlert />
               <AssetManager 
                 initialFilters={safeInitialFilters}
-                onBackToProjects={safeInitialFilters.categoryType === 'project' ? handleBackToProjects : undefined}
-                onBackToCampaigns={safeInitialFilters.categoryType === 'campaign' ? handleBackToCampaigns : undefined}
+                initialAssetId={selectedAssetId}
+                onBackToProjects={showBackToProjects ? handleBackToProjects : undefined}
+                onBackToCampaigns={showBackToCampaigns ? handleBackToCampaigns : undefined}
+                onAssetNavigate={handleAssetNavigate}
               />
             </>
           </PermissionGuard>
@@ -333,8 +469,8 @@ function AppContent() {
                 <DevelopmentModeAlert />
                 <AssetManager 
                   initialFilters={safeInitialFilters}
-                  onBackToProjects={safeInitialFilters.categoryType === 'project' ? handleBackToProjects : undefined}
-                  onBackToCampaigns={safeInitialFilters.categoryType === 'campaign' ? handleBackToCampaigns : undefined}
+                  onBackToProjects={showBackToProjects ? handleBackToProjects : undefined}
+                  onBackToCampaigns={showBackToCampaigns ? handleBackToCampaigns : undefined}
                 />
               </>
             </PermissionGuard>
@@ -360,7 +496,7 @@ function AppContent() {
   return (
     <AssetProvider>
       <Suspense fallback={<FullScreenLoader message="Preparando layout..." />}>
-        <AppLayout currentPage={navigationState.page} onPageChange={handlePageChange}>
+        <AppLayout currentPage={currentPage} onPageChange={handlePageChange}>
           <Suspense fallback={<SuspenseFallback message="Carregando conteúdo..." />}>
             {pageContent}
           </Suspense>
@@ -396,3 +532,15 @@ function AppFrame() {
     </div>
   );
 }
+
+
+
+
+
+
+
+
+
+
+
+

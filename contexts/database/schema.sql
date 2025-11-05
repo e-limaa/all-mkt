@@ -68,6 +68,7 @@ CREATE TABLE public.assets (
   category_type category_type NOT NULL,
   category_id UUID NOT NULL,
   category_name TEXT,
+  share_path TEXT,
   project_phase project_status,
   regional TEXT NOT NULL,
   is_public BOOLEAN DEFAULT false,

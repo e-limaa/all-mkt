@@ -2,6 +2,26 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { supabaseAdmin } from '../../../lib/supabase/admin';
 import { v4 as uuidv4 } from 'uuid';
 
+const buildSharePath = (params: {
+  categoryType?: string | null;
+  categoryId?: string | null;
+  categoryName?: string | null;
+  assetId: string;
+}) => {
+  const query = new URLSearchParams();
+  if (params.categoryType) {
+    query.set('categoryType', params.categoryType);
+  }
+  if (params.categoryId) {
+    query.set('categoryId', params.categoryId);
+  }
+  if (params.categoryName) {
+    query.set('categoryName', params.categoryName);
+  }
+  query.set('assetId', params.assetId);
+  return `materials?${query.toString()}`;
+};
+
 interface FinalizeItem {
   tempPath: string;
   originalName: string;
@@ -38,14 +58,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const { data: authResult, error: authError } = await supabaseAdmin.auth.getUser(token);
   if (authError || !authResult?.user) {
-    return res.status(401).json({ message: 'Sessão inválida' });
+    return res.status(401).json({ message: 'Sessao invalida' });
   }
 
   const { user } = authResult;
   const { categoryType, categoryId, projectPhase, origin, items }: FinalizeRequest = req.body;
 
   if (!categoryType || !categoryId || !Array.isArray(items) || items.length === 0) {
-    return res.status(400).json({ message: 'Payload inválido' });
+    return res.status(400).json({ message: 'Payload invalido' });
   }
 
 
@@ -89,12 +109,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   try {
     for (const item of items) {
       if (!item.tempPath) {
-        throw new Error(`Arquivo temporário ausente para ${item.originalName}`);
+        throw new Error(`Arquivo temporario ausente para ${item.originalName}`);
       }
 
       const safeBase = sanitizeName(item.baseName || item.originalName || 'arquivo');
       const safeExtension = item.extension ? item.extension.toLowerCase() : 'bin';
-      const finalPath = `${categoryType}/${categoryId}/${uuidv4()}-${safeBase}.${safeExtension}`;
+      const assetId = uuidv4();
+      const finalPath = `${categoryType}/${categoryId}/${assetId}-${safeBase}.${safeExtension}`;
+      const sharePath = buildSharePath({
+        categoryType,
+        categoryId,
+        categoryName,
+        assetId,
+      });
 
       const { error: moveError } = await supabaseAdmin.storage.from(bucket).move(item.tempPath, finalPath);
       if (moveError) {
@@ -106,6 +133,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const thumbnailUrl = item.assetType === 'image' ? publicUrl : null;
 
       const { error: insertError } = await supabaseAdmin.from('assets').insert({
+        id: assetId,
         name: item.baseName || item.originalName,
         description: null,
         type: item.assetType,
@@ -117,6 +145,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         category_type: categoryType,
         category_id: categoryId,
         category_name: categoryName,
+        share_path: sharePath,
         project_phase: categoryType === 'project' ? projectPhase || null : null,
         regional: normalizedCategoryRegional,
         is_public: false,
@@ -140,5 +169,4 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ message: error?.message || 'Erro ao finalizar materiais' });
   }
 }
-
 

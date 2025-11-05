@@ -48,17 +48,45 @@ import { cn } from './ui/utils';
 import { supabase, supabaseUrl } from '../lib/supabase';
 import { PageHeader } from './PageHeader';
 
+const buildSharePath = (params: {
+  categoryType?: string | null;
+  categoryId?: string | null;
+  categoryName?: string | null;
+  assetId: string;
+}) => {
+  const query = new URLSearchParams();
+  if (params.categoryType) {
+    query.set('categoryType', params.categoryType);
+  }
+  if (params.categoryId) {
+    query.set('categoryId', params.categoryId);
+  }
+  if (params.categoryName) {
+    query.set('categoryName', params.categoryName);
+  }
+  query.set('assetId', params.assetId);
+  return `materials?${query.toString()}`;
+};
+
 interface AssetManagerProps {
   initialFilters?: {
     categoryType?: 'campaign' | 'project';
     categoryId?: string;
     categoryName?: string;
   };
+  initialAssetId?: string;
   onBackToProjects?: () => void;
   onBackToCampaigns?: () => void;
+  onAssetNavigate?: (assetId: string | null) => void;
 }
 
-export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCampaigns }: AssetManagerProps) {
+export function AssetManager({
+  initialFilters = {},
+  initialAssetId,
+  onBackToProjects,
+  onBackToCampaigns,
+  onAssetNavigate,
+}: AssetManagerProps) {
   const { assets, campaigns, projects, updateAsset, deleteAsset, refreshData } = useAssets();
   const { hasPermission, isViewer, isEditor, isAdmin } = usePermissions();
   const { user } = useAuth();
@@ -295,8 +323,27 @@ export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCa
     setSelectedAssets([]);
   };
 
+  useEffect(() => {
+    if (!initialAssetId) {
+      if (viewingAsset) {
+        setViewingAsset(null);
+      }
+      return;
+    }
+
+    if (viewingAsset?.id === initialAssetId) {
+      return;
+    }
+
+    const match = assets.find(asset => asset.id === initialAssetId);
+    if (match) {
+      setViewingAsset(match);
+    }
+  }, [assets, initialAssetId, viewingAsset]);
+
   const handleViewAsset = (asset: Asset) => {
     setViewingAsset(asset);
+    onAssetNavigate?.(asset.id);
   };
 
   const getPreviewUrl = (asset: Asset): string | null => {
@@ -343,6 +390,7 @@ export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCa
 
   const handleAssetChange = (asset: Asset) => {
     setViewingAsset(asset);
+    onAssetNavigate?.(asset.id);
   };
 
   const handleDownload = (asset: Asset) => {
@@ -477,9 +525,33 @@ export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCa
       toast.error('Voc no tem permisso para compartilhar materiais');
       return;
     }
-    
-    navigator.clipboard.writeText(`https://dam.allmkt.com/assets/${asset.id}`);
-    toast.success(`Link de "${asset.name}" copiado para a rea de transferncia!`);
+
+    try {
+      const baseUrl =
+        typeof window !== 'undefined'
+          ? window.location.origin
+          : process.env.NEXT_PUBLIC_SITE_URL || 'https://dam.allmkt.com';
+
+      const sharePath =
+        asset.sharePath && asset.sharePath.trim().length > 0
+          ? asset.sharePath.trim()
+          : buildSharePath({
+              categoryType: asset.categoryType,
+              categoryId: asset.categoryId,
+              categoryName: asset.categoryName,
+              assetId: asset.id,
+            });
+
+      const normalizedSharePath = sharePath.startsWith('/')
+        ? sharePath
+        : `/${sharePath}`;
+
+      const shareUrl = `${baseUrl}${normalizedSharePath}`;
+      void navigator.clipboard.writeText(shareUrl);
+      toast.success(`Link de "${asset.name}" copiado para a rea de transferncia!`);
+    } catch {
+      toast.error('Nao foi possivel gerar o link de compartilhamento');
+    }
   };
 
   const handleEditAsset = async (asset: Asset, updates: Partial<Asset>) => {
@@ -512,6 +584,7 @@ export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCa
     try {
       await deleteAsset(assetId);
       setViewingAsset(null);
+      onAssetNavigate?.(null);
       toast.success('Material excludo com sucesso!');
     } catch (error) {
       toast.error('Erro ao excluir material');
@@ -1870,7 +1943,10 @@ export function AssetManager({ initialFilters = {}, onBackToProjects, onBackToCa
           asset={viewingAsset}
           assets={filteredAssets}
           isOpen={!!viewingAsset}
-          onClose={() => setViewingAsset(null)}
+          onClose={() => {
+            setViewingAsset(null);
+            onAssetNavigate?.(null);
+          }}
           onAssetChange={handleAssetChange}
           onDownload={handleDownload}
           onShare={handleShare}

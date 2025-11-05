@@ -19,6 +19,7 @@ export type Database = {
           category_id: string
           category_name: string | null
           category_type: Database["public"]["Enums"]["category_type"]
+          share_path: string | null
           created_at: string | null
           description: string | null
           download_count: number | null
@@ -42,6 +43,7 @@ export type Database = {
           category_id: string
           category_name?: string | null
           category_type: Database["public"]["Enums"]["category_type"]
+          share_path?: string | null
           created_at?: string | null
           description?: string | null
           download_count?: number | null
@@ -65,6 +67,7 @@ export type Database = {
           category_id?: string
           category_name?: string | null
           category_type?: Database["public"]["Enums"]["category_type"]
+          share_path?: string | null
           created_at?: string | null
           description?: string | null
           download_count?: number | null

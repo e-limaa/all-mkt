@@ -97,7 +97,7 @@ ALTER TABLE public.projects ENABLE ROW LEVEL SECURITY;
   },
   assets: {
     columns: [
-      'id','name','description','type','format','size','url','thumbnail_url','tags','origin','category_type','category_id','category_name','project_phase','regional','is_public','download_count','metadata','created_at','updated_at','uploaded_by'
+      'id','name','description','type','format','size','url','thumbnail_url','tags','origin','category_type','category_id','category_name','share_path','project_phase','regional','is_public','download_count','metadata','created_at','updated_at','uploaded_by'
     ],
     createSql: `
 CREATE TABLE public.assets (
@@ -114,6 +114,7 @@ CREATE TABLE public.assets (
   category_type text NOT NULL CHECK (category_type IN ('campaign','project')),
   category_id uuid NOT NULL,
   category_name text,
+  share_path text,
   project_phase text CHECK (project_phase IN ('vem-ai','breve-lancamento','lancamento')),
   regional text NOT NULL,
   is_public boolean NOT NULL DEFAULT false,

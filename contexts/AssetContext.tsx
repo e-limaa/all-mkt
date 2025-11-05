@@ -11,6 +11,26 @@ import { DEFAULT_SETTINGS } from '../lib/settings';
 import { Database } from '../types/supabase';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
+const buildSharePath = (params: {
+  categoryType?: string | null;
+  categoryId?: string | null;
+  categoryName?: string | null;
+  assetId: string;
+}) => {
+  const query = new URLSearchParams();
+  if (params.categoryType) {
+    query.set('categoryType', params.categoryType);
+  }
+  if (params.categoryId) {
+    query.set('categoryId', params.categoryId);
+  }
+  if (params.categoryName) {
+    query.set('categoryName', params.categoryName);
+  }
+  query.set('assetId', params.assetId);
+  return `materials?${query.toString()}`;
+};
+
 // Dashboard statistics interface
 type SharedLinkRow = Database['public']['Tables']['shared_links']['Row'];
 
@@ -550,6 +570,14 @@ export function AssetProvider({ children }: { children: ReactNode }) {
           categoryType: item.category_type,
           categoryId: item.category_id,
           categoryName: item.category_name || '',
+          sharePath:
+            item.share_path ??
+            buildSharePath({
+              categoryType: item.category_type,
+              categoryId: item.category_id,
+              categoryName: item.category_name,
+              assetId: item.id,
+            }),
           projectId: item.category_type === 'project' ? item.category_id : undefined,
           campaignId: item.category_type === 'campaign' ? item.category_id : undefined,
           isPublic: item.is_public,
@@ -891,6 +919,7 @@ export function AssetProvider({ children }: { children: ReactNode }) {
 
       const categoryType = projectId ? 'project' : 'campaign';
       const categoryId = projectId || campaignId!;
+      const assetId = uuidv4();
       
       let categoryName = '';
       if (projectId) {
@@ -910,9 +939,17 @@ export function AssetProvider({ children }: { children: ReactNode }) {
         throw new Error('Regional nao configurada para a categoria selecionada.');
       }
 
+      const sharePath = buildSharePath({
+        categoryType,
+        categoryId,
+        categoryName,
+        assetId,
+      });
+
       const { error } = await supabase
         .from('assets')
         .insert({
+          id: assetId,
           name: metadata?.name || file.name,
           description: metadata?.description || null,
           type: fileType,
@@ -925,6 +962,7 @@ export function AssetProvider({ children }: { children: ReactNode }) {
           category_type: categoryType,
           category_id: categoryId,
           category_name: categoryName,
+          share_path: sharePath,
           project_phase: metadata?.projectPhase || null,
           regional: categoryRegional,
           is_public: false,
@@ -1011,6 +1049,12 @@ export function AssetProvider({ children }: { children: ReactNode }) {
                   categoryType: targetCategoryType,
                   categoryId: targetCategoryId ?? asset.categoryId,
                   categoryName: targetCategoryName || asset.categoryName,
+                  sharePath: buildSharePath({
+                    categoryType: targetCategoryType,
+                    categoryId: targetCategoryId ?? asset.categoryId,
+                    categoryName: targetCategoryName || asset.categoryName,
+                    assetId: asset.id,
+                  }),
                   regional: targetRegional,
                   origin: updates.origin ?? asset.origin,
                 }
@@ -1049,6 +1093,13 @@ export function AssetProvider({ children }: { children: ReactNode }) {
       if (targetCategoryName) {
         updatePayload.category_name = targetCategoryName;
       }
+
+      updatePayload.share_path = buildSharePath({
+        categoryType: targetCategoryType,
+        categoryId: targetCategoryId ?? existingAsset.categoryId,
+        categoryName: targetCategoryName || existingAsset.categoryName,
+        assetId: id,
+      });
 
       if (updates.metadata && 'projectPhase' in updates.metadata) {
         updatePayload.project_phase = updates.metadata.projectPhase || null;
@@ -1486,16 +1537,4 @@ export function useAssets() {
   }
   return context;
 }
-
-
-
-
-
-
-
-
-
-
-
-
 

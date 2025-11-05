@@ -3,7 +3,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { v4 as uuidv4 } from "uuid";
-import { MessageCircle, Send, Loader2, X, Download } from "lucide-react";
+import { MessageCircle, Send, Loader2, X, Download, Eye } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -49,7 +49,24 @@ function ensureUserId(): string {
 const REPLY_KEYS = ["reply", "message", "text", "response", "output"];
 const SUGGESTION_KEYS = ["suggestions", "hints", "options"];
 const BULLETED_FOLLOW_UP_REGEX = /\bQuer que\b/i;
-const URL_REGEX = /(https?:\/\/[^\s]+)/g;
+const LINK_REGEX = /(https?:\/\/[^\s]+)|(materials\?[^\s]+)/gi;
+const DEFAULT_SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://dam.allmkt.com";
+
+const MATERIAL_NAME_PATTERNS: RegExp[] = [
+  /material\s*["'`“”‘’]([^"'`“”‘’]+)["'`“”‘’]/i,
+  /material:\s*([^(\n]+)/i,
+  /nome\s+do\s+material[:\-]?\s*([^(\n]+)/i,
+];
+
+const extractMaterialNameFromText = (text: string): string | null => {
+  for (const pattern of MATERIAL_NAME_PATTERNS) {
+    const match = text.match(pattern);
+    if (match?.[1]) {
+      return match[1].trim();
+    }
+  }
+  return null;
+};
 
 function findFirstReply(value: unknown): string | null {
   if (!value) return null;
@@ -189,6 +206,13 @@ function extractSuggestions(payload: N8nResponse): string[] {
 }
 
 export function N8nFloatingWidget() {
+  const baseShareUrl = useMemo(() => {
+    if (typeof window !== "undefined" && window.location?.origin) {
+      return window.location.origin;
+    }
+    return DEFAULT_SITE_URL;
+  }, []);
+
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>(() => [
     {
@@ -238,26 +262,62 @@ export function N8nFloatingWidget() {
   );
 
   const renderDownloadButton = useCallback(
-    (url: string, key: string) => {
-      const label = truncateLabel(getFileNameFromUrl(url));
+    (url: string, key: string, materialName?: string | null) => {
+      const labelSource =
+        materialName && materialName.trim().length > 0 ? materialName : getFileNameFromUrl(url);
+      const label = truncateLabel(labelSource);
       const isDownloading = downloadingUrl === url;
+      const fullTitle = isDownloading ? `Baixando ${labelSource}` : `Baixar ${labelSource}`;
+      const textLabel = isDownloading ? `Baixando ${label}` : `Baixar ${label}`;
+
       return (
         <button
           key={key}
           type="button"
           onClick={() => void handleMaterialDownload(url)}
           className="ml-1 inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-1 text-xs font-semibold text-primary transition hover:bg-primary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+          aria-label={fullTitle}
+          title={fullTitle}
         >
           {isDownloading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
-          {isDownloading ? "Baixando..." : `Baixar ${label}`}
+          {textLabel}
         </button>
       );
     },
     [downloadingUrl, handleMaterialDownload],
   );
 
+  const renderShareLink = useCallback(
+    (sharePath: string, key: string, materialName?: string | null) => {
+      const cleaned = sharePath.trim().replace(/^[\"'`(]+/, "").replace(/[)"'`]+$/, "");
+      const normalizedPath = cleaned.startsWith("/") ? cleaned : `/${cleaned}`;
+      const shareUrl = `${baseShareUrl}${normalizedPath}`;
+      const labelSource = materialName && materialName.trim().length > 0 ? materialName : "material";
+      const label = truncateLabel(labelSource);
+      const fullTitle = `Visualizar ${labelSource}`;
+      const textLabel = `Visualizar ${label}`;
+
+      return (
+        <a
+          key={key}
+          href={shareUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="ml-1 inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-1 text-xs font-semibold text-primary transition hover:bg-primary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+          aria-label={fullTitle}
+          title={fullTitle}
+        >
+          <Eye className="h-3.5 w-3.5" />
+          {textLabel}
+        </a>
+      );
+    },
+    [baseShareUrl],
+  );
+
   const renderAssistantContent = useCallback(
     (text: string, isError?: boolean): ReactNode => {
+      const materialName = extractMaterialNameFromText(text);
       const lines = text.split("\n");
       return (
         <div className={cn("space-y-1 text-left", isError && "text-destructive")}>
@@ -269,15 +329,26 @@ export function N8nFloatingWidget() {
             const segments: ReactNode[] = [];
             let lastIndex = 0;
 
-            line.replace(URL_REGEX, (match, _p1, offset) => {
+            const matches = [...line.matchAll(LINK_REGEX)];
+            for (const match of matches) {
+              const [fullMatch, urlMatch, shareMatch] = match;
+              const offset = match.index ?? 0;
+
               if (offset > lastIndex) {
                 segments.push(line.slice(lastIndex, offset));
               }
               const key = `${lineIndex}-${offset}`;
-              segments.push(renderDownloadButton(match, key));
-              lastIndex = offset + match.length;
-              return match;
-            });
+
+              if (urlMatch) {
+                segments.push(renderDownloadButton(urlMatch, key, materialName));
+              } else if (shareMatch) {
+                segments.push(renderShareLink(shareMatch, key, materialName));
+              } else {
+                segments.push(fullMatch);
+              }
+
+              lastIndex = offset + fullMatch.length;
+            }
 
             if (lastIndex < line.length) {
               segments.push(line.slice(lastIndex));
@@ -292,7 +363,7 @@ export function N8nFloatingWidget() {
         </div>
       );
     },
-    [renderDownloadButton],
+    [renderDownloadButton, renderShareLink],
   );
 
   const listRef = useRef<HTMLDivElement>(null);
