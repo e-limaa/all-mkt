@@ -57,6 +57,14 @@ export interface DashboardStats {
     categoryName?: string;
     timestamp: string;
   }>;
+  upcomingLaunches: Array<{
+    id: string;
+    name: string;
+    type: 'campaign' | 'project';
+    date: string;
+    daysUntil: number;
+    status?: string;
+  }>;
 }
 
 interface AssetContextType {
@@ -384,6 +392,87 @@ export function AssetProvider({ children }: { children: ReactNode }) {
       timestamp: asset.uploadedAt,
     }));
 
+    const parseLaunchDate = (value?: string | null) => {
+      const normalized = normalizeDateValue(value ?? undefined);
+      const base = normalized ?? (typeof value === 'string'
+        ? (value.includes('T') ? value.split('T')[0] : value)
+        : undefined);
+      if (!base) return null;
+
+      const date = new Date(`${base}T00:00:00`);
+      if (Number.isNaN(date.getTime())) {
+        return null;
+      }
+
+      date.setHours(0, 0, 0, 0);
+      return { date, dateString: base };
+    };
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const dayInMs = 24 * 60 * 60 * 1000;
+    const FORECAST_WINDOW_DAYS = 90;
+
+    const upcomingCampaignLaunches = campaigns
+      .map(campaign => {
+        const parsed = parseLaunchDate(campaign.startDate);
+        if (!parsed) return null;
+
+        const daysUntil = Math.round((parsed.date.getTime() - today.getTime()) / dayInMs);
+        if (daysUntil < 0 || daysUntil > FORECAST_WINDOW_DAYS) {
+          return null;
+        }
+
+        return {
+          id: campaign.id,
+          name: campaign.name,
+          type: 'campaign' as const,
+          date: parsed.dateString,
+          daysUntil,
+          status: campaign.status,
+        };
+      })
+      .filter((item): item is {
+        id: string;
+        name: string;
+        type: 'campaign';
+        date: string;
+        daysUntil: number;
+        status?: string;
+      } => item !== null);
+
+    const upcomingProjectLaunches = projects
+      .map(project => {
+        const parsed = parseLaunchDate(project.launchDate ?? undefined);
+        if (!parsed) return null;
+
+        const daysUntil = Math.round((parsed.date.getTime() - today.getTime()) / dayInMs);
+        if (daysUntil < 0 || daysUntil > FORECAST_WINDOW_DAYS) {
+          return null;
+        }
+
+        return {
+          id: project.id,
+          name: project.name,
+          type: 'project' as const,
+          date: parsed.dateString,
+          daysUntil,
+          status: project.status,
+        };
+      })
+      .filter((item): item is {
+        id: string;
+        name: string;
+        type: 'project';
+        date: string;
+        daysUntil: number;
+        status?: string;
+      } => item !== null);
+
+    const upcomingLaunches = [...upcomingCampaignLaunches, ...upcomingProjectLaunches]
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .slice(0, 4);
+
     return {
       totalAssets,
       downloadCount,
@@ -395,6 +484,7 @@ export function AssetProvider({ children }: { children: ReactNode }) {
       assetsByCampaign,
       assetsByProject,
       recentActivity,
+      upcomingLaunches,
     };
   }, [
     assets,

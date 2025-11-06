@@ -33,8 +33,6 @@ import {
   Archive,
   Eye,
   ArrowUpRight,
-  ShieldCheck,
-  ShieldAlert
 } from 'lucide-react';
 import { useAssets } from '../contexts/AssetContext';
 import { formatFileSize, formatNumber, timeAgo } from '../utils/format';
@@ -75,33 +73,6 @@ export function Dashboard() {
     { month: 'Jun', uploads: 67, downloads: 189 }
   ];
 
-  const systemStatus = useMemo(() => ([
-    {
-      label: 'Notifica+º+Áes por Email',
-      description: 'Envio de alertas autom+íticos para administradores e equipes.',
-      enabled: systemSettings.emailNotifications,
-    },
-    {
-      label: 'Alertas do Sistema',
-      description: 'Exibe toasts e avisos em tempo real dentro da aplica+º+úo.',
-      enabled: systemSettings.systemNotifications,
-    },
-    {
-      label: 'Autentica+º+úo em Duas Etapas',
-      description: 'Solicita um segundo fator de verifica+º+úo no login.',
-      enabled: systemSettings.twoFactor,
-    },
-    {
-      label: 'M+¦ltiplas Sess+Áes',
-      description: 'Permite acesso simult+óneo em mais de um dispositivo.',
-      enabled: systemSettings.multiSessions,
-    },
-    {
-      label: 'Backup Autom+ítico',
-      description: 'Gera c+¦pias de seguran+ºa recorrentes dos materiais.',
-      enabled: systemSettings.autoBackup,
-    },
-  ]), [systemSettings]);
 
   return (
     <div className="space-y-6">
@@ -315,40 +286,6 @@ export function Dashboard() {
         </Card>
       </div>
 
-      <Card className="bg-card/50 backdrop-blur-sm border-border/50">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <ShieldCheck className="w-5 h-5 text-primary" />
-            Status do Sistema
-          </CardTitle>
-          <CardDescription>Resumo das funcionalidades globais configuradas</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {systemStatus.map((item) => (
-            <div
-              key={item.label}
-              className="flex items-start gap-3 rounded-lg border border-border/40 bg-background/60 p-3"
-            >
-              <div className="flex-shrink-0 mt-1">
-                {item.enabled ? (
-                  <ShieldCheck className="w-4 h-4 text-green-500" />
-                ) : (
-                  <ShieldAlert className="w-4 h-4 text-red-500" />
-                )}
-              </div>
-              <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium">{item.label}</span>
-                  <Badge variant={item.enabled ? 'default' : 'destructive'} className="uppercase tracking-wide text-[10px]">
-                    {item.enabled ? 'Ativo' : 'Inativo'}
-                  </Badge>
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">{item.description}</p>
-              </div>
-            </div>
-          ))}
-        </CardContent>
-      </Card>
 
       {/* Trend Chart */}
       <Card className="bg-card/50 backdrop-blur-sm border-border/50">

@@ -222,6 +222,14 @@ export interface DashboardStats {
   assetsByCampaign: Record<string, number>;
   assetsByProject: Record<string, number>;
   recentActivity: Activity[];
+  upcomingLaunches: Array<{
+    id: string;
+    name: string;
+    type: 'campaign' | 'project';
+    date: string;
+    daysUntil: number;
+    status?: string;
+  }>;
 }
 
 export interface Activity {

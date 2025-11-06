@@ -576,7 +576,7 @@ export function N8nFloatingWidget() {
   }, [suggestions]);
 
   return (
-    <div className="pointer-events-none fixed right-4 bottom-24 z-50 flex flex-col items-end gap-3 sm:right-6 sm:bottom-6">
+    <div className="pointer-events-none fixed right-4 bottom-[calc(6.5rem+env(safe-area-inset-bottom))] z-50 flex flex-col items-end gap-3 sm:right-6 lg:bottom-6">
       {open && (
         <div className="pointer-events-auto w-[min(420px,calc(100vw-3rem))] max-w-full">
           <div className="flex h-[560px] flex-col overflow-hidden rounded-3xl border border-border bg-card shadow-2xl shadow-primary/15">

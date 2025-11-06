@@ -35,8 +35,6 @@ import {
   Eye,
   BarChart3,
   ArrowUpRight,
-  ShieldCheck,
-  ShieldAlert
 } from 'lucide-react';
 import { useAssets } from '../contexts/AssetContext';
 import { formatFileSize, formatNumber, timeAgo } from '../utils/format';
@@ -109,33 +107,45 @@ export function Dashboard() {
     { month: 'Jun', uploads: 67, downloads: 189 }
   ];
 
-  const systemStatus = useMemo(() => ([
-    {
-      label: 'Notifica\u00e7\u00f5es por Email',
-      description: 'Envio de alertas autom\u00e1ticos para administradores e equipes.',
-      enabled: systemSettings.emailNotifications,
-    },
-    {
-      label: 'Alertas do Sistema',
-      description: 'Exibe toasts e avisos em tempo real dentro da aplica\u00e7\u00e3o.',
-      enabled: systemSettings.systemNotifications,
-    },
-    {
-      label: 'Autentica\u00e7\u00e3o em Duas Etapas',
-      description: 'Solicita um segundo fator de verifica\u00e7\u00e3o no login.',
-      enabled: systemSettings.twoFactor,
-    },
-    {
-      label: 'M\u00faltiplas Sess\u00f5es',
-      description: 'Permite acesso simult\u00e2neo em mais de um dispositivo.',
-      enabled: systemSettings.multiSessions,
-    },
-    {
-      label: 'Backup Autom\u00e1tico',
-      description: 'Gera c\u00f3pias de seguran\u00e7a recorrentes dos materiais.',
-      enabled: systemSettings.autoBackup,
-    },
-  ]), [systemSettings]);
+  const formatLaunchDate = (date: string) => {
+    const parsed = new Date(`${date}T00:00:00`);
+    if (Number.isNaN(parsed.getTime())) {
+      return date;
+    }
+    return format(parsed, 'dd/MM/yyyy');
+  };
+
+  const formatDaysUntil = (days: number) => {
+    if (days === 0) return 'Hoje';
+    if (days === 1) return 'Em 1 dia';
+    if (days > 1) return `Em ${days} dias`;
+    return `${Math.abs(days)} dias atrás`;
+  };
+
+  const launchTypeLabel = (type: 'campaign' | 'project') =>
+    type === 'project' ? 'Empreendimento' : 'Campanha';
+
+  const campaignStatusLabelMap: Record<string, string> = {
+    active: 'Ativa',
+    inactive: 'Inativa',
+    expiring: 'Expirando',
+    archived: 'Arquivada',
+  };
+
+  const projectStatusLabelMap: Record<string, string> = {
+    'vem-ai': 'Vem aí',
+    'breve-lancamento': 'Breve lançamento',
+    lancamento: 'Lançamento',
+  };
+
+  const getStatusLabel = (type: 'campaign' | 'project', status?: string) => {
+    if (!status) return null;
+    if (type === 'campaign') {
+      return campaignStatusLabelMap[status] ?? status;
+    }
+    return projectStatusLabelMap[status] ?? status;
+  };
+
   const indicatorOptions = useMemo<IndicatorOption[]>(
     () => [
       { id: 'totalMaterials', label: 'Total de Materiais', description: 'Quantidade total de assets cadastrados.' },
@@ -259,7 +269,53 @@ export function Dashboard() {
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        {/* Upcoming Launches */}
+        <Card className="bg-card/50 backdrop-blur-sm border-border/50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Calendar className="w-5 h-5 text-primary" />
+              Próximos Lançamentos
+            </CardTitle>
+            <CardDescription>Empreendimentos e campanhas previstos</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {dashboardStats.upcomingLaunches.length > 0 ? (
+              <div className="space-y-4">
+                {dashboardStats.upcomingLaunches.map((launch) => {
+                  const statusLabel = getStatusLabel(launch.type, launch.status);
+                  return (
+                    <div
+                      key={`${launch.type}-${launch.id}`}
+                      className="flex items-start justify-between gap-4"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{launch.name}</p>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <span className="uppercase tracking-wide">{launchTypeLabel(launch.type)}</span>
+                          {statusLabel && (
+                            <Badge variant="outline" className="text-[10px] uppercase tracking-wide">
+                              {statusLabel}
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-semibold">{formatLaunchDate(launch.date)}</p>
+                        <p className="text-xs text-muted-foreground">{formatDaysUntil(launch.daysUntil)}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Nenhum lançamento previsto nos próximos 90 dias.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+
         {/* Storage Usage */}
         <Card className="bg-card/50 backdrop-blur-sm border-border/50">
           <CardHeader>
@@ -414,40 +470,6 @@ export function Dashboard() {
         </Card>
       </div>
 
-      <Card className="bg-card/50 backdrop-blur-sm border-border/50">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <ShieldCheck className="w-5 h-5 text-primary" />
-            Status do Sistema
-          </CardTitle>
-          <CardDescription>Resumo das fuNãonalidades globais configuradas</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {systemStatus.map((item) => (
-            <div
-              key={item.label}
-              className="flex items-start gap-3 rounded-lg border border-border/40 bg-background/60 p-3"
-            >
-              <div className="flex-shrink-0 mt-1">
-                {item.enabled ? (
-                  <ShieldCheck className="w-4 h-4 text-green-500" />
-                ) : (
-                  <ShieldAlert className="w-4 h-4 text-red-500" />
-                )}
-              </div>
-              <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium">{item.label}</span>
-                  <Badge variant={item.enabled ? 'default' : 'destructive'} className="uppercase tracking-wide text-[10px]">
-                    {item.enabled ? 'Ativo' : 'Inativo'}
-                  </Badge>
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">{item.description}</p>
-              </div>
-            </div>
-          ))}
-        </CardContent>
-      </Card>
 
       {/* Trend Chart */}
       <Card className="bg-card/50 backdrop-blur-sm border-border/50">
@@ -504,8 +526,6 @@ export function Dashboard() {
     </div>
   );
 }
-
-
 
 
 
