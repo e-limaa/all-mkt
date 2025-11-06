@@ -64,6 +64,7 @@ import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { REGIONAL_OPTIONS } from "../lib/regionals";
 import { uploadFile, getPublicUrl } from "../lib/supabase";
 import { useAuth } from "../contexts/AuthContext";
+import posthog from "posthog-js";
 
 const getStatusBadge = (status: string) => {
   const badges = {
@@ -281,12 +282,28 @@ export function ProjectManager({
       };
       const newProject = await createProject(projectToCreate);
       toast.success(`Empreendimento "${projectData.name}" criado com sucesso!`);
+      captureProjectEvent("project_created", {
+        project_id: newProject?.id ?? null,
+        name: projectData.name ?? "",
+        status: normalizedStatus,
+        regional: normalizedRegional,
+      });
       setIsCreateOpen(false);
     } catch (error) {
       toast.error("Erro ao criar empreendimento");
       console.error(" Error creating project:", error);
-    }
-  };
+  }
+};
+
+const captureProjectEvent = (
+  eventName: string,
+  payload: Record<string, unknown>,
+) => {
+  if (typeof window === "undefined") {
+    return;
+  }
+  posthog.capture(eventName, payload);
+};
 
   const handleUpdateProject = async (updatedProject: Project) => {
     if (!canEditProjects) {
@@ -335,6 +352,12 @@ export function ProjectManager({
       await updateProject(updatedProject.id, safeUpdates as Partial<Project>);
       setEditingProject(null);
       toast.success(`Empreendimento "${updatedProject.name}" atualizado com sucesso!`);
+      captureProjectEvent("project_updated", {
+        project_id: updatedProject.id,
+        name: updatedProject.name,
+        status: safeUpdates.status ?? updatedProject.status,
+        regional: safeUpdates.regional ?? updatedProject.regional ?? null,
+      });
     } catch (error) {
       toast.error("Erro ao atualizar empreendimento");
       console.error("Erro ao atualizar projeto:", error);

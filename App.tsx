@@ -27,6 +27,12 @@ type AppPageKey =
   | 'settings';
 
 const DEFAULT_APP_PAGE: AppPageKey = 'dashboard';
+const VIEWER_ALLOWED_PAGES: AppPageKey[] = [
+  'materials',
+  'campaigns',
+  'projects',
+  'shared',
+];
 
 const PAGE_TO_ROUTE: Record<AppPageKey, string> = {
   dashboard: '/dashboard',
@@ -201,21 +207,13 @@ function AppContent() {
     document.title = baseTitle;
   }, [systemSettings.companyName]);
 
-  // Redirecionar visualizadores diretamente para materiais quando necessario
+  // Redirecionar visualizadores apenas quando tentarem acessar paginas sem permissao
   useEffect(() => {
-    if (!router.isReady) {
+    if (!router.isReady || !user || !isViewer()) {
       return;
     }
 
-    if (!user) {
-      return;
-    }
-
-    if (!isViewer()) {
-      return;
-    }
-
-    if (currentPage !== 'materials') {
+    if (!VIEWER_ALLOWED_PAGES.includes(currentPage)) {
       void router.replace({ pathname: PAGE_TO_ROUTE.materials });
     }
   }, [router, user, isViewer, currentPage]);

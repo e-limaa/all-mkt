@@ -47,6 +47,7 @@ import { Progress } from './ui/progress';
 import { cn } from './ui/utils';
 import { supabase, supabaseUrl } from '../lib/supabase';
 import { PageHeader } from './PageHeader';
+import posthog from 'posthog-js';
 
 const buildSharePath = (params: {
   categoryType?: string | null;
@@ -344,6 +345,15 @@ export function AssetManager({
   const handleViewAsset = (asset: Asset) => {
     setViewingAsset(asset);
     onAssetNavigate?.(asset.id);
+    captureAssetEvent('material_viewed', {
+      asset_id: asset.id,
+      asset_name: asset.name,
+      asset_type: asset.type,
+      asset_format: asset.format,
+      category_type: asset.categoryType ?? null,
+      category_id: asset.categoryId ?? asset.projectId ?? asset.campaignId ?? null,
+      origin: asset.origin ?? null,
+    });
   };
 
   const getPreviewUrl = (asset: Asset): string | null => {
@@ -412,12 +422,43 @@ export function AssetManager({
           link.click();
           document.body.removeChild(link);
           window.URL.revokeObjectURL(url);
+          captureAssetEvent('material_downloaded', {
+            asset_id: asset.id,
+            asset_name: asset.name,
+            asset_type: asset.type,
+            asset_format: asset.format,
+            category_type: asset.categoryType ?? null,
+            category_id: asset.categoryId ?? asset.projectId ?? asset.campaignId ?? null,
+            origin: asset.origin ?? null,
+            success: true,
+          });
         })
         .catch(() => {
           toast.error('Erro ao baixar o arquivo.');
+          captureAssetEvent('material_downloaded', {
+            asset_id: asset.id,
+            asset_name: asset.name,
+            asset_type: asset.type,
+            asset_format: asset.format,
+            category_type: asset.categoryType ?? null,
+            category_id: asset.categoryId ?? asset.projectId ?? asset.campaignId ?? null,
+            origin: asset.origin ?? null,
+            success: false,
+          });
         });
     } else {
       toast.error('URL do arquivo no encontrada.');
+      captureAssetEvent('material_downloaded', {
+        asset_id: asset.id,
+        asset_name: asset.name,
+        asset_type: asset.type,
+        asset_format: asset.format,
+        category_type: asset.categoryType ?? null,
+        category_id: asset.categoryId ?? asset.projectId ?? asset.campaignId ?? null,
+        origin: asset.origin ?? null,
+        success: false,
+        reason: 'missing_url',
+      });
     }
   };
 
@@ -484,8 +525,21 @@ export function AssetManager({
     try {
       await downloadPromise;
       setSelectedAssets([]);
+      captureAssetEvent('material_bulk_downloaded', {
+        assets_count: assetsWithUrl.length,
+        total_size_bytes: totalSize,
+        selected_asset_ids: assetsWithUrl.map(asset => asset.id),
+        success: true,
+      });
     } catch (error) {
       console.error('[AssetManager] Erro no download em massa', error);
+      captureAssetEvent('material_bulk_downloaded', {
+        assets_count: assetsWithUrl.length,
+        total_size_bytes: totalSize,
+        selected_asset_ids: assetsWithUrl.map(asset => asset.id),
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   };
 
@@ -1987,3 +2041,9 @@ export function AssetManager({
 
 
 
+  const captureAssetEvent = (eventName: string, payload: Record<string, unknown>) => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    posthog.capture(eventName, payload);
+  };

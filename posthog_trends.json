@@ -1,0 +1,1 @@
+{"query":{"kind":"InsightVizNode","source":{"kind":"TrendsQuery","series":[{"event":"project_created","math":"total"}],"dateRange":{"date_from":"-7d"}}}}

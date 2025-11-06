@@ -38,6 +38,7 @@ import {
 import { Campaign } from '../types';
 import { REGIONAL_OPTIONS } from '../lib/regionals';
 import { formatDate } from '../utils/format';
+import posthog from 'posthog-js';
 import { useAssets } from '../contexts/AssetContext';
 import { usePermissions } from '../contexts/hooks/usePermissions';
 import { Permission } from '../types/enums';
@@ -78,9 +79,16 @@ export function CampaignManager({ onNavigateToMaterials }: CampaignManagerProps)
   const canCreateCampaigns = hasPermission(Permission.CREATE_CAMPAIGNS);
   const canEditCampaigns = hasPermission(Permission.EDIT_CAMPAIGNS);
   const canDeleteCampaigns = hasPermission(Permission.DELETE_CAMPAIGNS);
-  const headerDescription = isViewer()
-    ? 'Visualize campanhas e seus materiais'
-    : 'Gerencie campanhas e organize materiais por aes de marketing';
+const headerDescription = isViewer()
+  ? 'Visualize campanhas e seus materiais'
+  : 'Gerencie campanhas e organize materiais por aes de marketing';
+
+const captureCampaignEvent = (eventName: string, payload: Record<string, unknown>) => {
+  if (typeof window === 'undefined') {
+    return;
+  }
+  posthog.capture(eventName, payload);
+};
   
   const filteredCampaigns = campaigns.filter(campaign => {
     const matchesSearch = campaign.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -103,7 +111,7 @@ export function CampaignManager({ onNavigateToMaterials }: CampaignManagerProps)
     }
 
     try {
-      await createCampaign({
+      const newCampaign = await createCampaign({
         name: campaignData.name || '',
         description: campaignData.description,
         startDate: campaignData.startDate || new Date().toISOString().split('T')[0],
@@ -114,6 +122,12 @@ export function CampaignManager({ onNavigateToMaterials }: CampaignManagerProps)
         regional: normalizedRegional,
       });
       setIsCreateOpen(false);
+      captureCampaignEvent('campaign_created', {
+        campaign_id: newCampaign?.id ?? null,
+        name: campaignData.name ?? '',
+        status: campaignData.status ?? 'inactive',
+        regional: normalizedRegional,
+      });
     } catch (error) {
       console.error('[CampaignManager] Erro ao criar campanha', error);
       if (error instanceof Error) {
@@ -148,6 +162,12 @@ export function CampaignManager({ onNavigateToMaterials }: CampaignManagerProps)
         regional: normalizedRegional,
       });
       setEditingCampaign(null);
+      captureCampaignEvent('campaign_updated', {
+        campaign_id: updatedCampaign.id,
+        name: updatedCampaign.name,
+        status: updatedCampaign.status,
+        regional: normalizedRegional,
+      });
     } catch (error) {
       console.error('[CampaignManager] Erro ao atualizar campanha', error);
       if (error instanceof Error) {

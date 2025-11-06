@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/components/ui/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import posthog from "posthog-js";
 
 type Role = "user" | "assistant";
 
@@ -66,6 +67,13 @@ const extractMaterialNameFromText = (text: string): string | null => {
     }
   }
   return null;
+};
+
+const safeCapture = (eventName: string, payload: Record<string, unknown> = {}) => {
+  if (typeof window === "undefined") {
+    return;
+  }
+  posthog.capture(eventName, payload);
 };
 
 function findFirstReply(value: unknown): string | null {
@@ -227,12 +235,34 @@ export function N8nFloatingWidget() {
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [downloadingUrl, setDownloadingUrl] = useState<string | null>(null);
 
+  const handleOpenWidget = useCallback(() => {
+    setOpen((prev) => {
+      if (!prev) {
+        safeCapture("chat_widget_opened");
+      }
+      return true;
+    });
+  }, [safeCapture]);
+
+  const handleCloseWidget = useCallback(() => {
+    setOpen((prev) => {
+      if (prev) {
+        safeCapture("chat_widget_closed");
+      }
+      return false;
+    });
+  }, [safeCapture]);
+
   const handleMaterialDownload = useCallback(
     async (url: string) => {
       if (!url) return;
       try {
         setError(null);
         setDownloadingUrl(url);
+        safeCapture("chat_material_download", {
+          url,
+          status: "started",
+        });
 
         const response = await fetch(url);
         if (!response.ok) {
@@ -251,14 +281,24 @@ export function N8nFloatingWidget() {
         tempLink.click();
         tempLink.remove();
         URL.revokeObjectURL(objectUrl);
+        safeCapture("chat_material_download", {
+          url,
+          status: "success",
+          file_name: fileName,
+        });
       } catch (downloadError) {
         console.error("[chat] Falha ao baixar material:", downloadError);
         setError("Nao foi possivel baixar o arquivo. Tente novamente.");
+        safeCapture("chat_material_download", {
+          url,
+          status: "error",
+          error: downloadError instanceof Error ? downloadError.message : String(downloadError),
+        });
       } finally {
         setDownloadingUrl(null);
       }
     },
-    [setError],
+    [safeCapture, setError],
   );
 
   const renderDownloadButton = useCallback(
@@ -297,22 +337,28 @@ export function N8nFloatingWidget() {
       const fullTitle = `Visualizar ${labelSource}`;
       const textLabel = `Visualizar ${label}`;
 
-      return (
-        <a
-          key={key}
-          href={shareUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="ml-1 inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-1 text-xs font-semibold text-primary transition hover:bg-primary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
-          aria-label={fullTitle}
-          title={fullTitle}
-        >
-          <Eye className="h-3.5 w-3.5" />
-          {textLabel}
-        </a>
-      );
+    return (
+      <a
+        key={key}
+        href={shareUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="ml-1 inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-1 text-xs font-semibold text-primary transition hover:bg-primary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+        aria-label={fullTitle}
+        title={fullTitle}
+        onClick={() =>
+          safeCapture("chat_material_opened", {
+            url: shareUrl,
+            label: labelSource,
+          })
+        }
+      >
+        <Eye className="h-3.5 w-3.5" />
+        {textLabel}
+      </a>
+    );
     },
-    [baseShareUrl],
+    [baseShareUrl, safeCapture],
   );
 
   const renderAssistantContent = useCallback(
@@ -410,6 +456,10 @@ export function N8nFloatingWidget() {
   const avatarAlt = "Tais, colaboradora virtual";
 
   const handleSuggestionClick = async (value: string) => {
+    safeCapture("chat_suggestion_clicked", {
+      suggestion: value.slice(0, 100),
+      suggestion_length: value.length,
+    });
     setInput(value);
     await handleSend(value);
   };
@@ -428,6 +478,10 @@ export function N8nFloatingWidget() {
     setError(null);
     setInput("");
     setSuggestions([]);
+    safeCapture("chat_message_sent", {
+      source: overrideText ? "suggestion" : "manual",
+      message_length: text.length,
+    });
 
     const userMessage: ChatMessage = {
       id: uuidv4(),
@@ -500,6 +554,11 @@ export function N8nFloatingWidget() {
             : msg,
         ),
       );
+      safeCapture("chat_reply_received", {
+        message_length: reply.length,
+        duration_ms: Date.now() - start,
+        status: "ok",
+      });
 
       const resolvedSuggestions = extractSuggestions(payload);
       if (resolvedSuggestions.length > 0) {
@@ -520,6 +579,11 @@ export function N8nFloatingWidget() {
             : msg,
         ),
       );
+      safeCapture("chat_reply_received", {
+        duration_ms: Date.now() - start,
+        status: "error",
+        error: err instanceof Error ? err.message : String(err),
+      });
     } finally {
       setLoading(false);
     }
@@ -573,7 +637,7 @@ export function N8nFloatingWidget() {
         ))}
       </div>
     );
-  }, [suggestions]);
+  }, [handleSuggestionClick, suggestions]);
 
   return (
     <div className="pointer-events-none fixed right-4 bottom-[calc(6.5rem+env(safe-area-inset-bottom))] z-50 flex flex-col items-end gap-3 sm:right-6 lg:bottom-6">
@@ -604,7 +668,7 @@ export function N8nFloatingWidget() {
                   size="icon"
                   variant="ghost"
                   className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                  onClick={() => setOpen(false)}
+                  onClick={handleCloseWidget}
                   aria-label="Fechar assistente"
                 >
                   <X className="h-4 w-4" />
@@ -672,7 +736,7 @@ export function N8nFloatingWidget() {
                 className="pointer-events-auto h-16 w-16 overflow-hidden rounded-full bg-primary/10 text-primary-foreground shadow-lg shadow-primary/30 transition hover:scale-105"
                 aria-expanded={open}
                 aria-label="Abrir assistente virtual"
-                onClick={() => setOpen(true)}
+                onClick={handleOpenWidget}
               >
                 <img
                   src={avatarSrc}
