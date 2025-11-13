@@ -133,6 +133,22 @@ export interface SharedLink {
   allowPreview?: boolean;
 }
 
+export type UsefulLinkCategory = 'documentation' | 'tools' | 'resources' | 'other';
+
+export interface UsefulLink {
+  id: string;
+  title: string;
+  url: string;
+  description?: string | null;
+  category: UsefulLinkCategory;
+  pinned: boolean;
+  clickCount: number;
+  createdAt: string;
+  updatedAt: string;
+  createdBy: string;
+  createdByName?: string | null;
+}
+
 export interface Category {
   id: string;
   name: string;

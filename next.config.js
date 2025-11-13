@@ -1,3 +1,5 @@
+const path = require('path');
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
@@ -22,6 +24,16 @@ const nextConfig = {
       test: /\.svg$/,
       use: ['@svgr/webpack'],
     });
+
+    config.resolve = config.resolve || {};
+    config.resolve.alias = {
+      ...(config.resolve.alias || {}),
+      'next/dist/compiled/next-devtools': require('path').resolve(
+        __dirname,
+        'lib/next-devtools-stub.ts',
+      ),
+    };
+
     return config;
   },
   env: {

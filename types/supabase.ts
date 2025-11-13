@@ -276,6 +276,60 @@ export type Database = {
           },
         ]
       }
+      useful_links: {
+        Row: {
+          category: Database["public"]["Enums"]["useful_link_category"]
+          click_count: number
+          created_at: string | null
+          created_by: string
+          description: string | null
+          id: string
+          pinned: boolean
+          title: string
+          updated_at: string | null
+          url: string
+        }
+        Insert: {
+          category?: Database["public"]["Enums"]["useful_link_category"]
+          click_count?: number
+          created_at?: string | null
+          created_by: string
+          description?: string | null
+          id?: string
+          pinned?: boolean
+          title: string
+          updated_at?: string | null
+          url: string
+        }
+        Update: {
+          category?: Database["public"]["Enums"]["useful_link_category"]
+          click_count?: number
+          created_at?: string | null
+          created_by?: string
+          description?: string | null
+          id?: string
+          pinned?: boolean
+          title?: string
+          updated_at?: string | null
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "useful_links_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "admin_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "useful_links_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       system_settings: {
         Row: {
           admin_email: string | null
@@ -422,6 +476,7 @@ export type Database = {
       campaign_status: "active" | "inactive" | "archived"
       category_type: "campaign" | "project"
       project_status: "vem-ai" | "breve-lancamento" | "lancamento"
+      useful_link_category: "documentation" | "tools" | "resources" | "other"
       user_role: "admin" | "editor_marketing" | "viewer" | "editor_trade"
     }
     CompositeTypes: {

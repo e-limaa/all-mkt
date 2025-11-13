@@ -93,6 +93,7 @@ export function usePermissions(): PermissionChecker {
       view_shared_links: Permission.VIEW_SHARED_LINKS,
       create_shared_links: Permission.CREATE_SHARED_LINKS,
       manage_shared_links: Permission.MANAGE_SHARED_LINKS,
+      manage_useful_links: Permission.MANAGE_USEFUL_LINKS,
     };
 
     const permission = actionPermissionMap[action];

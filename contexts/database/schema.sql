@@ -120,6 +120,56 @@ CREATE INDEX idx_projects_created_by ON public.projects(created_by);
 CREATE INDEX idx_shared_links_token ON public.shared_links(token);
 CREATE INDEX idx_shared_links_asset_id ON public.shared_links(asset_id);
 
+-- Useful links metadata
+CREATE TYPE useful_link_category AS ENUM ('documentation', 'tools', 'resources', 'other');
+
+CREATE TABLE public.useful_links (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  title TEXT NOT NULL,
+  url TEXT NOT NULL,
+  description TEXT,
+  category useful_link_category NOT NULL DEFAULT 'other',
+  pinned BOOLEAN NOT NULL DEFAULT false,
+  click_count INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  created_by UUID REFERENCES public.users(id) ON DELETE CASCADE NOT NULL
+);
+
+CREATE INDEX idx_useful_links_category ON public.useful_links(category);
+CREATE INDEX idx_useful_links_created_by ON public.useful_links(created_by);
+
+ALTER TABLE public.useful_links ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view useful links" ON public.useful_links
+  FOR SELECT USING (true);
+
+CREATE POLICY "Editors and admins can create useful links" ON public.useful_links
+  FOR INSERT WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM public.users
+      WHERE id = auth.uid() AND role IN ('admin', 'editor_marketing', 'editor_trade')
+    )
+  );
+
+CREATE POLICY "Link owners and admins can update useful links" ON public.useful_links
+  FOR UPDATE USING (
+    created_by = auth.uid() OR
+    EXISTS (
+      SELECT 1 FROM public.users
+      WHERE id = auth.uid() AND role = 'admin'
+    )
+  );
+
+CREATE POLICY "Link owners and admins can delete useful links" ON public.useful_links
+  FOR DELETE USING (
+    created_by = auth.uid() OR
+    EXISTS (
+      SELECT 1 FROM public.users
+      WHERE id = auth.uid() AND role = 'admin'
+    )
+  );
+
 -- Helper function to detect marketing editors without recursive RLS
 CREATE OR REPLACE FUNCTION public.is_editor_marketing()
 RETURNS boolean

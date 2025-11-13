@@ -43,7 +43,8 @@ export enum Permission {
   // Shared links
   VIEW_SHARED_LINKS = 'view_shared_links',
   CREATE_SHARED_LINKS = 'create_shared_links',
-  MANAGE_SHARED_LINKS = 'manage_shared_links'
+  MANAGE_SHARED_LINKS = 'manage_shared_links',
+  MANAGE_USEFUL_LINKS = 'manage_useful_links'
 }
 
 export enum AssetType {
@@ -81,6 +82,7 @@ const MARKETING_EDITOR_PERMISSIONS: Permission[] = [
   Permission.VIEW_DASHBOARD,
   Permission.VIEW_SHARED_LINKS,
   Permission.CREATE_SHARED_LINKS,
+  Permission.MANAGE_USEFUL_LINKS,
 ];
 
 const TRADE_EDITOR_PERMISSIONS: Permission[] = [
@@ -93,6 +95,7 @@ const TRADE_EDITOR_PERMISSIONS: Permission[] = [
   Permission.VIEW_PROJECTS,
   Permission.VIEW_SHARED_LINKS,
   Permission.CREATE_SHARED_LINKS,
+  Permission.MANAGE_USEFUL_LINKS,
   Permission.VIEW_DASHBOARD,
   Permission.VIEW_USERS,
   Permission.CREATE_USERS,
@@ -126,7 +129,8 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     Permission.MANAGE_SYSTEM,
     Permission.VIEW_SHARED_LINKS,
     Permission.CREATE_SHARED_LINKS,
-    Permission.MANAGE_SHARED_LINKS
+    Permission.MANAGE_SHARED_LINKS,
+    Permission.MANAGE_USEFUL_LINKS
   ],
   [UserRole.EDITOR_MARKETING]: MARKETING_EDITOR_PERMISSIONS,
   [UserRole.EDITOR_TRADE]: TRADE_EDITOR_PERMISSIONS,

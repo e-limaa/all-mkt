@@ -1,0 +1,51 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - button "Open Next.js Dev Tools" [ref=e7] [cursor=pointer]:
+    - img [ref=e8]
+  - alert [ref=e11]
+  - generic [ref=e12]:
+    - generic [ref=e14]:
+      - img "Fachada de predios corporativos vista de baixo" [ref=e15]
+      - generic [ref=e18]:
+        - generic [ref=e20]:
+          - generic [ref=e24]:
+            - img [ref=e26]
+            - img [ref=e33]
+          - generic [ref=e39]:
+            - heading "Sistema de Gerenciamento Digital de Ativos da Construtora Tenda" [level=1] [ref=e40]
+            - paragraph [ref=e41]: Organize, gerencie e compartilhe materiais de marketing dos seus empreendimentos de forma eficiente e profissional.
+        - generic [ref=e42]:
+          - paragraph [ref=e43]: Copyright 2025 ALL MKT - Construtora Tenda
+          - paragraph [ref=e44]: Transformando o marketing digital dos seus empreendimentos.
+    - generic [ref=e46]:
+      - generic [ref=e47]:
+        - heading "Login" [level=2] [ref=e48]
+        - paragraph [ref=e49]: Seja bem-vindo(a) ao ALL MKT. Faca login para continuar e ficar por dentro de tudo que acontece no MKT Estrategico.
+      - generic [ref=e50]:
+        - generic [ref=e51]:
+          - generic [ref=e52]:
+            - generic [ref=e53]: Email
+            - textbox "Email" [ref=e54]:
+              - /placeholder: seu@email.com
+              - text: playwright@damallmkt.com
+          - generic [ref=e55]:
+            - generic [ref=e56]: Senha
+            - generic [ref=e57]:
+              - textbox "Senha" [ref=e58]:
+                - /placeholder: "********"
+                - text: Playwright!2025
+              - button "Exibir senha" [ref=e59]:
+                - img [ref=e60]
+        - generic [ref=e63]:
+          - button "Esqueci minha senha" [ref=e64]
+          - link "Criar conta" [ref=e65] [cursor=pointer]:
+            - /url: /signup
+        - button "Entrar" [ref=e66] [cursor=pointer]:
+          - img
+          - text: Entrar
+      - generic [ref=e67]:
+        - paragraph [ref=e68]: Sistema de gestao digital de ativos imobiliarios
+        - paragraph [ref=e69]: "Dica: Use qualquer email valido com senha \"123456\" para testar integracoes internas."
+```

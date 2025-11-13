@@ -445,4 +445,20 @@ html {
   line-height: 1;
 }
 
+/*
+  Remove the Next.js dev-only floating badge that appears in the bottom-left corner during development.
+*/
+#next-devtools-panel,
+#__next-devtools-panel,
+.next-devtools-panel,
+.next-devtools,
+.next-devtools-floating,
+.next-devtools-root,
+#next-devtools,
+#__next-devtools,
+.nextjs-devtools,
+.nextjs-badge {
+  display: none !important;
+}
+
 

@@ -11,10 +11,12 @@ import {
   SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
+  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarSeparator,
   useSidebar,
 } from './ui/sidebar';
 import { buildNavigationItems } from '../lib/navigation';
@@ -23,6 +25,16 @@ interface AppSidebarProps {
   currentPage: string;
   onPageChange: (page: string) => void;
 }
+
+const NAVIGATION_GROUPS = [
+  { id: "panel", label: "Painel", items: ["dashboard"] },
+  {
+    id: "content",
+    label: "Gestão de Conteúdo",
+    items: ["materials", "campaigns", "projects", "shared"],
+  },
+  { id: "administration", label: "Administração", items: ["users", "settings"] },
+];
 
 export function AppSidebar({ currentPage, onPageChange }: AppSidebarProps) {
   const { user } = useAuth();
@@ -36,6 +48,18 @@ export function AppSidebar({ currentPage, onPageChange }: AppSidebarProps) {
     [hasPermission],
   );
 
+  const groupedNavigation = React.useMemo(() => {
+    const itemMap = new Map(navigationItems.map((item) => [item.id, item]));
+
+    return NAVIGATION_GROUPS.map((group) => {
+      const items = group.items
+        .map((id) => itemMap.get(id))
+        .filter((item): item is typeof navigationItems[number] => Boolean(item));
+
+      return { ...group, items };
+    }).filter((group) => group.items.length > 0);
+  }, [navigationItems]);
+
   return (
     <Sidebar
       collapsible="icon"
@@ -48,41 +72,49 @@ export function AppSidebar({ currentPage, onPageChange }: AppSidebarProps) {
         </div>
       </SidebarHeader>
 
-      <SidebarContent>
-        <SidebarGroup
-          className={`px-2 py-4 ${
-            compactSidebar ? 'pt-3 pb-3' : ''
-          }`}
-        >
-          <SidebarGroupContent>
-            <SidebarMenu
-              className={`sidebar-menu-gap ${
-                compactSidebar ? 'space-y-1.5' : 'space-y-2'
+      <SidebarContent className="overflow-x-hidden">
+        {groupedNavigation.map((group, index) => (
+          <React.Fragment key={group.id}>
+            {index > 0 && <SidebarSeparator className="mx-2" />}
+            <SidebarGroup
+              className={`px-2 py-3 ${
+                compactSidebar ? 'pt-3 pb-3' : 'pt-4 pb-3'
               }`}
             >
-              {navigationItems.map((item) => {
-                const Icon = item.icon;
-                const isActive = currentPage === item.href;
+              <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu
+                  className={`sidebar-menu-gap ${
+                    compactSidebar ? 'space-y-1.5' : 'space-y-2'
+                  }`}
+                >
+                  {group.items.map((item) => {
+                    const Icon = item.icon;
+                    const isActive = currentPage === item.href;
 
-                return (
-                  <SidebarMenuItem key={item.id}>
-                    <SidebarMenuButton
-                      onClick={() => onPageChange(item.href)}
-                      isActive={isActive}
-                      tooltip={state === 'collapsed' ? item.label : undefined}
-                      className={`w-full justify-start px-2 lg:px-3 sidebar-menu-button cursor-pointer ${
-                        compactSidebar ? 'py-1.5' : 'py-2'
-                      }`}
-                    >
-                      <Icon className="h-5 w-5 flex-shrink-0" />
-                      <span className="text-sm">{item.label}</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+                    return (
+                      <SidebarMenuItem key={item.id}>
+                        <SidebarMenuButton
+                          onClick={() => onPageChange(item.href)}
+                          isActive={isActive}
+                          tooltip={
+                            state === 'collapsed' ? item.label : undefined
+                          }
+                          className={`w-full justify-start px-2 lg:px-3 sidebar-menu-button cursor-pointer ${
+                            compactSidebar ? 'py-1.5' : 'py-2'
+                          }`}
+                        >
+                          <Icon className="h-5 w-5 flex-shrink-0" />
+                          <span className="text-sm">{item.label}</span>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    );
+                  })}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          </React.Fragment>
+        ))}
       </SidebarContent>
 
       <SidebarFooter className="border-t border-sidebar-border">

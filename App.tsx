@@ -94,8 +94,8 @@ const ProjectManager = lazy(() =>
 const UserManager = lazy(() =>
   import('./components/UserManager').then((module) => ({ default: module.UserManager })),
 );
-const SharedLinksManager = lazy(() =>
-  import('./components/SharedLinksManager').then((module) => ({ default: module.SharedLinksManager })),
+const UsefulLinksManager = lazy(() =>
+  import('./components/UsefulLinksManager').then((module) => ({ default: module.UsefulLinksManager })),
 );
 const Settings = lazy(() =>
   import('./components/Settings').then((module) => ({ default: module.Settings })),
@@ -421,7 +421,7 @@ function AppContent() {
           >
             <>
               <DevelopmentModeAlert />
-              <SharedLinksManager />
+              <UsefulLinksManager />
             </>
           </PermissionGuard>
         );

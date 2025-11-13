@@ -32,7 +32,7 @@ export function PageHeader({
   return (
     <div className={cn("space-y-4", className)}>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-1 flex-col gap-3 min-w-0">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
             {backAction && (
               <Button

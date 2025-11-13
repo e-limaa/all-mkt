@@ -37,7 +37,7 @@ const BASE_NAVIGATION_ITEMS: NavigationItem[] = [
   },
   {
     id: "shared",
-    label: "Links",
+    label: "Links úteis",
     href: "shared",
     icon: Share2,
     permission: Permission.VIEW_SHARED_LINKS,

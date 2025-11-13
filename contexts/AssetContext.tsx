@@ -2,7 +2,7 @@
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, ReactNode } from 'react';
 import { supabase, isSupabaseConfigured, uploadFile, getPublicUrl, deleteFile } from '../lib/supabase';
 import { useAuth } from './AuthContext';
-import { Asset, Campaign, Project } from '../types';
+import { Asset, Campaign, Project, UsefulLink, UsefulLinkCategory } from '../types';
 import { UserRole } from '../types/enums';
 import { toast } from 'sonner';
 import { v4 as uuidv4 } from 'uuid';
@@ -33,6 +33,21 @@ const buildSharePath = (params: {
 
 // Dashboard statistics interface
 type SharedLinkRow = Database['public']['Tables']['shared_links']['Row'];
+type UsefulLinkRow = Database['public']['Tables']['useful_links']['Row'];
+
+type UsefulLinkPayload = {
+  title: string;
+  url: string;
+  description?: string | null;
+  category: UsefulLinkCategory;
+  pinned?: boolean;
+};
+
+type CreateSharedLinkPayload = {
+  assetId: string;
+  expiresAt?: string | null;
+  maxDownloads?: number | null;
+};
 
 export interface DashboardStats {
   totalAssets: number;
@@ -84,6 +99,11 @@ interface AssetContextType {
   deleteProject: (id: string) => Promise<void>;
   refreshData: () => Promise<void>;
   sharedLinks: SharedLinkRow[];
+  createSharedLink: (payload: CreateSharedLinkPayload) => Promise<SharedLinkRow>;
+  usefulLinks: UsefulLink[];
+  createUsefulLink: (payload: UsefulLinkPayload) => Promise<UsefulLink>;
+  updateUsefulLink: (id: string, updates: Partial<UsefulLinkPayload>) => Promise<UsefulLink>;
+  deleteUsefulLink: (id: string) => Promise<void>;
 }
 
 const AssetContext = createContext<AssetContextType | undefined>(undefined);
@@ -126,6 +146,82 @@ const formatUserDisplayName = (
   }
 
   return 'Desconhecido';
+};
+
+const mapUsefulLinkRow = (
+  row: UsefulLinkRow & { created_by_user?: { name: string | null } | null },
+): UsefulLink => {
+  return {
+    id: row.id,
+    title: row.title,
+    url: row.url,
+    description: row.description,
+    category: (row.category as UsefulLinkCategory) ?? 'other',
+    pinned: Boolean(row.pinned),
+    clickCount: row.click_count ?? 0,
+    createdAt: row.created_at ?? new Date().toISOString(),
+    updatedAt: row.updated_at ?? new Date().toISOString(),
+    createdBy: row.created_by,
+    createdByName: row.created_by_user?.name ?? null,
+  };
+};
+
+const buildDevUsefulLinks = (creatorId: string, creatorName: string): UsefulLink[] => {
+  const now = new Date().toISOString();
+  return [
+    {
+      id: uuidv4(),
+      title: 'Figma',
+      url: 'https://figma.com',
+      description: 'Ferramenta de design colaborativo para criar interfaces e protótipos',
+      category: 'tools',
+      pinned: true,
+      clickCount: 247,
+      createdAt: now,
+      updatedAt: now,
+      createdBy: creatorId,
+      createdByName: creatorName,
+    },
+    {
+      id: uuidv4(),
+      title: 'Brand Guidelines',
+      url: 'https://example.com/brand-guidelines',
+      description: 'Diretrizes de marca e identidade visual da empresa',
+      category: 'documentation',
+      pinned: true,
+      clickCount: 94,
+      createdAt: now,
+      updatedAt: now,
+      createdBy: creatorId,
+      createdByName: creatorName,
+    },
+    {
+      id: uuidv4(),
+      title: 'Unsplash',
+      url: 'https://unsplash.com',
+      description: 'Banco de imagens gratuitas de alta qualidade',
+      category: 'resources',
+      pinned: false,
+      clickCount: 186,
+      createdAt: now,
+      updatedAt: now,
+      createdBy: creatorId,
+      createdByName: creatorName,
+    },
+    {
+      id: uuidv4(),
+      title: 'Color Palette Generator',
+      url: 'https://coolors.co',
+      description: 'Ferramenta para gerar paletas de cores harmoniosas',
+      category: 'tools',
+      pinned: false,
+      clickCount: 133,
+      createdAt: now,
+      updatedAt: now,
+      createdBy: creatorId,
+      createdByName: creatorName,
+    },
+  ];
 };
 
 const fillMissingUserNames = async (
@@ -263,6 +359,7 @@ export function AssetProvider({ children }: { children: ReactNode }) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(false);
   const [sharedLinks, setSharedLinks] = useState<SharedLinkRow[]>([]);
+  const [usefulLinks, setUsefulLinks] = useState<UsefulLink[]>([]);
   const [userCount, setUserCount] = useState(0);
   const [activeSharedLinksCount, setActiveSharedLinksCount] = useState(0);
 
@@ -509,6 +606,7 @@ export function AssetProvider({ children }: { children: ReactNode }) {
         fetchAssets(),
         fetchCampaigns(),
         fetchProjects(),
+        fetchUsefulLinks(),
         fetchSharedLinks(),
         fetchUserCount(),
       ]);
@@ -898,6 +996,292 @@ export function AssetProvider({ children }: { children: ReactNode }) {
       toast.error('Erro ao carregar links compartilhados');
       setSharedLinks([]);
       setActiveSharedLinksCount(0);
+    }
+  };
+
+  const fetchUsefulLinks = async () => {
+    if (!user) return;
+
+    if (!isConfigured || !supabase) {
+      const creatorName = formatUserDisplayName(user.name ?? user.email ?? null, user.id);
+      setUsefulLinks(buildDevUsefulLinks(user.id, creatorName));
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('useful_links')
+        .select('*, created_by_user:users!useful_links_created_by_fkey(name)')
+        .order('pinned', { ascending: false })
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      const rows = data ?? [];
+      setUsefulLinks(
+        rows.map((row) =>
+          mapUsefulLinkRow(row as UsefulLinkRow & {
+            created_by_user?: { name: string | null } | null;
+          }),
+        ),
+      );
+    } catch (error) {
+      console.error('Error fetching useful links:', error);
+      toast.error('Erro ao carregar links úteis');
+      setUsefulLinks([]);
+    }
+  };
+
+  const createSharedLink = async ({
+    assetId,
+    expiresAt,
+    maxDownloads,
+  }: CreateSharedLinkPayload): Promise<SharedLinkRow> => {
+    if (!user) throw new Error('Usuario nao encontrado');
+
+    const parsedExpires = expiresAt ? new Date(expiresAt) : null;
+    const normalizedExpires =
+      parsedExpires && !Number.isNaN(parsedExpires.getTime())
+        ? parsedExpires.toISOString()
+        : null;
+
+    const normalizedMaxDownloads =
+      typeof maxDownloads === 'number' && !Number.isNaN(maxDownloads) && maxDownloads > 0
+        ? Math.floor(maxDownloads)
+        : null;
+
+    const token = uuidv4();
+
+    if (!isConfigured) {
+      const newLink: SharedLinkRow = {
+        id: uuidv4(),
+        asset_id: assetId,
+        token,
+        created_at: new Date().toISOString(),
+        created_by: user.id,
+        download_count: 0,
+        expires_at: normalizedExpires,
+        max_downloads: normalizedMaxDownloads,
+        is_active: true,
+      };
+
+      setSharedLinks((prev) => [newLink, ...prev]);
+      setActiveSharedLinksCount((prev) => prev + 1);
+      toast.success('Link compartilhado criado com sucesso! (Modo desenvolvimento)');
+      return newLink;
+    }
+
+    if (!supabase) throw new Error('Supabase nao configurado');
+
+    try {
+      const { data, error } = await supabase
+        .from('shared_links')
+        .insert({
+          asset_id: assetId,
+          token,
+          created_by: user.id,
+          expires_at: normalizedExpires,
+          max_downloads: normalizedMaxDownloads,
+          is_active: true,
+        })
+        .select('*')
+        .single();
+
+      if (error) throw error;
+
+      await fetchSharedLinks();
+      toast.success('Link compartilhado criado com sucesso!');
+
+      return data;
+    } catch (error) {
+      console.error('Error creating shared link:', error);
+      toast.error(error.message || 'Erro ao criar link compartilhado');
+      throw error;
+    }
+  };
+
+  const createUsefulLink = async (payload: UsefulLinkPayload): Promise<UsefulLink> => {
+    if (!user) throw new Error('Usuario nao encontrado');
+
+    const normalizedTitle = payload.title.trim();
+    const normalizedUrl = payload.url.trim();
+    if (!normalizedTitle || !normalizedUrl) {
+      throw new Error('Título e URL são obrigatórios');
+    }
+
+    const normalizedDescription =
+      payload.description === undefined
+        ? undefined
+        : payload.description.trim() || null;
+    const normalizedCategory = payload.category ?? 'other';
+    const normalizedPinned = Boolean(payload.pinned);
+
+    const createdByName = formatUserDisplayName(
+      user.name ?? user.email ?? null,
+      user.id,
+    );
+
+    if (!isConfigured || !supabase) {
+      const newLink: UsefulLink = {
+        id: uuidv4(),
+        title: normalizedTitle,
+        url: normalizedUrl,
+        description: normalizedDescription ?? null,
+        category: normalizedCategory,
+        pinned: normalizedPinned,
+        clickCount: 0,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        createdBy: user.id,
+        createdByName,
+      };
+      setUsefulLinks((prev) => [newLink, ...prev]);
+      toast.success('Link útil criado com sucesso! (Modo desenvolvimento)');
+      return newLink;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('useful_links')
+        .insert({
+          title: normalizedTitle,
+          url: normalizedUrl,
+          description: normalizedDescription,
+          category: normalizedCategory,
+          pinned: normalizedPinned,
+          created_by: user.id,
+        })
+        .select('*, created_by_user:users!useful_links_created_by_fkey(name)')
+        .single();
+
+      if (error) throw error;
+
+      const mapped = mapUsefulLinkRow(
+        data as UsefulLinkRow & {
+          created_by_user?: { name: string | null } | null;
+        },
+      );
+
+      setUsefulLinks((prev) => [mapped, ...prev]);
+      toast.success('Link útil criado com sucesso!');
+      return mapped;
+    } catch (error) {
+      console.error('Error creating useful link:', error);
+      toast.error(error.message || 'Erro ao criar link útil');
+      throw error;
+    }
+  };
+
+  const updateUsefulLink = async (
+    id: string,
+    updates: Partial<UsefulLinkPayload>,
+  ): Promise<UsefulLink> => {
+    if (!user) throw new Error('Usuario nao encontrado');
+
+    const normalizedTitle =
+      updates.title !== undefined ? updates.title.trim() : undefined;
+    if (updates.title !== undefined && !normalizedTitle) {
+      throw new Error('Título é obrigatório');
+    }
+
+    const normalizedUrl =
+      updates.url !== undefined ? updates.url.trim() : undefined;
+    if (updates.url !== undefined && !normalizedUrl) {
+      throw new Error('URL é obrigatório');
+    }
+
+    const normalizedDescription =
+      updates.description === undefined
+        ? undefined
+        : updates.description.trim() || null;
+    const normalizedCategory = updates.category;
+    const normalizedPinned = updates.pinned;
+    const now = new Date().toISOString();
+
+    const payload: Record<string, unknown> = { updated_at: now };
+    if (normalizedTitle !== undefined) payload.title = normalizedTitle;
+    if (normalizedUrl !== undefined) payload.url = normalizedUrl;
+    if (normalizedDescription !== undefined)
+      payload.description = normalizedDescription;
+    if (normalizedCategory !== undefined) payload.category = normalizedCategory;
+    if (normalizedPinned !== undefined) payload.pinned = normalizedPinned;
+
+    if (!isConfigured || !supabase) {
+      let updatedLink: UsefulLink | null = null;
+      setUsefulLinks((prev) =>
+        prev.map((link) => {
+          if (link.id !== id) return link;
+          const merged: UsefulLink = {
+            ...link,
+            title: (payload.title as string | undefined) ?? link.title,
+            url: (payload.url as string | undefined) ?? link.url,
+            description:
+              payload.description !== undefined
+                ? (payload.description as string | null)
+                : link.description,
+            category:
+              (payload.category as UsefulLinkCategory) ?? link.category,
+            pinned:
+              typeof payload.pinned === 'boolean'
+                ? (payload.pinned as boolean)
+                : link.pinned,
+            updatedAt: now,
+          };
+          updatedLink = merged;
+          return merged;
+        }),
+      );
+      if (updatedLink) {
+        toast.success('Link útil atualizado com sucesso! (Modo desenvolvimento)');
+        return updatedLink;
+      }
+      throw new Error('Link não encontrado');
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('useful_links')
+        .update(payload)
+        .eq('id', id)
+        .select('*, created_by_user:users!useful_links_created_by_fkey(name)')
+        .single();
+
+      if (error) throw error;
+
+      const mapped = mapUsefulLinkRow(
+        data as UsefulLinkRow & {
+          created_by_user?: { name: string | null } | null;
+        },
+      );
+
+      setUsefulLinks((prev) => prev.map((link) => (link.id === id ? mapped : link)));
+      toast.success('Link útil atualizado com sucesso!');
+      return mapped;
+    } catch (error) {
+      console.error('Error updating useful link:', error);
+      toast.error(error.message || 'Erro ao atualizar link útil');
+      throw error;
+    }
+  };
+
+  const deleteUsefulLink = async (id: string) => {
+    if (!user) throw new Error('Usuario nao encontrado');
+
+    if (!isConfigured || !supabase) {
+      setUsefulLinks((prev) => prev.filter((link) => link.id !== id));
+      toast.success('Link útil excluído com sucesso! (Modo desenvolvimento)');
+      return;
+    }
+
+    try {
+      const { error } = await supabase.from('useful_links').delete().eq('id', id);
+      if (error) throw error;
+      setUsefulLinks((prev) => prev.filter((link) => link.id !== id));
+      toast.success('Link útil excluído com sucesso!');
+    } catch (error) {
+      console.error('Error deleting useful link:', error);
+      toast.error(error.message || 'Erro ao excluir link útil');
+      throw error;
     }
   };
 
@@ -1611,6 +1995,11 @@ export function AssetProvider({ children }: { children: ReactNode }) {
     deleteProject,
     refreshData,
     sharedLinks,
+    createSharedLink,
+    usefulLinks,
+    createUsefulLink,
+    updateUsefulLink,
+    deleteUsefulLink,
   };
 
   return (

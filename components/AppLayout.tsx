@@ -1,6 +1,6 @@
-'use client';
-
-import React from 'react';
+ 'use client';
+ 
+import React, { useEffect } from 'react';
 import Head from 'next/head';
 import {
   SidebarProvider,
@@ -33,9 +33,23 @@ const pageLabels: Record<string, string> = {
   campaigns: 'Campanhas',
   projects: 'Empreendimentos',
   users: 'Usuários',
-  shared: 'Links Compartilhados',
+  shared: 'Links úteis',
   settings: 'Configurações',
 };
+
+const NEXT_DEVTOOLS_SELECTORS = [
+  '#next-devtools-panel',
+  '#__next-devtools-panel',
+  '.next-devtools-panel',
+  '.next-devtools',
+  '.next-devtools-floating',
+  '.next-devtools-root',
+  '.__next-devtools-root',
+  '#next-devtools',
+  '#__next-devtools',
+  '.nextjs-devtools',
+  '.nextjs-badge',
+];
 
 export function AppLayout({ currentPage, onPageChange, children }: AppLayoutProps) {
   const { systemSettings } = useConfig();
@@ -44,6 +58,26 @@ export function AppLayout({ currentPage, onPageChange, children }: AppLayoutProp
   const sidebarStyle = systemSettings.compactSidebar
     ? ({ '--sidebar-width': '13rem' } as React.CSSProperties)
     : undefined;
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+
+    const removeDevtools = () => {
+      NEXT_DEVTOOLS_SELECTORS.forEach((selector) => {
+        document.querySelectorAll(selector).forEach((node) => node.remove());
+      });
+    };
+
+    removeDevtools();
+
+    const observer = new MutationObserver(removeDevtools);
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+    });
+
+    return () => observer.disconnect();
+  }, []);
 
   return (
     <SidebarProvider defaultOpen={true} style={sidebarStyle}>
