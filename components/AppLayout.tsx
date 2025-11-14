@@ -79,13 +79,19 @@ export function AppLayout({ currentPage, onPageChange, children }: AppLayoutProp
     return () => observer.disconnect();
   }, []);
 
+  const displayedPageLabel = pageLabels[currentPage] || 'Página';
+  const headTitle =
+    companyName && displayedPageLabel
+      ? `${companyName} | ${displayedPageLabel}`
+      : companyName;
+
   return (
     <SidebarProvider defaultOpen={true} style={sidebarStyle}>
       <AppSidebar currentPage={currentPage} onPageChange={onPageChange} />
 
       <SidebarInset>
         <Head>
-          <title>{companyName}</title>
+          <title>{headTitle}</title>
         </Head>
 
         <header className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-2 border-b border-border bg-background/95 px-3 backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:px-4">
