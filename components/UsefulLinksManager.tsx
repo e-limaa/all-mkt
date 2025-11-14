@@ -132,8 +132,13 @@ interface LinkFormState {
 }
 
 export function UsefulLinksManager() {
-  const { usefulLinks, createUsefulLink, updateUsefulLink, deleteUsefulLink } =
-    useAssets();
+  const {
+    usefulLinks,
+    createUsefulLink,
+    updateUsefulLink,
+    deleteUsefulLink,
+    recordUsefulLinkClick,
+  } = useAssets();
 
   const { hasPermission } = usePermissions();
 
@@ -153,10 +158,12 @@ export function UsefulLinksManager() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const openLinkInNewTab = (url: string) => {
-    if (!url) return;
+  const openLinkInNewTab = (link: UsefulLink) => {
+    if (!link?.url) return;
 
-    window.open(url, "_blank", "noopener,noreferrer");
+    recordUsefulLinkClick?.(link.id, link.clickCount ?? 0);
+
+    window.open(link.url, "_blank", "noopener,noreferrer");
   };
 
   const isInteractiveTarget = (target: EventTarget | null) => {
@@ -341,7 +348,7 @@ export function UsefulLinksManager() {
         onClick={(event) => {
           if (isInteractiveTarget(event.target)) return;
 
-          openLinkInNewTab(link.url);
+          openLinkInNewTab(link);
         }}
         onKeyDown={(event) => {
           if (event.key === "Enter" || event.key === " ") {
@@ -392,7 +399,7 @@ export function UsefulLinksManager() {
                   className="font-medium text-muted-foreground transition hover:text-foreground"
                   onClick={(event) => {
                     event.stopPropagation();
-                    openLinkInNewTab(link.url);
+                    openLinkInNewTab(link);
                   }}
                   data-card-ignore-click
                 >

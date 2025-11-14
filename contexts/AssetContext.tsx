@@ -103,7 +103,8 @@ interface AssetContextType {
   usefulLinks: UsefulLink[];
   createUsefulLink: (payload: UsefulLinkPayload) => Promise<UsefulLink>;
   updateUsefulLink: (id: string, updates: Partial<UsefulLinkPayload>) => Promise<UsefulLink>;
-  deleteUsefulLink: (id: string) => Promise<void>;
+  deleteUsefulLink: (id: string) => Promise<void>;  
+  recordUsefulLinkClick: (id: string, currentCount?: number) => Promise<void>;
 }
 
 const AssetContext = createContext<AssetContextType | undefined>(undefined);
@@ -1285,6 +1286,43 @@ export function AssetProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const recordUsefulLinkClick = useCallback(
+    async (id: string, fallbackCount?: number) => {
+      const existing = usefulLinks.find((link) => link.id === id);
+      const currentCount = existing?.clickCount ?? fallbackCount ?? 0;
+      const nextCount = currentCount + 1;
+
+      if (!isConfigured || !supabase) {
+        setUsefulLinks((prev) =>
+          prev.map((link) =>
+            link.id === id ? { ...link, clickCount: nextCount } : link,
+          ),
+        );
+        return;
+      }
+
+      try {
+        const { error } = await supabase
+          .from('useful_links')
+          .update({ click_count: nextCount })
+          .eq('id', id);
+
+        if (error) {
+          throw error;
+        }
+
+        setUsefulLinks((prev) =>
+          prev.map((link) =>
+            link.id === id ? { ...link, clickCount: nextCount } : link,
+          ),
+        );
+      } catch (error) {
+        console.error('[recordUsefulLinkClick] Error updating click count:', error);
+      }
+    },
+    [isConfigured, supabase, usefulLinks],
+  );
+
   const fetchUserCount = async () => {
     if (!supabase) return;
 
@@ -2000,6 +2038,7 @@ export function AssetProvider({ children }: { children: ReactNode }) {
     createUsefulLink,
     updateUsefulLink,
     deleteUsefulLink,
+    recordUsefulLinkClick,
   };
 
   return (
