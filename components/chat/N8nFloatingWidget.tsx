@@ -3,7 +3,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { v4 as uuidv4 } from "uuid";
-import { MessageCircle, Send, Loader2, X, Download, Eye } from "lucide-react";
+import { MessageCircle, Send, Loader2, X, Download, Eye, ExternalLink as ExternalLinkIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -52,6 +52,30 @@ const SUGGESTION_KEYS = ["suggestions", "hints", "options"];
 const BULLETED_FOLLOW_UP_REGEX = /\bQuer que\b/i;
 const LINK_REGEX = /(https?:\/\/[^\s]+)|(materials\?[^\s]+)/gi;
 const DEFAULT_SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://dam.allmkt.com";
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+
+const DEFAULT_SITE_ORIGIN = (() => {
+  try {
+    return new URL(DEFAULT_SITE_URL).origin;
+  } catch {
+    return null;
+  }
+})();
+
+const SUPABASE_ORIGIN = (() => {
+  if (!SUPABASE_URL) return null;
+  try {
+    return new URL(SUPABASE_URL).origin;
+  } catch {
+    return null;
+  }
+})();
+
+const SITE_ORIGINS = new Set(
+  [DEFAULT_SITE_ORIGIN].filter((value): value is string => Boolean(value)),
+);
+
+const MATERIAL_PATH_REGEX = /materials?/i;
 
 const MATERIAL_NAME_PATTERNS: RegExp[] = [
   /material\s*["'`“”‘’]([^"'`“”‘’]+)["'`“”‘’]/i,
@@ -206,6 +230,23 @@ const truncateLabel = (value: string, maxLength = 32) => {
   return `${value.slice(0, maxLength - 3)}...`;
 };
 
+const isPlatformMaterialUrl = (url: string) => {
+  try {
+    const parsed = new URL(url);
+    if (SUPABASE_ORIGIN && parsed.origin === SUPABASE_ORIGIN) {
+      return true;
+    }
+
+    if (!SITE_ORIGINS.has(parsed.origin)) {
+      return false;
+    }
+
+    return MATERIAL_PATH_REGEX.test(parsed.pathname);
+  } catch {
+    return false;
+  }
+};
+
 function extractSuggestions(payload: N8nResponse): string[] {
   if (Array.isArray(payload.suggestions) && payload.suggestions.length > 0) {
     return payload.suggestions.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
@@ -327,6 +368,32 @@ export function N8nFloatingWidget() {
     [downloadingUrl, handleMaterialDownload],
   );
 
+  const renderExternalAccessLink = useCallback(
+    (url: string, key: string, materialName?: string | null) => {
+      const labelSource =
+        materialName && materialName.trim().length > 0 ? materialName : url;
+      const label = truncateLabel(labelSource);
+      const fullTitle = `Acessar ${labelSource}`;
+      const textLabel = `Acessar ${label}`;
+
+      return (
+        <a
+          key={key}
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="ml-1 inline-flex items-center gap-1 rounded-md bg-muted/10 px-2 py-1 text-xs font-semibold text-muted-foreground transition hover:bg-muted/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-muted/60"
+          title={fullTitle}
+          aria-label={fullTitle}
+        >
+          <ExternalLinkIcon className="h-3.5 w-3.5" />
+          {textLabel}
+        </a>
+      );
+    },
+    [],
+  );
+
   const renderShareLink = useCallback(
     (sharePath: string, key: string, materialName?: string | null) => {
       const cleaned = sharePath.trim().replace(/^[\"'`(]+/, "").replace(/[)"'`]+$/, "");
@@ -386,7 +453,11 @@ export function N8nFloatingWidget() {
               const key = `${lineIndex}-${offset}`;
 
               if (urlMatch) {
-                segments.push(renderDownloadButton(urlMatch, key, materialName));
+                if (isPlatformMaterialUrl(urlMatch)) {
+                  segments.push(renderDownloadButton(urlMatch, key, materialName));
+                } else {
+                  segments.push(renderExternalAccessLink(urlMatch, key, materialName));
+                }
               } else if (shareMatch) {
                 segments.push(renderShareLink(shareMatch, key, materialName));
               } else {
