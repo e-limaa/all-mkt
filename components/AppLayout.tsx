@@ -53,7 +53,7 @@ const NEXT_DEVTOOLS_SELECTORS = [
 
 export function AppLayout({ currentPage, onPageChange, children }: AppLayoutProps) {
   const { systemSettings } = useConfig();
-  const companyName = systemSettings.companyName || 'ALL MKT';
+  const companyName = systemSettings.companyName || 'All Mkt - Tenda';
   const adminEmail = systemSettings.adminEmail;
   const sidebarStyle = systemSettings.compactSidebar
     ? ({ '--sidebar-width': '13rem' } as React.CSSProperties)
@@ -85,7 +85,7 @@ export function AppLayout({ currentPage, onPageChange, children }: AppLayoutProp
 
       <SidebarInset>
         <Head>
-          <title>{companyName} DAM</title>
+          <title>{companyName}</title>
         </Head>
 
         <header className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-2 border-b border-border bg-background/95 px-3 backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:px-4">
