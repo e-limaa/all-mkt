@@ -200,13 +200,6 @@ function AppContent() {
     }
   }, [systemSettings.darkMode]);
 
-  useEffect(() => {
-    const baseTitle = systemSettings.companyName
-      ? `${systemSettings.companyName} DAM`
-      : 'ALL MKT - Digital Asset Management';
-    document.title = baseTitle;
-  }, [systemSettings.companyName]);
-
   // Redirecionar visualizadores apenas quando tentarem acessar paginas sem permissao
   useEffect(() => {
     if (!router.isReady || !user || !isViewer()) {
