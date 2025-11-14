@@ -225,7 +225,7 @@ html {
 @layer components {
   /* Gap customizado para itens do menu da sidebar */
   .sidebar-menu-gap {
-    gap: 8px !important;
+    gap: 4px !important;
     display: flex !important;
     flex-direction: column !important;
   }

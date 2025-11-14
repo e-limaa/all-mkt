@@ -1,10 +1,10 @@
-'use client';
+"use client";
 
-import React from 'react';
-import { useAuth } from '../contexts/AuthContext';
-import { usePermissions } from '../contexts/hooks/usePermissions';
-import { useConfig } from '../contexts/ConfigContext';
-import Frame1000005813 from '../imports/Frame1000005813';
+import React from "react";
+import { useAuth } from "../contexts/AuthContext";
+import { usePermissions } from "../contexts/hooks/usePermissions";
+import { useConfig } from "../contexts/ConfigContext";
+import Frame1000005813 from "../imports/Frame1000005813";
 import {
   Sidebar,
   SidebarContent,
@@ -18,8 +18,8 @@ import {
   SidebarMenuItem,
   SidebarSeparator,
   useSidebar,
-} from './ui/sidebar';
-import { buildNavigationItems } from '../lib/navigation';
+} from "./ui/sidebar";
+import { buildNavigationItems } from "../lib/navigation";
 
 interface AppSidebarProps {
   currentPage: string;
@@ -33,7 +33,11 @@ const NAVIGATION_GROUPS = [
     label: "Gestão de Conteúdo",
     items: ["materials", "campaigns", "projects", "shared"],
   },
-  { id: "administration", label: "Administração", items: ["users", "settings"] },
+  {
+    id: "administration",
+    label: "Administração",
+    items: ["users", "settings"],
+  },
 ];
 
 export function AppSidebar({ currentPage, onPageChange }: AppSidebarProps) {
@@ -45,7 +49,7 @@ export function AppSidebar({ currentPage, onPageChange }: AppSidebarProps) {
 
   const navigationItems = React.useMemo(
     () => buildNavigationItems(hasPermission),
-    [hasPermission],
+    [hasPermission]
   );
 
   const groupedNavigation = React.useMemo(() => {
@@ -54,7 +58,9 @@ export function AppSidebar({ currentPage, onPageChange }: AppSidebarProps) {
     return NAVIGATION_GROUPS.map((group) => {
       const items = group.items
         .map((id) => itemMap.get(id))
-        .filter((item): item is typeof navigationItems[number] => Boolean(item));
+        .filter((item): item is (typeof navigationItems)[number] =>
+          Boolean(item)
+        );
 
       return { ...group, items };
     }).filter((group) => group.items.length > 0);
@@ -64,7 +70,7 @@ export function AppSidebar({ currentPage, onPageChange }: AppSidebarProps) {
     <Sidebar
       collapsible="icon"
       className="border-sidebar-border"
-      data-compact={compactSidebar ? 'true' : 'false'}
+      data-compact={compactSidebar ? "true" : "false"}
     >
       <SidebarHeader className="border-b border-sidebar-border">
         <div className="flex items-center justify-center px-2 py-3">
@@ -78,15 +84,13 @@ export function AppSidebar({ currentPage, onPageChange }: AppSidebarProps) {
             {index > 0 && <SidebarSeparator className="mx-2" />}
             <SidebarGroup
               className={`px-2 py-3 ${
-                compactSidebar ? 'pt-3 pb-3' : 'pt-4 pb-3'
+                compactSidebar ? "pt-3 pb-3" : "pt-4 pb-3"
               }`}
             >
               <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
               <SidebarGroupContent>
                 <SidebarMenu
-                  className={`sidebar-menu-gap ${
-                    compactSidebar ? 'space-y-1.5' : 'space-y-2'
-                  }`}
+                  className="sidebar-menu-gap space-y-0"
                 >
                   {group.items.map((item) => {
                     const Icon = item.icon;
@@ -98,10 +102,10 @@ export function AppSidebar({ currentPage, onPageChange }: AppSidebarProps) {
                           onClick={() => onPageChange(item.href)}
                           isActive={isActive}
                           tooltip={
-                            state === 'collapsed' ? item.label : undefined
+                            state === "collapsed" ? item.label : undefined
                           }
                           className={`w-full justify-start px-2 lg:px-3 sidebar-menu-button cursor-pointer ${
-                            compactSidebar ? 'py-1.5' : 'py-2'
+                            compactSidebar ? "py-1.5" : "py-2"
                           }`}
                         >
                           <Icon className="h-5 w-5 flex-shrink-0" />
@@ -121,13 +125,13 @@ export function AppSidebar({ currentPage, onPageChange }: AppSidebarProps) {
         <SidebarMenu>
           <SidebarMenuItem>
             <div className="flex items-center gap-3 px-3 py-3 text-sm text-sidebar-foreground/70">
-              {state === 'expanded' && (
+              {state === "expanded" && (
                 <>
                   <div className="h-2 w-2 rounded-full bg-green-500" />
                   <span className="truncate">{user?.name}</span>
                 </>
               )}
-              {state === 'collapsed' && (
+              {state === "collapsed" && (
                 <div className="mx-auto h-2 w-2 rounded-full bg-green-500" />
               )}
             </div>
