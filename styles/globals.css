@@ -240,6 +240,11 @@ html {
     padding-top: 0 !important;
     padding-bottom: 0 !important;
   }
+
+  .sidebar-menu-button:focus-visible {
+    box-shadow: none !important;
+    --tw-ring-color: transparent !important;
+  }
   
   /* Sidebar colapsada - mostrar apenas ícones */
   .sidebar-collapsed {

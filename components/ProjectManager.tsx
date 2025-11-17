@@ -69,23 +69,33 @@ import posthog from "posthog-js";
 const getStatusBadge = (status: string) => {
   const badges = {
     "em-desenvolvimento": {
-      label: "Vem A",
+      label: "Vem aí",
+      variant: "secondary" as const,
+      icon: Construction,
+    },
+    "vem-ai": {
+      label: "Vem aí",
+      variant: "secondary" as const,
+      icon: Construction,
+    },
+    "breve-lancamento": {
+      label: "Breve lançamento",
       variant: "secondary" as const,
       icon: Construction,
     },
     lancamento: {
-      label: "Lanamento",
+      label: "Lançamento",
       variant: "default" as const,
       icon: Building,
     },
-    vendas: { label: "Em Vendas", variant: "outline" as const, icon: Home },
+    vendas: { label: "Em vendas", variant: "outline" as const, icon: Home },
     entregue: {
       label: "Entregue",
       variant: "destructive" as const,
       icon: CheckCircle,
     },
   };
-  return badges[status as keyof typeof badges] || badges["em-desenvolvimento"];
+  return badges[status as keyof typeof badges] ?? badges["vem-ai"] ?? badges["em-desenvolvimento"];
 };
 
 const normalizeProjectStatus = (status?: string): Project["status"] => {
@@ -705,9 +715,9 @@ const captureProjectEvent = (
                 {/* Actions */}
                 <div className="flex gap-2 pt-3">
                   <Button
-                    variant="outline"
+                    variant="default"
                     size="sm"
-                    className="flex-1 bg-card hover:bg-accent border-border"
+                    className="flex-1 border border-transparent"
                     onClick={() => handleViewMaterials(project)}
                     disabled={projectAssets.length === 0}
                   >
@@ -927,9 +937,9 @@ function ProjectForm({
   };
 
   const getProjectPhases = () => [
-    { value: "vem-ai", label: "Vem A" },
-    { value: "breve-lancamento", label: "Breve Lanamento" },
-    { value: "lancamento", label: "Lanamento" },
+    { value: "vem-ai", label: "Vem aí" },
+    { value: "breve-lancamento", label: "Breve lançamento" },
+    { value: "lancamento", label: "Lançamento" },
   ];
 
   return (
@@ -1009,7 +1019,7 @@ function ProjectForm({
 
         <div className="col-span-2 md:col-span-1">
           <Label htmlFor="projectPhase" className="mb-2">
-            Fase do Empreendimento *
+            Fase do empreendimento *
           </Label>
           <Select
             value={formData.projectPhase}

@@ -490,7 +490,7 @@ export function UsefulLinksManager() {
         description="Gerencie links úteis para toda a equipe"
         action={
           <Button
-            className="bg-destructive text-white shadow-lg shadow-destructive/40 hover:bg-destructive/90"
+            className="bg-destructive text-white hover:bg-destructive/90"
             onClick={openCreateDialog}
           >
             <Plus className="mr-2 h-4 w-4" />
@@ -524,7 +524,7 @@ export function UsefulLinksManager() {
                   "rounded-full px-3 py-1 text-xs font-semibold transition duration-150",
 
                   option.value === selectedCategory
-                    ? "bg-destructive text-white shadow-lg shadow-destructive/40"
+                  ? "bg-destructive text-white"
                     : "border border-border/60 bg-card/30 text-muted-foreground hover:border-border/80"
                 )}
               >
@@ -593,7 +593,7 @@ export function UsefulLinksManager() {
 
             {canManageLinks ? (
               <Button
-                className="bg-destructive text-white shadow-lg shadow-destructive/40 hover:bg-destructive/90"
+                className="bg-destructive text-white hover:bg-destructive/90"
                 onClick={openCreateDialog}
               >
                 Criar link útil

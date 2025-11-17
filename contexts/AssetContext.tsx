@@ -1,5 +1,5 @@
 // @ts-nocheck
-import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, useRef, ReactNode } from 'react';
 import { supabase, isSupabaseConfigured, uploadFile, getPublicUrl, deleteFile } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 import { Asset, Campaign, Project, UsefulLink, UsefulLinkCategory } from '../types';
@@ -54,6 +54,7 @@ export interface DashboardStats {
   downloadCount: number;
   totalUsers: number;
   activeSharedLinks: number;
+  usefulLinksCount: number;
   storageUsed: number; // in GB
   storageLimit: number; // in GB
   assetsByType: {
@@ -363,6 +364,7 @@ export function AssetProvider({ children }: { children: ReactNode }) {
   const [usefulLinks, setUsefulLinks] = useState<UsefulLink[]>([]);
   const [userCount, setUserCount] = useState(0);
   const [activeSharedLinksCount, setActiveSharedLinksCount] = useState(0);
+  const [monthlyDownloadCount, setMonthlyDownloadCount] = useState(0);
 
   const filterAssetsByPermissions = useCallback(
     (assetList: Asset[]): Asset[] => {
@@ -448,7 +450,7 @@ export function AssetProvider({ children }: { children: ReactNode }) {
   // Calculate dashboard statistics based on current data
   const dashboardStats = useMemo<DashboardStats>(() => {
     const totalAssets = assets.length;
-    const downloadCount = assets.reduce((sum, asset) => sum + (asset.downloadCount || 0), 0);
+    const downloadCount = monthlyDownloadCount;
 
     const totalSizeBytes = assets.reduce((sum, asset) => sum + asset.size, 0);
     const storageUsed = totalSizeBytes / (1024 * 1024 * 1024);
@@ -575,7 +577,8 @@ export function AssetProvider({ children }: { children: ReactNode }) {
       totalAssets,
       downloadCount,
       totalUsers: userCount,
-      activeSharedLinks: activeSharedLinksCount,
+      activeSharedLinks: usefulLinks.length,
+      usefulLinksCount: usefulLinks.length,
       storageUsed,
       storageLimit,
       assetsByType,
@@ -588,9 +591,11 @@ export function AssetProvider({ children }: { children: ReactNode }) {
     assets,
     campaigns,
     projects,
+    sharedLinks,
+    usefulLinks,
     userCount,
-    activeSharedLinksCount,
     systemSettings.storageLimitGb,
+    monthlyDownloadCount,
   ]);
 
   useEffect(() => {
@@ -598,6 +603,27 @@ export function AssetProvider({ children }: { children: ReactNode }) {
       refreshData();
     }
   }, [user, isConfigured]);
+
+  const fetchMonthlyDownloadCount = useCallback(async () => {
+    if (!supabase) return;
+
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+
+    const { count, error } = await supabase
+      .from('asset_download_events')
+      .select('id', { count: 'exact', head: true })
+      .gte('downloaded_at', startOfMonth.toISOString());
+
+    if (error) {
+      console.error('Error fetching monthly download count:', error);
+      setMonthlyDownloadCount(0);
+      return;
+    }
+
+    setMonthlyDownloadCount(count ?? 0);
+  }, [supabase]);
 
   const refreshData = async () => {
     if (!user) return;
@@ -610,6 +636,7 @@ export function AssetProvider({ children }: { children: ReactNode }) {
         fetchUsefulLinks(),
         fetchSharedLinks(),
         fetchUserCount(),
+        fetchMonthlyDownloadCount(),
       ]);
     } catch (error) {
       console.error('Error refreshing data:', error);
@@ -617,6 +644,44 @@ export function AssetProvider({ children }: { children: ReactNode }) {
       setLoading(false);
     }
   };
+
+  const refreshDataRef = useRef(refreshData);
+
+  useEffect(() => {
+    refreshDataRef.current = refreshData;
+  }, [refreshData]);
+
+  useEffect(() => {
+    if (!supabase) {
+      return;
+    }
+
+    const channel = supabase.channel('realtime-dashboard');
+
+    const subscribeToTable = (table: string) => {
+      channel.on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table },
+        () => {
+          refreshDataRef.current();
+        },
+      );
+    };
+
+    subscribeToTable('assets');
+    subscribeToTable('asset_download_events');
+    subscribeToTable('shared_links');
+    subscribeToTable('users');
+    subscribeToTable('campaigns');
+    subscribeToTable('projects');
+    subscribeToTable('useful_links');
+
+    channel.subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [supabase]);
 
   const fetchAssets = async () => {
     if (!supabase) return;

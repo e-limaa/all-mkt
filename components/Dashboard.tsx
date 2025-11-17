@@ -237,7 +237,7 @@ export function Dashboard() {
           <CardContent>
             <div className="text-2xl font-bold text-foreground">{formatNumber(dashboardStats.downloadCount)}</div>
             <p className="text-xs text-muted-foreground">
-              <span className="text-green-500">+8%</span> desde o mês passado
+              Downloads acumulados no mês
             </p>
           </CardContent>
         </Card>
@@ -263,7 +263,7 @@ export function Dashboard() {
           <CardContent>
             <div className="text-2xl font-bold text-foreground">{formatNumber(dashboardStats.activeSharedLinks)}</div>
             <p className="text-xs text-muted-foreground">
-              Links compartilhados ativos
+              Links úteis cadastrados
             </p>
           </CardContent>
         </Card>
@@ -526,7 +526,6 @@ export function Dashboard() {
     </div>
   );
 }
-
 
 
 

@@ -288,7 +288,7 @@ export function UserProfile() {
           <DialogHeader>
             <DialogTitle>Meu Perfil</DialogTitle>
             <DialogDescription>
-              Atualize suas informaÃ§Ãµes pessoais e sua foto de perfil.
+              Atualize suas informações pessoais e sua foto de perfil.
             </DialogDescription>
           </DialogHeader>
 
@@ -298,7 +298,7 @@ export function UserProfile() {
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
                   <Avatar className="h-20 w-20">
                     {avatarPreview ? (
-                      <AvatarImage src={avatarPreview} alt="PrÃ©-visualizaÃ§Ã£o do avatar" />
+                      <AvatarImage src={avatarPreview} alt="Pré-visualização do avatar" />
                     ) : user.avatar_url ? (
                       <AvatarImage src={user.avatar_url} alt={user.name ?? 'Avatar'} />
                     ) : (
@@ -330,7 +330,7 @@ export function UserProfile() {
                       )}
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      JPG ou PNG atÃ© 5MB.
+                      JPG ou PNG até 5MB.
                     </p>
                     <input
                       ref={fileInputRef}
@@ -378,7 +378,7 @@ export function UserProfile() {
                     Cancelar
                   </Button>
                   <Button type="submit" disabled={isSavingProfile}>
-                    {isSavingProfile ? 'Salvando...' : 'Salvar alteraÃ§Ãµes'}
+                    {isSavingProfile ? 'Salvando...' : 'Salvar alterações'}
                   </Button>
                 </div>
               </form>
@@ -418,7 +418,7 @@ export function UserProfile() {
 
                 <div className="flex justify-end">
                   <Button type="button" onClick={() => setIsEditingProfile(true)}>
-                    Editar informaÃ§Ãµes
+                    Editar informações
                   </Button>
                 </div>
               </div>
@@ -431,7 +431,7 @@ export function UserProfile() {
                 <div>
                   <h3 className="text-sm font-semibold">Senha de acesso</h3>
                   <p className="text-xs text-muted-foreground">
-                    Altere sua senha separadamente das demais informaÃ§Ãµes.
+                    Altere sua senha separadamente das demais informações.
                   </p>
                 </div>
                 <Button

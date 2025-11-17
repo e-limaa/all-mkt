@@ -45,7 +45,7 @@ import { ImageWithFallback } from './figma/ImageWithFallback';
 import { AssetViewer } from './AssetViewer';
 import { Progress } from './ui/progress';
 import { cn } from './ui/utils';
-import { supabase, supabaseUrl } from '../lib/supabase';
+import { supabase, supabaseUrl, logAssetDownloadEvent } from '../lib/supabase';
 import { PageHeader } from './PageHeader';
 import posthog from 'posthog-js';
 
@@ -91,6 +91,7 @@ export function AssetManager({
   const { assets, campaigns, projects, updateAsset, deleteAsset, refreshData } = useAssets();
   const { hasPermission, isViewer, isEditor, isAdmin } = usePermissions();
   const { user } = useAuth();
+  const userId = user?.id ?? null;
 
   const userRegional = (user?.regional || '').trim().toUpperCase();
   const viewerGlobalFlag =
@@ -405,49 +406,12 @@ export function AssetManager({
 
   const handleDownload = (asset: Asset) => {
     if (!hasPermission(Permission.DOWNLOAD_MATERIALS)) {
-      toast.error('Voc no tem permisso para baixar materiais');
+      toast.error('Você não tem permissão para baixar materiais');
       return;
     }
-    
-    // Download real do arquivo (compatvel com Supabase Storage e URLs pblicas)
-    if (asset.url) {
-      fetch(asset.url)
-        .then(response => response.blob())
-        .then(blob => {
-          const url = window.URL.createObjectURL(blob);
-          const link = document.createElement('a');
-          link.href = url;
-          link.setAttribute('download', asset.name || 'arquivo');
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          window.URL.revokeObjectURL(url);
-          captureAssetEvent('material_downloaded', {
-            asset_id: asset.id,
-            asset_name: asset.name,
-            asset_type: asset.type,
-            asset_format: asset.format,
-            category_type: asset.categoryType ?? null,
-            category_id: asset.categoryId ?? asset.projectId ?? asset.campaignId ?? null,
-            origin: asset.origin ?? null,
-            success: true,
-          });
-        })
-        .catch(() => {
-          toast.error('Erro ao baixar o arquivo.');
-          captureAssetEvent('material_downloaded', {
-            asset_id: asset.id,
-            asset_name: asset.name,
-            asset_type: asset.type,
-            asset_format: asset.format,
-            category_type: asset.categoryType ?? null,
-            category_id: asset.categoryId ?? asset.projectId ?? asset.campaignId ?? null,
-            origin: asset.origin ?? null,
-            success: false,
-          });
-        });
-    } else {
-      toast.error('URL do arquivo no encontrada.');
+
+    if (!asset.url) {
+      toast.error('URL do arquivo não encontrada.');
       captureAssetEvent('material_downloaded', {
         asset_id: asset.id,
         asset_name: asset.name,
@@ -459,7 +423,61 @@ export function AssetManager({
         success: false,
         reason: 'missing_url',
       });
+      return;
     }
+
+    const filename = asset.name || 'arquivo';
+    const downloadViaLink = (href: string) => {
+      const link = document.createElement('a');
+      link.href = href;
+      link.setAttribute('download', filename);
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    };
+
+    const logOutcome = (success: boolean, reason?: string) => {
+      captureAssetEvent('material_downloaded', {
+        asset_id: asset.id,
+        asset_name: asset.name,
+        asset_type: asset.type,
+        asset_format: asset.format,
+        category_type: asset.categoryType ?? null,
+        category_id: asset.categoryId ?? asset.projectId ?? asset.campaignId ?? null,
+        origin: asset.origin ?? null,
+        success,
+        reason,
+      });
+      if (success) {
+        void logAssetDownloadEvent(asset.id, userId);
+      }
+    };
+
+    const downloadBlob = async () => {
+      const response = await fetch(asset.url);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      downloadViaLink(url);
+      window.URL.revokeObjectURL(url);
+    };
+
+    toast.success('Download iniciado');
+    downloadBlob()
+      .then(() => logOutcome(true))
+      .catch((error) => {
+        console.warn('[AssetManager] blob download failed, falling back to direct link', error);
+        try {
+          downloadViaLink(asset.url);
+          logOutcome(true, 'fallback');
+        } catch (fallbackError) {
+          toast.error('Erro ao baixar o arquivo.');
+          logOutcome(false, fallbackError instanceof Error ? fallbackError.message : 'fallback_failed');
+        }
+      });
   };
 
   // Funo de download em massa
@@ -530,6 +548,9 @@ export function AssetManager({
         total_size_bytes: totalSize,
         selected_asset_ids: assetsWithUrl.map(asset => asset.id),
         success: true,
+      });
+      assetsWithUrl.forEach(asset => {
+        void logAssetDownloadEvent(asset.id, userId);
       });
     } catch (error) {
       console.error('[AssetManager] Erro no download em massa', error);
@@ -1749,7 +1770,7 @@ export function AssetManager({
                         )}
                       </div>
                       
-                      <div className="flex gap-1 pt-2 opacity-0 transition-opacity group-hover:opacity-100">
+                      <div className="flex gap-1 pt-2">
                         <Button
                           size="sm"
                           variant="outline"
@@ -1895,7 +1916,7 @@ export function AssetManager({
                           </div>
                           
                           {/* Actions */}
-                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <div className="flex items-center gap-1">
                             <Button 
                               size="sm" 
                               variant="ghost" 

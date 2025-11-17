@@ -110,3 +110,16 @@ export const deleteFile = async (bucket: string, path: string) => {
   return data;
 };
 
+export const logAssetDownloadEvent = async (assetId: string, userId?: string | null) => {
+  if (!supabase) return;
+
+  const payload = {
+    asset_id: assetId,
+    user_id: userId ?? null,
+  };
+  const { error } = await supabase.from('asset_download_events').insert(payload);
+  if (error) {
+    console.error('[logAssetDownloadEvent] failed to record download event:', error);
+  }
+};
+
