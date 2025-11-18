@@ -10,7 +10,7 @@ import {
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
-import { Badge } from "./ui/badge";
+import { ProjectCard } from "./ProjectCard";
 import {
   Select,
   SelectContent,
@@ -43,9 +43,6 @@ import {
   Edit,
   Trash2,
   Eye,
-  Users as UsersIcon,
-  FolderOpen,
-  MapPin,
   Calendar,
   Building,
   Construction,
@@ -70,22 +67,22 @@ import posthog from "posthog-js";
 const getStatusBadge = (status: string) => {
   const badges = {
     "em-desenvolvimento": {
-      label: "Vem aí",
+      label: "Vem \u00ED",
       variant: "secondary" as const,
       icon: Construction,
     },
     "vem-ai": {
-      label: "Vem aí",
+      label: "Vem \u00ED",
       variant: "secondary" as const,
       icon: Construction,
     },
     "breve-lancamento": {
-      label: "Breve lançamento",
+      label: "Breve lan\u00E7amento",
       variant: "secondary" as const,
       icon: Construction,
     },
     lancamento: {
-      label: "Lançamento",
+      label: "Lan\u00E7amento",
       variant: "default" as const,
       icon: Building,
     },
@@ -98,6 +95,7 @@ const getStatusBadge = (status: string) => {
   };
   return badges[status as keyof typeof badges] ?? badges["vem-ai"] ?? badges["em-desenvolvimento"];
 };
+
 
 const normalizeProjectStatus = (status?: string): Project["status"] => {
   switch (status) {
@@ -155,7 +153,7 @@ return undefined;
 const getRegionalLabel = (regional?: string | null): string => {
   const normalized = (regional ?? "").toString().trim().toUpperCase();
   if (!normalized) {
-    return "Regional não informada";
+    return "Regional nÃ£o informada";
   }
 
   return (
@@ -486,7 +484,7 @@ const captureProjectEvent = (
                 <DialogHeader>
                   <DialogTitle>Criar Novo Empreendimento</DialogTitle>
                   <DialogDescription>
-                    Configure um novo empreendimento com imagem obrigatria. Todos os novos empreendimentos comeam com status "Vem A".
+                    Configure um novo empreendimento com imagem obrigatória. Todos os novos empreendimentos começam com status "Vem Aí".
                   </DialogDescription>
                 </DialogHeader>
                 <ProjectForm onSubmit={handleCreateProject} />
@@ -504,22 +502,22 @@ const captureProjectEvent = (
             <strong>{stats.totalProjectsIncomplete}</strong> empreendimento
             {stats.totalProjectsIncomplete > 1 ? "s" : ""}
             {stats.totalProjectsIncomplete > 1
-              ? " esto ocultos"
-              : " est oculto"}{" "}
-            da listagem por no possuir
+              ? " estão ocultos"
+              : " está oculto"}{" "}
+            da listagem por não possuir
             {stats.totalProjectsIncomplete > 1 ? "em" : ""} imagem cadastrada.
             Adicione uma imagem para que{" "}
-            {stats.totalProjectsIncomplete > 1 ? "apaream" : "aparea"} na
+            {stats.totalProjectsIncomplete > 1 ? "apareçam" : "apareça"} na
             listagem principal.
           </AlertDescription>
         </Alert>
       )}
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 w-full">
         <Card className="bg-card/50 backdrop-blur-sm border-border/50">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Visveis</CardTitle>
+            <CardTitle className="text-sm font-medium">Visíveis</CardTitle>
             <Building className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
@@ -532,7 +530,7 @@ const captureProjectEvent = (
 
         <Card className="bg-card/50 backdrop-blur-sm border-border/50">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Vem A</CardTitle>
+            <CardTitle className="text-sm font-medium">Vem Aí</CardTitle>
             <Construction className="h-4 w-4 text-blue-500" />
           </CardHeader>
           <CardContent>
@@ -544,7 +542,7 @@ const captureProjectEvent = (
 
         <Card className="bg-card/50 backdrop-blur-sm border-border/50">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Breve Lanamento</CardTitle>
+            <CardTitle className="text-sm font-medium">Breve Lançamento</CardTitle>
             <Clock className="h-4 w-4 text-yellow-500" />
           </CardHeader>
           <CardContent>
@@ -556,7 +554,7 @@ const captureProjectEvent = (
 
         <Card className="bg-card/50 backdrop-blur-sm border-border/50">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Lanamento</CardTitle>
+            <CardTitle className="text-sm font-medium">Lançamento</CardTitle>
             <Building className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
@@ -566,7 +564,6 @@ const captureProjectEvent = (
           </CardContent>
         </Card>
       </div>
-
       {/* Filters */}
       <Card className="bg-card/50 backdrop-blur-sm border-border/50">
         <CardContent className="p-4">
@@ -586,12 +583,11 @@ const captureProjectEvent = (
                 <SelectTrigger className="w-48 bg-input-background border-border">
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
-                <SelectContent>
+                                <SelectContent>
                   <SelectItem value="all">Todos os status</SelectItem>
-                  <SelectItem value="em-desenvolvimento">Vem A</SelectItem>
-                  <SelectItem value="lancamento">Lanamento</SelectItem>
-                  <SelectItem value="vendas">Em Vendas</SelectItem>
-                  <SelectItem value="entregue">Entregue</SelectItem>
+                  <SelectItem value="vem-ai">Vem Aí</SelectItem>
+                  <SelectItem value="breve-lancamento">Breve Lançamento</SelectItem>
+                  <SelectItem value="lancamento">Lançamento</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -600,171 +596,77 @@ const captureProjectEvent = (
       </Card>
 
       {/* Projects Grid - Layout igual ao visual de referncia */}
-      <div className="grid grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {filteredProjects.map((project) => {
           const statusBadge = getStatusBadge(project.status);
           const projectAssets = getProjectAssets(project.id);
-          const StatusIcon = statusBadge.icon;
-
-          return (
-            <Card
-              key={project.id}
-              className="group hover:shadow-xl transition-all duration-300 bg-card/50 backdrop-blur-sm border-border/50 overflow-hidden"
-            >
-              {/* Imagem do empreendimento */}
-              <div className="relative h-48 overflow-hidden">
-                <ImageWithFallback
-                  src={project.image}
-                  alt={project.name}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                />
-                <div className="absolute top-3 left-3">
-                  <Badge
-                    variant={statusBadge.variant}
-                    className="text-xs backdrop-blur-sm"
+          const creator = getCreatorDisplayName(
+            project.createdByName,
+            project.createdBy,
+          );
+          const actionMenu =
+            canEditProjects || canDeleteProjects ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    aria-label="Mais ações"
+                    className="bg-[#0e0e0e] relative rounded-[8.5px] shrink-0 w-[33.5px] h-[33.5px] border border-[#2a2a2a] p-0 text-muted-foreground hover:bg-[#181818] flex items-center justify-center"
                   >
-                    <StatusIcon className="w-3 h-3 mr-1" />
-                    {statusBadge.label}
-                  </Badge>
-                </div>
-                {(canEditProjects || canDeleteProjects) && (
-                  <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          className="w-8 h-8 p-0 backdrop-blur-sm"
-                        >
-                          <MoreHorizontal className="w-4 h-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Aes</DropdownMenuLabel>
-                        <DropdownMenuSeparator />
-                        {canEditProjects && (
-                          <DropdownMenuItem
-                            onClick={() => setEditingProject(project)}
-                          >
-                            <Edit className="w-4 h-4 mr-2" />
-                            Editar
-                          </DropdownMenuItem>
-                        )}
-                        <DropdownMenuItem
-                          onClick={() => handleViewMaterials(project)}
-                        >
-                          <Eye className="w-4 h-4 mr-2" />
-                          Ver Materiais ({projectAssets.length})
-                        </DropdownMenuItem>
-                        {canDeleteProjects && (
-                          <>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              onClick={() => handleDeleteProject(project.id)}
-                              className="text-destructive"
-                            >
-                              <Trash2 className="w-4 h-4 mr-2" />
-                              Excluir
-                            </DropdownMenuItem>
-                          </>
-                        )}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                )}
-              </div>
-
-              <CardContent className="p-4 space-y-3">
-                {/* Nome e Descrio */}
-                <div>
-                  <h3 className="text-lg font-semibold text-foreground mb-1">
-                    {project.name}
-                  </h3>
-                  {project.description && (
-                    <p className="text-sm text-muted-foreground line-clamp-2">
-                      {project.description}
-                    </p>
-                  )}
-                </div>
-
-                {/* Data de Criao */}
-                <div className="flex items-center gap-2 text-sm">
-                  <Calendar className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                  <span className="text-muted-foreground">Criado em:</span>
-                  <span className="text-foreground">
-                    {formatDate(project.createdAt)}
-                  </span>
-                </div>
-
-                {/* Previso de Lanamento */}
-                {project.launchDate && (
-                  <div className="flex items-center gap-2 text-sm">
-                    <Clock className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                    <span className="text-muted-foreground">Lanamento:</span>
-                    <span className="text-foreground">
-                      {formatDate(project.launchDate)}
-                    </span>
-                  </div>
-                )}
-
-                {/* Estatsticas */}
-                <div className="grid grid-cols-2 gap-4 pt-2">
-                  <div className="flex items-center gap-2 text-sm">
-                    <FolderOpen className="w-4 h-4 text-muted-foreground" />
-                    <span className="text-muted-foreground">Materiais:</span>
-                    <span className="font-medium text-foreground">
-                      {projectAssets.length}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm">
-                    <UsersIcon className="w-4 h-4 text-muted-foreground" />
-                    <span className="text-muted-foreground">Criado por:</span>
-                    <span className="font-medium text-foreground truncate">
-                      {getCreatorDisplayName(project.createdByName, project.createdBy)}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm col-span-2">
-                    <MapPin className="w-4 h-4 text-muted-foreground" />
-                    <span className="text-muted-foreground">Regional:</span>
-                    <span
-                      className="font-medium text-foreground truncate"
-                      title={project.regional || undefined}
-                    >
-                      {getRegionalLabel(project.regional)}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Actions */}
-                <div className="flex gap-2 pt-3">
-                  <Button
-                    variant="default"
-                    size="sm"
-                    className="flex-1 border border-transparent"
-                    onClick={() => handleViewMaterials(project)}
-                    disabled={projectAssets.length === 0}
-                  >
-                    <Eye className="w-4 h-4 mr-2" />
-                    Ver Materiais{" "}
-                    {projectAssets.length > 0 && `(${projectAssets.length})`}
-                  </Button>
+                    <MoreHorizontal className="w-4 h-4" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuLabel>Ações</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
                   {canEditProjects && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="bg-card hover:bg-accent border-border"
+                    <DropdownMenuItem
                       onClick={() => setEditingProject(project)}
                     >
-                      <Edit className="w-4 h-4" />
-                    </Button>
+                      <Edit className="w-4 h-4 mr-2" />
+                      Editar
+                    </DropdownMenuItem>
                   )}
-                </div>
-              </CardContent>
-            </Card>
+                  <DropdownMenuItem
+                    onClick={() => handleViewMaterials(project)}
+                  >
+                    <Eye className="w-4 h-4 mr-2" />
+                    Ver Materiais ({projectAssets.length})
+                  </DropdownMenuItem>
+                  {canDeleteProjects && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        onClick={() => handleDeleteProject(project.id)}
+                        className="text-destructive"
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Excluir
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : undefined;
+
+          return (
+            <ProjectCard
+              key={project.id}
+              title={project.name}
+              imageUrl={project.image}
+              badgeLabel={statusBadge.label}
+              badgeVariant={statusBadge.variant}
+              location={getRegionalLabel(project.regional)}
+              launchDate={project.launchDate ? formatDate(project.launchDate) : undefined}
+              createdBy={creator}
+              creationDate={formatDate(project.createdAt)}
+              materialsCount={projectAssets.length}
+              onViewMaterials={() => handleViewMaterials(project)}
+              actions={actionMenu}
+            />
           );
         })}
       </div>
-
       {filteredProjects.length === 0 && (
         <Card className="bg-card/50 backdrop-blur-sm border-border/50">
           <CardContent className="p-12 text-center">
@@ -775,7 +677,7 @@ const captureProjectEvent = (
             <p className="text-muted-foreground mb-4">
               {searchQuery
                 ? "Tente ajustar sua pesquisa"
-                : "No h empreendimentos disponveis"}
+                : "Não há empreendimentos disponíveis"}
             </p>
     
           </CardContent>
@@ -792,7 +694,7 @@ const captureProjectEvent = (
             <DialogHeader>
               <DialogTitle>Editar Empreendimento</DialogTitle>
               <DialogDescription>
-                Atualize as informaes do empreendimento
+                Atualize as informações do empreendimento
               </DialogDescription>
             </DialogHeader>
             {editingProject && (
@@ -960,9 +862,9 @@ function ProjectForm({
   };
 
   const getProjectPhases = () => [
-    { value: "vem-ai", label: "Vem aí" },
-    { value: "breve-lancamento", label: "Breve lançamento" },
-    { value: "lancamento", label: "Lançamento" },
+    { value: "vem-ai", label: "Vem aÃ­" },
+    { value: "breve-lancamento", label: "Breve lanÃ§amento" },
+    { value: "lancamento", label: "LanÃ§amento" },
   ];
 
   return (
