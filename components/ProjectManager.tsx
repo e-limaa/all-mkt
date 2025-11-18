@@ -45,6 +45,7 @@ import {
   Eye,
   Users as UsersIcon,
   FolderOpen,
+  MapPin,
   Calendar,
   Building,
   Construction,
@@ -136,19 +137,31 @@ const normalizeLaunchDateInput = (
       ? trimmed.split("T")[0]
       : trimmed;
 
-    if (/^\d{4}-\d{2}-\d{2}$/.test(datePortion)) {
-      return datePortion;
-    }
-
-    const parsed = new Date(trimmed);
-    if (!Number.isNaN(parsed.getTime())) {
-      return parsed.toISOString().split("T")[0];
-    }
-
+  if (/^\d{4}-\d{2}-\d{2}$/.test(datePortion)) {
     return datePortion;
   }
 
-  return undefined;
+  const parsed = new Date(trimmed);
+  if (!Number.isNaN(parsed.getTime())) {
+    return parsed.toISOString().split("T")[0];
+  }
+
+  return datePortion;
+}
+
+return undefined;
+};
+
+const getRegionalLabel = (regional?: string | null): string => {
+  const normalized = (regional ?? "").toString().trim().toUpperCase();
+  if (!normalized) {
+    return "Regional não informada";
+  }
+
+  return (
+    REGIONAL_OPTIONS.find((option) => option.value === normalized)?.label ??
+    normalized
+  );
 };
 
 interface ProjectManagerProps {
@@ -708,6 +721,16 @@ const captureProjectEvent = (
                     <span className="text-muted-foreground">Criado por:</span>
                     <span className="font-medium text-foreground truncate">
                       {getCreatorDisplayName(project.createdByName, project.createdBy)}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm col-span-2">
+                    <MapPin className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-muted-foreground">Regional:</span>
+                    <span
+                      className="font-medium text-foreground truncate"
+                      title={project.regional || undefined}
+                    >
+                      {getRegionalLabel(project.regional)}
                     </span>
                   </div>
                 </div>
