@@ -3,9 +3,12 @@ import { useEffect } from "react";
 import { useRouter } from "next/router";
 import { ThemeProvider } from "next-themes";
 import posthog from "posthog-js";
+import { Inter } from "next/font/google";
 
 import "../app/instrumentation-client";
 import "../styles/globals.css";
+
+const inter = Inter({ subsets: ["latin"] });
 
 function PosthogPageViewTracker() {
   const router = useRouter();
@@ -39,8 +42,13 @@ export default function App({ Component, pageProps }: AppProps) {
       enableSystem={false}
       disableTransitionOnChange
     >
+      <style jsx global>{`
+        html {
+          font-family: ${inter.style.fontFamily};
+        }
+      `}</style>
       <PosthogPageViewTracker />
-      <div className="min-h-screen bg-background text-foreground antialiased">
+      <div className={`min-h-screen bg-background text-foreground antialiased ${inter.className}`}>
         <Component {...pageProps} />
       </div>
     </ThemeProvider>

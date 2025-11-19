@@ -16,7 +16,7 @@ export function MobileNavBar({ currentPage, onPageChange }: MobileNavBarProps) {
 
   const mobileItems = React.useMemo<NavigationItem[]>(() => {
     const items = buildNavigationItems(hasPermission);
-    const whitelistedIds = new Set(["dashboard", "materials", "campaigns", "projects", "shared", "users"]);
+    const whitelistedIds = new Set(["dashboard", "materials", "campaigns", "projects", "shared"]);
     return items.filter((item) => whitelistedIds.has(item.id));
   }, [hasPermission]);
 

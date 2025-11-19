@@ -1,40 +1,34 @@
-﻿import React, { useMemo, useState } from 'react';
+"use client";
+
+import React, { useMemo, useState } from 'react';
 import { PageHeader } from './PageHeader';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Progress } from './ui/progress';
 import { Button } from './ui/button';
 import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  LineChart,
-  Line
+    BarChart,
+    Bar,
+    XAxis,
+    YAxis,
+    CartesianGrid,
+    Tooltip,
+    ResponsiveContainer
 } from 'recharts';
 import {
-  FolderOpen,
-  Users,
-  Download,
-  Share2,
-  TrendingUp,
-  HardDrive,
-  Calendar,
-  Activity,
-  Image,
-  Video,
-  FileText,
-  Archive,
-  Eye,
-  BarChart3,
-  ArrowUpRight,
+    FolderOpen,
+    Users,
+    Download,
+    Share2,
+    HardDrive,
+    Calendar,
+    Activity,
+    Image,
+    Video,
+    FileText,
+    Archive,
+    ArrowUpRight,
+    Sparkles
 } from 'lucide-react';
 import { useAssets } from '../contexts/AssetContext';
 import { formatFileSize, formatNumber, timeAgo } from '../utils/format';
@@ -43,513 +37,538 @@ import { ExportReportDialog, IndicatorOption } from './ExportReportDialog';
 import { generateReport, type IndicatorId } from '../lib/report/generateReport';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
-
-
-const COLORS = ['#dc2626', '#f97316', '#eab308', '#22c55e', '#3b82f6'];
+import { motion } from 'framer-motion';
+import { cn } from '../lib/utils';
 
 export function Dashboard() {
-  const { dashboardStats } = useAssets();
-  const { systemSettings } = useConfig();
+    const { dashboardStats } = useAssets() || {};
+    const { systemSettings } = useConfig();
 
-  const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
-  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+    const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
+    const [isGeneratingReport, setIsGeneratingReport] = useState(false);
 
-  const storagePercentage = (dashboardStats.storageUsed / dashboardStats.storageLimit) * 100;
-
-  const assetTypeData = useMemo(
-    () => [
-      { name: 'Imagens', value: dashboardStats.assetsByType.image, color: '#dc2626', icon: Image },
-      { name: 'Vídeos', value: dashboardStats.assetsByType.video, color: '#f97316', icon: Video },
-      { name: 'Documentos', value: dashboardStats.assetsByType.document, color: '#eab308', icon: FileText },
-      { name: 'Arquivos', value: dashboardStats.assetsByType.archive, color: '#22c55e', icon: Archive }
-    ],
-    [
-      dashboardStats.assetsByType.archive,
-      dashboardStats.assetsByType.document,
-      dashboardStats.assetsByType.image,
-      dashboardStats.assetsByType.video
-    ],
-  );
-
-  const campaignEntries = useMemo(
-    () => Object.entries(dashboardStats.assetsByCampaign),
-    [dashboardStats.assetsByCampaign],
-  );
-  const projectEntries = useMemo(
-    () => Object.entries(dashboardStats.assetsByProject),
-    [dashboardStats.assetsByProject],
-  );
-
-  const campaignData = useMemo(
-    () =>
-      campaignEntries.map(([name, count]) => ({
-        name: name.length > 15 ? name.substring(0, 15) + '...' : name,
-        assets: count
-      })),
-    [campaignEntries],
-  );
-
-  const projectData = useMemo(
-    () =>
-      projectEntries.map(([name, count]) => ({
-        name: name.length > 15 ? name.substring(0, 15) + '...' : name,
-        assets: count
-      })),
-    [projectEntries],
-  );
-// Dados simulados para gráfico de tendência
-  const trendData = [
-    { month: 'Jan', uploads: 45, downloads: 120 },
-    { month: 'Fev', uploads: 52, downloads: 145 },
-    { month: 'Mar', uploads: 48, downloads: 135 },
-    { month: 'Abr', uploads: 61, downloads: 168 },
-    { month: 'Mai', uploads: 55, downloads: 152 },
-    { month: 'Jun', uploads: 67, downloads: 189 }
-  ];
-
-  const formatLaunchDate = (date: string) => {
-    const parsed = new Date(`${date}T00:00:00`);
-    if (Number.isNaN(parsed.getTime())) {
-      return date;
+    if (!dashboardStats) {
+        return <div className="flex items-center justify-center h-96 text-muted-foreground">Carregando dados do dashboard...</div>;
     }
-    return format(parsed, 'dd/MM/yyyy');
-  };
 
-  const formatDaysUntil = (days: number) => {
-    if (days === 0) return 'Hoje';
-    if (days === 1) return 'Em 1 dia';
-    if (days > 1) return `Em ${days} dias`;
-    return `${Math.abs(days)} dias atrás`;
-  };
+    const storagePercentage = (dashboardStats.storageUsed / dashboardStats.storageLimit) * 100;
 
-  const launchTypeLabel = (type: 'campaign' | 'project') =>
-    type === 'project' ? 'Empreendimento' : 'Campanha';
+    const assetTypeData = useMemo(
+        () => [
+            { name: 'Imagens', value: dashboardStats.assetsByType.image, color: 'var(--chart-1)', icon: Image },
+            { name: 'Vídeos', value: dashboardStats.assetsByType.video, color: 'var(--chart-2)', icon: Video },
+            { name: 'Documentos', value: dashboardStats.assetsByType.document, color: 'var(--chart-3)', icon: FileText },
+            { name: 'Arquivos', value: dashboardStats.assetsByType.archive, color: 'var(--chart-4)', icon: Archive }
+        ],
+        [
+            dashboardStats.assetsByType.archive,
+            dashboardStats.assetsByType.document,
+            dashboardStats.assetsByType.image,
+            dashboardStats.assetsByType.video
+        ],
+    );
 
-  const campaignStatusLabelMap: Record<string, string> = {
-    active: 'Ativa',
-    inactive: 'Inativa',
-    expiring: 'Expirando',
-    archived: 'Arquivada',
-  };
+    const campaignEntries = useMemo(
+        () => Object.entries(dashboardStats.assetsByCampaign),
+        [dashboardStats.assetsByCampaign],
+    );
+    const projectEntries = useMemo(
+        () => Object.entries(dashboardStats.assetsByProject),
+        [dashboardStats.assetsByProject],
+    );
 
-  const projectStatusLabelMap: Record<string, string> = {
-    'vem-ai': 'Vem aí',
-    'breve-lancamento': 'Breve lançamento',
-    lancamento: 'Lançamento',
-  };
+    const campaignData = useMemo(
+        () =>
+            campaignEntries.map(([name, count]) => ({
+                name: name.length > 15 ? name.substring(0, 15) + '...' : name,
+                assets: count
+            })),
+        [campaignEntries],
+    );
 
-  const getStatusLabel = (type: 'campaign' | 'project', status?: string) => {
-    if (!status) return null;
-    if (type === 'campaign') {
-      return campaignStatusLabelMap[status] ?? status;
-    }
-    return projectStatusLabelMap[status] ?? status;
-  };
+    const projectData = useMemo(
+        () =>
+            projectEntries.map(([name, count]) => ({
+                name: name.length > 15 ? name.substring(0, 15) + '...' : name,
+                assets: count
+            })),
+        [projectEntries],
+    );
 
-  const indicatorOptions = useMemo<IndicatorOption[]>(
-    () => [
-      { id: 'totalMaterials', label: 'Total de Materiais', description: 'Quantidade total de assets cadastrados.' },
-      { id: 'downloads', label: 'Downloads', description: 'Total de downloads realizados no per\u00edodo.' },
-      { id: 'activeUsers', label: 'Usu\u00e1rios Ativos', description: 'Usu\u00e1rios ativos no DAM.' },
-      { id: 'activeLinks', label: 'Links Ativos', description: 'Links compartilhados atualmente v\u00e1lidos.' },
-      { id: 'assetTypes', label: 'Tipos de Material', description: 'Distribui\u00e7\u00e3o dos materiais por categoria.' },
-      { id: 'campaignDistribution', label: 'Materiais por Campanha', description: 'Volume de materiais por campanha de marketing.' },
-      { id: 'projectDistribution', label: 'Materiais por Empreendimento', description: 'Volume de materiais por empreendimento.' },
-      { id: 'recentActivity', label: 'Atividade Recente', description: '\u00daltimos uploads realizados pela equipe.' },
-      { id: 'trend', label: 'Tend\u00eancia de Uploads e Downloads', description: 'Resumo de uploads e downloads nos \u00faltimos meses.' },
-    ],
-    [],
-  );
-  const defaultDateRange = useMemo(() => {
-    const today = new Date();
-    const end = format(today, 'yyyy-MM-dd');
-    const startDateObject = new Date(today);
-    startDateObject.setDate(startDateObject.getDate() - 29);
-    const start = format(startDateObject, 'yyyy-MM-dd');
-    return { startDate: start, endDate: end };
-  }, []);
+    const formatLaunchDate = (date: string) => {
+        const parsed = new Date(`${date}T00:00:00`);
+        if (Number.isNaN(parsed.getTime())) {
+            return date;
+        }
+        return format(parsed, 'dd/MM/yyyy');
+    };
 
-  const handleGenerateReport = async (config: { indicators: string[]; dateRange: { startDate: string; endDate: string } }) => {
-    setIsGeneratingReport(true);
-    try {
-      await generateReport({
-        indicators: config.indicators as IndicatorId[],
-        dateRange: config.dateRange,
-        data: {
-          stats: dashboardStats,
-          assetTypeData: assetTypeData.map(({ name, value, color }) => ({ name, value, color })),
-          campaignData: campaignEntries.map(([name, count]) => ({ name, assets: count })),
-          projectData: projectEntries.map(([name, count]) => ({ name, assets: count })),
-          trendData,
-          companyName: systemSettings.companyName,
-        },
-      });
-      toast.success('Relatório exportado com sucesso.');
-      setIsExportDialogOpen(false);
-    } catch (error) {
-      console.error('[Dashboard] erro ao gerar PDF', error);
-      toast.error('Não foi possível gerar o relatório. Tente novamente.');
-    } finally {
-      setIsGeneratingReport(false);
-    }
-  };
+    const formatDaysUntil = (days: number) => {
+        if (days === 0) return 'Hoje';
+        if (days === 1) return 'Em 1 dia';
+        if (days > 1) return `Em ${days} dias`;
+        return `${Math.abs(days)} dias atrás`;
+    };
 
-  const headerDescription = "Acompanhe o desempenho dos seus materiais em tempo real.";
-  const headerAction = (
-    <Button
-      variant="outline"
-      className="w-full sm:w-auto"
-      onClick={() => setIsExportDialogOpen(true)}
-    >
-      <Download className="mr-2 h-4 w-4" />
-      Exportar relatório
-    </Button>
-  );
+    const launchTypeLabel = (type: 'campaign' | 'project') =>
+        type === 'project' ? 'Empreendimento' : 'Campanha';
 
-  return (
-    <div className="space-y-6">
-      <PageHeader
-        icon={BarChart3}
-        title="Painel de Insights"
-        description={headerDescription}
-        action={headerAction}
-      />
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="bg-card/50 backdrop-blur-sm border-border/50 hover:shadow-lg transition-all duration-300">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total de Materiais</CardTitle>
-            <FolderOpen className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-foreground">{formatNumber(dashboardStats.totalAssets)}</div>
-            <p className="text-xs text-muted-foreground">
-              <span className="text-green-500">+12%</span> desde o mês passado
-            </p>
-          </CardContent>
-        </Card>
+    const campaignStatusLabelMap: Record<string, string> = {
+        active: 'Ativa',
+        inactive: 'Inativa',
+        expiring: 'Expirando',
+        archived: 'Arquivada',
+    };
 
-        <Card className="bg-card/50 backdrop-blur-sm border-border/50 hover:shadow-lg transition-all duration-300">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Downloads</CardTitle>
-            <Download className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-foreground">{formatNumber(dashboardStats.downloadCount)}</div>
-            <p className="text-xs text-muted-foreground">
-              Downloads acumulados no mês
-            </p>
-          </CardContent>
-        </Card>
+    const projectStatusLabelMap: Record<string, string> = {
+        'vem-ai': 'Vem aí',
+        'breve-lancamento': 'Breve lançamento',
+        lancamento: 'Lançamento',
+    };
 
-        <Card className="bg-card/50 backdrop-blur-sm border-border/50 hover:shadow-lg transition-all duration-300">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Usuários Ativos</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-foreground">{formatNumber(dashboardStats.totalUsers)}</div>
-            <p className="text-xs text-muted-foreground">
-              <span className="text-green-500">+3</span> Nãos usuários
-            </p>
-          </CardContent>
-        </Card>
+    const getStatusLabel = (type: 'campaign' | 'project', status?: string) => {
+        if (!status) return null;
+        if (type === 'campaign') {
+            return campaignStatusLabelMap[status] ?? status;
+        }
+        return projectStatusLabelMap[status] ?? status;
+    };
 
-        <Card className="bg-card/50 backdrop-blur-sm border-border/50 hover:shadow-lg transition-all duration-300">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Links Ativos</CardTitle>
-            <Share2 className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-foreground">{formatNumber(dashboardStats.activeSharedLinks)}</div>
-            <p className="text-xs text-muted-foreground">
-              Links úteis cadastrados
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+    const indicatorOptions = useMemo<IndicatorOption[]>(
+        () => [
+            { id: 'totalMaterials', label: 'Total de Materiais', description: 'Quantidade total de assets cadastrados.' },
+            { id: 'downloads', label: 'Downloads', description: 'Total de downloads realizados no período.' },
+            { id: 'activeUsers', label: 'Usuários Ativos', description: 'Usuários ativos no DAM.' },
+            { id: 'activeLinks', label: 'Links Ativos', description: 'Links compartilhados atualmente válidos.' },
+            { id: 'assetTypes', label: 'Tipos de Material', description: 'Distribuição dos materiais por categoria.' },
+            { id: 'campaignDistribution', label: 'Materiais por Campanha', description: 'Volume de materiais por campanha de marketing.' },
+            { id: 'projectDistribution', label: 'Materiais por Empreendimento', description: 'Volume de materiais por empreendimento.' },
+            { id: 'recentActivity', label: 'Atividade Recente', description: 'Últimos uploads realizados pela equipe.' },
+        ],
+        [],
+    );
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Upcoming Launches */}
-        <Card className="bg-card/50 backdrop-blur-sm border-border/50">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Calendar className="w-5 h-5 text-primary" />
-              Próximos Lançamentos
-            </CardTitle>
-            <CardDescription>Empreendimentos e campanhas previstos</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {dashboardStats.upcomingLaunches.length > 0 ? (
-              <div className="space-y-4">
-                {dashboardStats.upcomingLaunches.map((launch) => {
-                  const statusLabel = getStatusLabel(launch.type, launch.status);
-                  return (
-                    <div
-                      key={`${launch.type}-${launch.id}`}
-                      className="flex items-start justify-between gap-4"
+    const defaultDateRange = useMemo(() => {
+        const today = new Date();
+        const end = format(today, 'yyyy-MM-dd');
+        const startDateObject = new Date(today);
+        startDateObject.setDate(startDateObject.getDate() - 29);
+        const start = format(startDateObject, 'yyyy-MM-dd');
+        return { startDate: start, endDate: end };
+    }, []);
+
+    const handleGenerateReport = async (config: { indicators: string[]; dateRange: { startDate: string; endDate: string } }) => {
+        setIsGeneratingReport(true);
+        try {
+            await generateReport({
+                indicators: config.indicators as IndicatorId[],
+                dateRange: config.dateRange,
+                data: {
+                    stats: dashboardStats,
+                    assetTypeData: assetTypeData.map(({ name, value, color }) => ({ name, value, color })),
+                    campaignData: campaignEntries.map(([name, count]) => ({ name, assets: count })),
+                    projectData: projectEntries.map(([name, count]) => ({ name, assets: count })),
+                    companyName: systemSettings.companyName,
+                },
+            });
+            toast.success('Relatório exportado com sucesso.');
+            setIsExportDialogOpen(false);
+        } catch (error) {
+            console.error('[Dashboard] erro ao gerar PDF', error);
+            toast.error('Não foi possível gerar o relatório. Tente novamente.');
+        } finally {
+            setIsGeneratingReport(false);
+        }
+    };
+
+    const containerVariants: any = {
+        hidden: { opacity: 0 },
+        visible: {
+            opacity: 1,
+            transition: {
+                staggerChildren: 0.1
+            }
+        }
+    };
+
+    const itemVariants: any = {
+        hidden: { y: 20, opacity: 0 },
+        visible: {
+            y: 0,
+            opacity: 1,
+            transition: {
+                type: "spring",
+                stiffness: 100,
+                damping: 15
+            }
+        }
+    };
+
+    return (
+        <motion.div
+            className="space-y-8 p-2"
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+        >
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                    <motion.h1
+                        className="text-3xl font-bold tracking-tight bg-gradient-to-r from-white to-white/60 bg-clip-text text-transparent"
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ duration: 0.5 }}
                     >
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{launch.name}</p>
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <span className="uppercase tracking-wide">{launchTypeLabel(launch.type)}</span>
-                          {statusLabel && (
-                            <Badge variant="outline" className="text-[10px] uppercase tracking-wide">
-                              {statusLabel}
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-sm font-semibold">{formatLaunchDate(launch.date)}</p>
-                        <p className="text-xs text-muted-foreground">{formatDaysUntil(launch.daysUntil)}</p>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                Nenhum lançamento previsto nos próximos 90 dias.
-              </p>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Storage Usage */}
-        <Card className="bg-card/50 backdrop-blur-sm border-border/50">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <HardDrive className="w-5 h-5 text-primary" />
-              Uso de Armazenamento
-            </CardTitle>
-            <CardDescription>
-              {formatFileSize(dashboardStats.storageUsed * 1024 * 1024 * 1024)} de {formatFileSize(dashboardStats.storageLimit * 1024 * 1024 * 1024)} utilizados
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Progress value={storagePercentage} className="w-full" />
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">{storagePercentage.toFixed(1)}% usado</span>
-              <span className="text-muted-foreground">{(dashboardStats.storageLimit - dashboardStats.storageUsed).toFixed(1)}GB livres</span>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Asset Types */}
-        <Card className="bg-card/50 backdrop-blur-sm border-border/50">
-          <CardHeader>
-            <CardTitle>Tipos de Material</CardTitle>
-            <CardDescription>Distribuição por categoria</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {assetTypeData.map((item, index) => {
-                const Icon = item.icon;
-                const percentage = dashboardStats.totalAssets > 0 ? (item.value / dashboardStats.totalAssets) * 100 : 0;
-                
-                return (
-                  <div key={item.name} className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-3 h-3 rounded-full" style={{ backgrouNãolor: item.color }} />
-                      <Icon className="w-4 h-4 text-muted-foreground" />
-                      <span className="text-sm font-medium">{item.name}</span>
-                    </div>
-                    <div className="text-right">
-                      <span className="text-sm font-bold">{item.value}</span>
-                      <span className="text-xs text-muted-foreground ml-2">({percentage.toFixed(1)}%)</span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Recent Activity */}
-        <Card className="bg-card/50 backdrop-blur-sm border-border/50">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Activity className="w-5 h-5 text-primary" />
-              Atividade Recente
-            </CardTitle>
-            <CardDescription>Últimas ações no sistema</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {dashboardStats.recentActivity.slice(0, 5).map((activity) => (
-                <div key={activity.id} className="flex items-start gap-3">
-                  <div className="w-2 h-2 bg-primary rounded-full mt-2 flex-shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">
-                      {activity.userName} {activity.type === 'upload' ? 'eNãou' : activity.type === 'download' ? 'baixou' : 'compartilhou'} &quot;{activity.assetName}&quot;
-                    </p>
-                    <div className="flex items-center gap-2 mt-1">
-                      {activity.categoryName && (
-                        <Badge variant="outline" className="text-xs">
-                          {activity.categoryName}
-                        </Badge>
-                      )}
-                      <p className="text-xs text-muted-foreground">
-                        {timeAgo(activity.timestamp)}
-                      </p>
-                    </div>
-                  </div>
+                        Painel de Insights
+                    </motion.h1>
+                    <motion.p
+                        className="text-muted-foreground mt-1"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: 0.2, duration: 0.5 }}
+                    >
+                        Acompanhe o desempenho dos seus materiais em tempo real.
+                    </motion.p>
                 </div>
-              ))}
+                <motion.div
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 0.3 }}
+                >
+                    <Button
+                        variant="outline"
+                        className="w-full sm:w-auto bg-white/5 border-white/10 hover:bg-white/10 hover:text-white transition-all duration-300"
+                        onClick={() => setIsExportDialogOpen(true)}
+                    >
+                        <Download className="mr-2 h-4 w-4" />
+                        Exportar relatório
+                    </Button>
+                </motion.div>
             </div>
-          </CardContent>
-        </Card>
-      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Campaigns Chart */}
-        <Card className="bg-card/50 backdrop-blur-sm border-border/50">
-          <CardHeader>
-            <CardTitle>Materiais por Campanha</CardTitle>
-            <CardDescription>Distribuição de assets por campanha de marketing</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={campaignData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                <XAxis 
-                  dataKey="name" 
-                  stroke="var(--muted-foreground)"
-                  fontSize={12}
-                  angle={-45}
-                  textANãor="end"
-                  height={80}
-                />
-                <YAxis stroke="var(--muted-foreground)" fontSize={12} />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgrouNãolor: 'var(--card)', 
-                    border: '1px solid var(--border)',
-                    borderRadius: '8px',
-                    color: 'var(--foreground)'
-                  }}
-                />
-                <Bar dataKey="assets" fill="#dc2626" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
+            {/* Stats Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <motion.div variants={itemVariants}>
+                    <Card className="bg-card/40 backdrop-blur-xl border-white/5 hover:border-primary/50 hover:shadow-[0_0_30px_-10px_rgba(220,38,38,0.3)] transition-all duration-500 group">
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium text-muted-foreground group-hover:text-white transition-colors">Total de Materiais</CardTitle>
+                            <div className="p-2 rounded-full bg-primary/10 group-hover:bg-primary/20 transition-colors">
+                                <FolderOpen className="h-4 w-4 text-primary" />
+                            </div>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold text-white">{formatNumber(dashboardStats.totalAssets)}</div>
+                            <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                                <span className="text-emerald-500 flex items-center"><ArrowUpRight className="h-3 w-3 mr-0.5" /> +12%</span> vs mês passado
+                            </p>
+                        </CardContent>
+                    </Card>
+                </motion.div>
 
-        {/* Projects Chart */}
-        <Card className="bg-card/50 backdrop-blur-sm border-border/50">
-          <CardHeader>
-            <CardTitle>Materiais por Empreendimento</CardTitle>
-            <CardDescription>Distribuição de assets por projeto</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={projectData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                <XAxis 
-                  dataKey="name" 
-                  stroke="var(--muted-foreground)"
-                  fontSize={12}
-                  angle={-45}
-                  textANãor="end"
-                  height={80}
-                />
-                <YAxis stroke="var(--muted-foreground)" fontSize={12} />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgrouNãolor: 'var(--card)', 
-                    border: '1px solid var(--border)',
-                    borderRadius: '8px',
-                    color: 'var(--foreground)'
-                  }}
-                />
-                <Bar dataKey="assets" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </div>
+                <motion.div variants={itemVariants}>
+                    <Card className="bg-card/40 backdrop-blur-xl border-white/5 hover:border-orange-500/50 hover:shadow-[0_0_30px_-10px_rgba(249,115,22,0.3)] transition-all duration-500 group">
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium text-muted-foreground group-hover:text-white transition-colors">Downloads</CardTitle>
+                            <div className="p-2 rounded-full bg-orange-500/10 group-hover:bg-orange-500/20 transition-colors">
+                                <Download className="h-4 w-4 text-orange-500" />
+                            </div>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold text-white">{formatNumber(dashboardStats.downloadCount)}</div>
+                            <p className="text-xs text-muted-foreground mt-1">
+                                Downloads acumulados no mês
+                            </p>
+                        </CardContent>
+                    </Card>
+                </motion.div>
 
+                <motion.div variants={itemVariants}>
+                    <Card className="bg-card/40 backdrop-blur-xl border-white/5 hover:border-blue-500/50 hover:shadow-[0_0_30px_-10px_rgba(59,130,246,0.3)] transition-all duration-500 group">
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium text-muted-foreground group-hover:text-white transition-colors">Usuários Ativos</CardTitle>
+                            <div className="p-2 rounded-full bg-blue-500/10 group-hover:bg-blue-500/20 transition-colors">
+                                <Users className="h-4 w-4 text-blue-500" />
+                            </div>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold text-white">{formatNumber(dashboardStats.totalUsers)}</div>
+                            <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                                <span className="text-emerald-500 flex items-center"><ArrowUpRight className="h-3 w-3 mr-0.5" /> +3</span> novos usuários
+                            </p>
+                        </CardContent>
+                    </Card>
+                </motion.div>
 
-      {/* Trend Chart */}
-      <Card className="bg-card/50 backdrop-blur-sm border-border/50">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <TrendingUp className="w-5 h-5 text-primary" />
-            Tendência de Uploads e Downloads
-          </CardTitle>
-          <CardDescription>Atividade dosúltimos 6 meses</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={400}>
-            <LineChart data={trendData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-              <XAxis dataKey="month" stroke="var(--muted-foreground)" />
-              <YAxis stroke="var(--muted-foreground)" />
-              <Tooltip 
-                contentStyle={{ 
-                  backgrouNãolor: 'var(--card)', 
-                  border: '1px solid var(--border)',
-                  borderRadius: '8px',
-                  color: 'var(--foreground)'
-                }}
-              />
-              <Line 
-                type="moNãone" 
-                dataKey="uploads" 
-                stroke="#dc2626" 
-                strokeWidth={3}
-                dot={{ fill: '#dc2626', strokeWidth: 2, r: 4 }}
-                name="Uploads"
-              />
-              <Line 
-                type="moNãone" 
-                dataKey="downloads" 
-                stroke="#3b82f6" 
-                strokeWidth={3}
-                dot={{ fill: '#3b82f6', strokeWidth: 2, r: 4 }}
-                name="Downloads"
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
-      <ExportReportDialog
-        open={isExportDialogOpen}
-        onOpenChange={setIsExportDialogOpen}
-        indicators={indicatorOptions}
-        defaultSelected={indicatorOptions.map((indicator) => indicator.id)}
-        defaultDateRange={defaultDateRange}
-        onGenerate={handleGenerateReport}
-        isGenerating={isGeneratingReport}
-      />
-    </div>
-  );
+                <motion.div variants={itemVariants}>
+                    <Card className="bg-card/40 backdrop-blur-xl border-white/5 hover:border-purple-500/50 hover:shadow-[0_0_30px_-10px_rgba(168,85,247,0.3)] transition-all duration-500 group">
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium text-muted-foreground group-hover:text-white transition-colors">Links Ativos</CardTitle>
+                            <div className="p-2 rounded-full bg-purple-500/10 group-hover:bg-purple-500/20 transition-colors">
+                                <Share2 className="h-4 w-4 text-purple-500" />
+                            </div>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold text-white">{formatNumber(dashboardStats.activeSharedLinks)}</div>
+                            <p className="text-xs text-muted-foreground mt-1">
+                                Links úteis cadastrados
+                            </p>
+                        </CardContent>
+                    </Card>
+                </motion.div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                {/* Upcoming Launches */}
+                <motion.div variants={itemVariants} className="lg:col-span-1">
+                    <Card className="h-full bg-card/40 backdrop-blur-xl border-white/5">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2 text-lg">
+                                <Calendar className="w-5 h-5 text-primary" />
+                                Próximos Lançamentos
+                            </CardTitle>
+                            <CardDescription>Empreendimentos e campanhas</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            {dashboardStats.upcomingLaunches.length > 0 ? (
+                                <div className="space-y-4">
+                                    {dashboardStats.upcomingLaunches.map((launch, index) => {
+                                        const statusLabel = getStatusLabel(launch.type, launch.status);
+                                        return (
+                                            <motion.div
+                                                key={`${launch.type}-${launch.id}`}
+                                                initial={{ opacity: 0, x: -10 }}
+                                                animate={{ opacity: 1, x: 0 }}
+                                                transition={{ delay: 0.1 * index }}
+                                                className="flex items-start justify-between gap-4 p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors border border-white/5"
+                                            >
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-sm font-medium truncate text-white">{launch.name}</p>
+                                                    <div className="flex items-center gap-2 mt-1">
+                                                        <Badge variant="secondary" className="text-[10px] uppercase tracking-wide bg-white/10 text-white/80 border-0">
+                                                            {launchTypeLabel(launch.type)}
+                                                        </Badge>
+                                                    </div>
+                                                </div>
+                                                <div className="text-right">
+                                                    <p className="text-sm font-semibold text-primary">{formatLaunchDate(launch.date)}</p>
+                                                    <p className="text-xs text-muted-foreground">{formatDaysUntil(launch.daysUntil)}</p>
+                                                </div>
+                                            </motion.div>
+                                        );
+                                    })}
+                                </div>
+                            ) : (
+                                <div className="flex flex-col items-center justify-center h-40 text-center">
+                                    <Sparkles className="w-8 h-8 text-muted-foreground/50 mb-2" />
+                                    <p className="text-sm text-muted-foreground">
+                                        Nenhum lançamento previsto.
+                                    </p>
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                </motion.div>
+
+                {/* Main Charts Area */}
+                <motion.div variants={itemVariants} className="lg:col-span-3 space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* Campaigns Chart */}
+                        <Card className="bg-card/40 backdrop-blur-xl border-white/5">
+                            <CardHeader>
+                                <CardTitle className="text-base">Materiais por Campanha</CardTitle>
+                                <CardDescription>Top campanhas ativas</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="h-[350px] w-full">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <BarChart data={campaignData} layout="vertical" margin={{ left: 0 }}>
+                                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" horizontal={false} />
+                                            <XAxis type="number" hide />
+                                            <YAxis
+                                                dataKey="name"
+                                                type="category"
+                                                width={100}
+                                                tick={{ fill: 'rgba(255,255,255,0.7)', fontSize: 12 }}
+                                                tickLine={false}
+                                                axisLine={false}
+                                            />
+                                            <Tooltip
+                                                cursor={{ fill: 'rgba(255,255,255,0.05)' }}
+                                                contentStyle={{
+                                                    backgroundColor: 'rgba(24, 24, 27, 0.9)',
+                                                    border: '1px solid rgba(255,255,255,0.1)',
+                                                    borderRadius: '8px',
+                                                    color: '#fff'
+                                                }}
+                                            />
+                                            <Bar dataKey="assets" fill="var(--chart-1)" radius={[0, 4, 4, 0]} barSize={20} />
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        {/* Projects Chart */}
+                        <Card className="bg-card/40 backdrop-blur-xl border-white/5">
+                            <CardHeader>
+                                <CardTitle className="text-base">Materiais por Empreendimento</CardTitle>
+                                <CardDescription>Top empreendimentos</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="h-[350px] w-full">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <BarChart data={projectData} layout="vertical" margin={{ left: 0 }}>
+                                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" horizontal={false} />
+                                            <XAxis type="number" hide />
+                                            <YAxis
+                                                dataKey="name"
+                                                type="category"
+                                                width={100}
+                                                tick={{ fill: 'rgba(255,255,255,0.7)', fontSize: 12 }}
+                                                tickLine={false}
+                                                axisLine={false}
+                                            />
+                                            <Tooltip
+                                                cursor={{ fill: 'rgba(255,255,255,0.05)' }}
+                                                contentStyle={{
+                                                    backgroundColor: 'rgba(24, 24, 27, 0.9)',
+                                                    border: '1px solid rgba(255,255,255,0.1)',
+                                                    borderRadius: '8px',
+                                                    color: '#fff'
+                                                }}
+                                            />
+                                            <Bar dataKey="assets" fill="var(--chart-5)" radius={[0, 4, 4, 0]} barSize={20} />
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </div>
+                </motion.div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Storage Usage */}
+                <motion.div variants={itemVariants}>
+                    <Card className="h-full bg-card/40 backdrop-blur-xl border-white/5">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <HardDrive className="w-5 h-5 text-primary" />
+                                Armazenamento
+                            </CardTitle>
+                            <CardDescription>
+                                Visão geral do uso de disco
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-6">
+                            <div className="relative pt-2">
+                                <div className="flex justify-between mb-2 text-sm font-medium">
+                                    <span className="text-white">{storagePercentage.toFixed(1)}% Usado</span>
+                                    <span className="text-muted-foreground">{(dashboardStats.storageLimit - dashboardStats.storageUsed).toFixed(1)}GB Livres</span>
+                                </div>
+                                <Progress value={storagePercentage} className="h-3 bg-white/10" indicatorClassName="bg-gradient-to-r from-primary to-orange-500" />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4 pt-4">
+                                <div className="p-3 rounded-lg bg-white/5 border border-white/5">
+                                    <p className="text-xs text-muted-foreground">Total</p>
+                                    <p className="text-lg font-bold text-white">{formatFileSize(dashboardStats.storageLimit * 1024 * 1024 * 1024)}</p>
+                                </div>
+                                <div className="p-3 rounded-lg bg-white/5 border border-white/5">
+                                    <p className="text-xs text-muted-foreground">Disponível</p>
+                                    <p className="text-lg font-bold text-emerald-500">{formatFileSize((dashboardStats.storageLimit - dashboardStats.storageUsed) * 1024 * 1024 * 1024)}</p>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </motion.div>
+
+                {/* Asset Types */}
+                <motion.div variants={itemVariants}>
+                    <Card className="h-full bg-card/40 backdrop-blur-xl border-white/5">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <Archive className="w-5 h-5 text-primary" />
+                                Tipos de Material
+                            </CardTitle>
+                            <CardDescription>Distribuição por formato</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="space-y-4">
+                                {assetTypeData.map((item, index) => {
+                                    const Icon = item.icon;
+                                    const percentage = dashboardStats.totalAssets > 0 ? (item.value / dashboardStats.totalAssets) * 100 : 0;
+
+                                    return (
+                                        <div key={item.name} className="group flex items-center justify-between p-2 rounded-lg hover:bg-white/5 transition-colors">
+                                            <div className="flex items-center gap-3">
+                                                <div className="p-2 rounded-md bg-white/5 group-hover:bg-white/10 transition-colors">
+                                                    <Icon className="w-4 h-4 text-muted-foreground group-hover:text-white" style={{ color: item.color }} />
+                                                </div>
+                                                <span className="text-sm font-medium text-white">{item.name}</span>
+                                            </div>
+                                            <div className="text-right">
+                                                <span className="text-sm font-bold text-white">{item.value}</span>
+                                                <span className="text-xs text-muted-foreground ml-2">({percentage.toFixed(1)}%)</span>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </CardContent>
+                    </Card>
+                </motion.div>
+
+                {/* Recent Activity */}
+                <motion.div variants={itemVariants}>
+                    <Card className="h-full bg-card/40 backdrop-blur-xl border-white/5">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <Activity className="w-5 h-5 text-primary" />
+                                Atividade Recente
+                            </CardTitle>
+                            <CardDescription>Últimas ações no sistema</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="space-y-4">
+                                {dashboardStats.recentActivity.slice(0, 5).map((activity, index) => (
+                                    <div key={activity.id} className="flex items-start gap-3 pb-3 border-b border-white/5 last:border-0 last:pb-0">
+                                        <div className="w-2 h-2 bg-primary rounded-full mt-2 flex-shrink-0 shadow-[0_0_10px_rgba(220,38,38,0.5)]" />
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-sm font-medium truncate text-white">
+                                                <span className="text-primary">{activity.userName}</span> {activity.type === 'upload' ? 'enviou' : activity.type === 'download' ? 'baixou' : 'compartilhou'}
+                                            </p>
+                                            <p className="text-xs text-muted-foreground truncate">
+                                                &quot;{activity.assetName}&quot;
+                                            </p>
+                                            <div className="flex items-center gap-2 mt-1">
+                                                {activity.categoryName && (
+                                                    <Badge variant="outline" className="text-[10px] border-white/10 text-white/60">
+                                                        {activity.categoryName}
+                                                    </Badge>
+                                                )}
+                                                <p className="text-[10px] text-muted-foreground/60">
+                                                    {timeAgo(activity.timestamp)}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </CardContent>
+                    </Card>
+                </motion.div>
+            </div>
+
+            <ExportReportDialog
+                open={isExportDialogOpen}
+                onOpenChange={setIsExportDialogOpen}
+                indicators={indicatorOptions}
+                defaultSelected={indicatorOptions.map((indicator) => indicator.id)}
+                defaultDateRange={defaultDateRange}
+                onGenerate={handleGenerateReport}
+                isGenerating={isGeneratingReport}
+            />
+        </motion.div>
+    );
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

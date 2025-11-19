@@ -101,7 +101,7 @@ export function AssetManager({
   const viewerHasGlobalAccess = user?.role === 'viewer' && !!viewerGlobalFlag;
   const isRegionalRestricted = user?.role === 'editor_trade' || (user?.role === 'viewer' && !viewerHasGlobalAccess);
   const initialRegionalFilter = isRegionalRestricted && userRegional ? userRegional : 'all';
-  
+
   // Local state for filters
   const [searchFilters, setSearchFilters] = useState({
     query: '',
@@ -111,10 +111,10 @@ export function AssetManager({
     origin: 'all',
     regional: initialRegionalFilter
   });
-  
+
   // Local state for filtered assets - agora controlamos localmente
   const [filteredAssets, setFilteredAssets] = useState<Asset[]>(assets);
-  
+
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [selectedAssets, setSelectedAssets] = useState<string[]>([]);
@@ -147,37 +147,37 @@ export function AssetManager({
   // Funo para aplicar todos os filtros
   const applyFilters = (newFilters = searchFilters) => {
     let filtered = [...assets];
-    
+
     // Filtro por projeto/campanha (filtros iniciais)
     if (initialFilters?.categoryType && initialFilters?.categoryId) {
       if (initialFilters.categoryType === 'project') {
-        filtered = filtered.filter(asset => 
+        filtered = filtered.filter(asset =>
           (asset.categoryType === 'project' && asset.categoryId === initialFilters.categoryId) ||
           asset.projectId === initialFilters.categoryId
         );
       } else if (initialFilters.categoryType === 'campaign') {
-        filtered = filtered.filter(asset => 
+        filtered = filtered.filter(asset =>
           (asset.categoryType === 'campaign' && asset.categoryId === initialFilters.categoryId) ||
           asset.campaignId === initialFilters.categoryId
         );
       }
     }
-    
+
     // Filtro adicional por categoria (se aplicado pelo usurio)
     if (newFilters.categoryType !== 'all' && newFilters.categoryId) {
       if (newFilters.categoryType === 'project') {
-        filtered = filtered.filter(asset => 
+        filtered = filtered.filter(asset =>
           (asset.categoryType === 'project' && asset.categoryId === newFilters.categoryId) ||
           asset.projectId === newFilters.categoryId
         );
       } else if (newFilters.categoryType === 'campaign') {
-        filtered = filtered.filter(asset => 
+        filtered = filtered.filter(asset =>
           (asset.categoryType === 'campaign' && asset.categoryId === newFilters.categoryId) ||
           asset.campaignId === newFilters.categoryId
         );
       }
     }
-    
+
     // Filtro por tipo
     if (newFilters.type !== 'all') {
       filtered = filtered.filter(asset => asset.type === newFilters.type);
@@ -205,12 +205,12 @@ export function AssetManager({
         getCategoryName(asset).toLowerCase().includes(query)
       );
     }
-    
+
     const decorated = filtered.map(asset => ({
       ...asset,
       categoryName: getCategoryName(asset),
     }));
-    
+
     setFilteredAssets(decorated);
   };
 
@@ -587,7 +587,7 @@ export function AssetManager({
       for (const assetId of selectedAssets) {
         await deleteAsset(assetId);
       }
-      
+
       toast.success(`${selectedAssets.length} material${selectedAssets.length > 1 ? 'is excludos' : ' excludo'} com sucesso!`);
       setSelectedAssets([]);
     } catch (error) {
@@ -611,11 +611,11 @@ export function AssetManager({
         asset.sharePath && asset.sharePath.trim().length > 0
           ? asset.sharePath.trim()
           : buildSharePath({
-              categoryType: asset.categoryType,
-              categoryId: asset.categoryId,
-              categoryName: asset.categoryName,
-              assetId: asset.id,
-            });
+            categoryType: asset.categoryType,
+            categoryId: asset.categoryId,
+            categoryName: asset.categoryName,
+            assetId: asset.id,
+          });
 
       const normalizedSharePath = sharePath.startsWith('/')
         ? sharePath
@@ -634,7 +634,7 @@ export function AssetManager({
       toast.error('Voc no tem permisso para editar materiais');
       return;
     }
-    
+
     try {
       await updateAsset(asset.id, updates);
       if (viewingAsset?.id === asset.id) {
@@ -650,12 +650,12 @@ export function AssetManager({
       toast.error('Voc no tem permisso para excluir materiais');
       return;
     }
-    
+
     const asset = assets.find(a => a.id === assetId);
     const confirmDelete = window.confirm(`Tem certeza que deseja excluir "${asset?.name}"?`);
-    
+
     if (!confirmDelete) return;
-    
+
     try {
       await deleteAsset(assetId);
       setViewingAsset(null);
@@ -674,29 +674,29 @@ export function AssetManager({
         return project.name;
       }
     }
-    
+
     if (asset.categoryType === 'campaign' && asset.categoryId) {
       const campaign = campaigns.find(c => c.id === asset.categoryId);
       if (campaign?.name) {
         return campaign.name;
       }
     }
-    
+
     // Compatibilidade com estrutura antiga
     if (asset.projectId) {
       const project = projects.find(p => p.id === asset.projectId);
       return project?.name || 'Projeto';
     }
-    
+
     if (asset.campaignId) {
       const campaign = campaigns.find(c => c.id === asset.campaignId);
       return campaign?.name || 'Campanha';
     }
-    
+
     if (asset.categoryName) {
       return asset.categoryName;
     }
-    
+
     return 'Sem categoria';
   };
 
@@ -819,9 +819,9 @@ export function AssetManager({
     });
 
     const getProjectPhases = () => [
-      { value: 'vem-ai', label: 'Vem A' },
-      { value: 'breve-lancamento', label: 'Breve Lanamento' },
-      { value: 'lancamento', label: 'Lanamento' }
+      { value: 'vem-ai', label: 'Vem Aí' },
+      { value: 'breve-lancamento', label: 'Breve Lançamento' },
+      { value: 'lancamento', label: 'Lançamento' }
     ];
 
     const generateId = () => (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
@@ -916,7 +916,7 @@ export function AssetManager({
         markItem(newItem.id, {
           status: 'error',
           progress: 0,
-          error: 'Sesso expirada. Faa login novamente.',
+          error: 'Sessão expirada. Faça login novamente.',
         });
         return;
       }
@@ -944,7 +944,7 @@ export function AssetManager({
           markItem(newItem.id, {
             status: 'error',
             progress: 0,
-            error: 'Falha ao enviar arquivo. Verifique sua conexo e tente novamente.',
+            error: 'Falha ao enviar arquivo. Verifique sua conexão e tente novamente.',
           });
         };
 
@@ -1012,6 +1012,20 @@ export function AssetManager({
       });
 
       freshItems.forEach(startUpload);
+    };
+
+
+    const statusBadge = (status: UploadItem['status']) => {
+      switch (status) {
+        case 'uploading':
+          return <Badge variant="secondary">Enviando...</Badge>;
+        case 'success':
+          return <Badge variant="default" className="bg-green-500 hover:bg-green-600">Sucesso</Badge>;
+        case 'error':
+          return <Badge variant="destructive">Erro</Badge>;
+        default:
+          return null;
+      }
     };
 
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -1107,22 +1121,22 @@ export function AssetManager({
       }
 
       if (!formData.categoryType) {
-        newErrors.categoryType = 'Tipo de categoria eh obrigatorio';
+        newErrors.categoryType = 'Tipo de categoria é obrigatório';
       }
 
       if (!formData.categoryId) {
         newErrors.categoryId =
           formData.categoryType === 'campaign'
-            ? 'Campanha eh obrigatoria'
-            : 'Empreendimento eh obrigatorio';
+            ? 'Campanha é obrigatória'
+            : 'Empreendimento é obrigatório';
       }
 
       if (formData.categoryType === 'project' && !formData.projectPhase) {
-        newErrors.projectPhase = 'Fase do empreendimento eh obrigatoria';
+        newErrors.projectPhase = 'Fase do empreendimento é obrigatória';
       }
 
       if (!formData.origin) {
-        newErrors.origin = 'Origem do material eh obrigatoria';
+        newErrors.origin = 'Origem do material é obrigatória';
       }
 
       setErrors(newErrors);
@@ -1210,20 +1224,8 @@ export function AssetManager({
       }
     };
 
-    const statusBadge = (status: UploadStatus) => {
-      const variants: Record<UploadStatus, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
-        pending: { label: 'Pendente', variant: 'outline' },
-        uploading: { label: 'Enviando', variant: 'secondary' },
-        success: { label: 'Concludo', variant: 'default' },
-        error: { label: 'Erro', variant: 'destructive' }
-      };
-
-      const badge = variants[status];
-      return <Badge variant={badge.variant} className="text-xs">{badge.label}</Badge>;
-    };
-
     return (
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <Label htmlFor="file" className="mb-2">Arquivos *</Label>
           <div
@@ -1290,7 +1292,7 @@ export function AssetManager({
                       <span className="flex-shrink-0">{statusBadge(item.status)}</span>
                     </div>
                     <p className="text-xs text-muted-foreground whitespace-normal break-words leading-relaxed">
-                      {formatFileSize(item.file.size)}  {item.mimeType || 'Arquivo'}
+                      {formatFileSize(item.file.size)} • {item.mimeType || 'Arquivo'}
                     </p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
@@ -1442,7 +1444,7 @@ export function AssetManager({
         </div>
         <div className="flex flex-col gap-4 border-t border-border/60 pt-4 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-xs text-muted-foreground">
-            Os arquivos comeam a ser enviados imediatamente. Ao confirmar, apenas associamos ao empreendimento ou campanha escolhida.
+            Os arquivos começam a ser enviados imediatamente. Ao confirmar, apenas associamos ao empreendimento ou campanha escolhida.
           </p>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <Button type="button" variant="outline" onClick={onClose} disabled={isFinalizing}>
@@ -1465,17 +1467,16 @@ export function AssetManager({
           title={isFiltered ? `Materiais - ${filterTitle ?? 'Categoria'}` : 'Gerenciamento de Materiais'}
           description={
             isFiltered
-              ? `Visualizando materiais de ${
-                  initialFilters?.categoryType === 'campaign' ? 'campanha' : 'empreendimento'
-                }`
+              ? `Visualizando materiais de ${initialFilters?.categoryType === 'campaign' ? 'campanha' : 'empreendimento'
+              }`
               : 'Organize, visualize e compartilhe todos os seus ativos digitais'
           }
           backAction={
             backFunction
               ? {
-                  label: 'Voltar',
-                  onClick: backFunction,
-                }
+                label: 'Voltar',
+                onClick: backFunction,
+              }
               : undefined
           }
           action={
@@ -1540,7 +1541,7 @@ export function AssetManager({
                   className="pl-10 bg-input-background border-border"
                 />
               </div>
-              
+
               <div className="flex gap-2">
                 <Select value={searchFilters.type} onValueChange={handleTypeFilter}>
                   <SelectTrigger className="w-40 bg-input-background border-border">
@@ -1629,7 +1630,7 @@ export function AssetManager({
                     </Badge>
                   )}
                 </div>
-                
+
                 {selectedAssets.length > 0 && (
                   <Button
                     variant="ghost"
@@ -1685,13 +1686,12 @@ export function AssetManager({
               const TypeIcon = getTypeIcon(asset.type);
               const typeBadge = getTypeBadge(asset.type);
               const isSelected = selectedAssets.includes(asset.id);
-              
+
               return (
                 <Card
                   key={asset.id}
-                  className={`group flex h-full flex-col cursor-pointer bg-card/50 backdrop-blur-sm border-border/50 transition-all duration-300 hover:shadow-lg ${
-                    isSelected ? 'ring-2 ring-primary' : ''
-                  }`}
+                  className={`group flex h-full flex-col cursor-pointer bg-card/50 backdrop-blur-sm border-border/50 transition-all duration-300 hover:shadow-lg ${isSelected ? 'ring-2 ring-primary' : ''
+                    }`}
                   onClick={() => handleAssetSelect(asset.id)}
                 >
                   <CardHeader className="relative p-2 sm:p-3">
@@ -1704,12 +1704,12 @@ export function AssetManager({
                         className="bg-background/80 backdrop-blur-sm shadow-lg"
                       />
                     </div>
-                    
-                    <div 
+
+                    <div
                       className="relative aspect-square overflow-hidden rounded-lg bg-muted transition-opacity hover:opacity-80"
-                      onClick={(e) => { 
-                        e.stopPropagation(); 
-                        handleViewAsset(asset); 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleViewAsset(asset);
                       }}
                     >
                       {(() => {
@@ -1739,18 +1739,18 @@ export function AssetManager({
                       </div>
                     </div>
                   </CardHeader>
-                  
+
                   <CardContent className="flex flex-1 flex-col p-2 pt-0 sm:p-3 sm:pt-0">
                     <div className="space-y-2">
                       <h3 className="truncate text-xs font-medium sm:text-sm" title={asset.name}>
                         {asset.name}
                       </h3>
-                      
+
                       <div className="flex items-center justify-between text-[0.65rem] text-muted-foreground sm:text-xs">
                         <span>{formatFileSize(asset.size)}</span>
                         <span>{asset.downloadCount || 0} downloads</span>
                       </div>
-                      
+
                       <div className="flex min-w-0 flex-wrap items-center gap-1">
                         <Badge variant="outline" className="max-w-full truncate text-[0.65rem] sm:text-xs">
                           {getCategoryName(asset)}
@@ -1769,7 +1769,7 @@ export function AssetManager({
                           </Badge>
                         )}
                       </div>
-                      
+
                       <div className="flex gap-1 pt-2">
                         <Button
                           size="sm"
@@ -1782,7 +1782,7 @@ export function AssetManager({
                         >
                           <Eye className="h-3 w-3" />
                         </Button>
-                        
+
                         <Button
                           size="sm"
                           variant="outline"
@@ -1835,13 +1835,12 @@ export function AssetManager({
               const TypeIcon = getTypeIcon(asset.type);
               const typeBadge = getTypeBadge(asset.type);
               const isSelected = selectedAssets.includes(asset.id);
-              
+
               return (
-                <Card 
-                  key={asset.id} 
-                  className={`group hover:shadow-md transition-all duration-300 cursor-pointer bg-card/50 backdrop-blur-sm border-border/50 ${
-                    isSelected ? 'ring-2 ring-primary' : ''
-                  }`}
+                <Card
+                  key={asset.id}
+                  className={`group hover:shadow-md transition-all duration-300 cursor-pointer bg-card/50 backdrop-blur-sm border-border/50 ${isSelected ? 'ring-2 ring-primary' : ''
+                    }`}
                   onClick={() => handleAssetSelect(asset.id)}
                 >
                   <CardContent className="p-4">
@@ -1852,13 +1851,13 @@ export function AssetManager({
                         onCheckedChange={() => handleAssetSelect(asset.id)}
                         onClick={(e) => e.stopPropagation()}
                       />
-                      
+
                       {/* Thumbnail */}
-                      <div 
+                      <div
                         className="w-16 h-16 flex-shrink-0 rounded-lg overflow-hidden bg-muted cursor-pointer hover:opacity-80 transition-opacity"
-                        onClick={(e) => { 
-                          e.stopPropagation(); 
-                          handleViewAsset(asset); 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleViewAsset(asset);
                         }}
                       >
                         {(() => {
@@ -1879,7 +1878,7 @@ export function AssetManager({
                           );
                         })()}
                       </div>
-                      
+
                       {/* Content */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between">
@@ -1887,7 +1886,7 @@ export function AssetManager({
                             <h3 className="font-medium truncate mb-1" title={asset.name}>
                               {asset.name}
                             </h3>
-                                                        <div className="flex flex-wrap items-center gap-2 mb-2 min-w-0">
+                            <div className="flex flex-wrap items-center gap-2 mb-2 min-w-0">
                               <Badge variant={typeBadge.variant} className="max-w-full truncate text-[0.65rem] sm:text-xs">
                                 {typeBadge.label}
                               </Badge>
@@ -1914,54 +1913,54 @@ export function AssetManager({
                               <span>{formatDate(asset.uploadedAt)}</span>
                             </div>
                           </div>
-                          
+
                           {/* Actions */}
                           <div className="flex items-center gap-1">
-                            <Button 
-                              size="sm" 
-                              variant="ghost" 
-                              onClick={(e) => { 
-                                e.stopPropagation(); 
-                                handleViewAsset(asset); 
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleViewAsset(asset);
                               }}
                               title="Visualizar"
                             >
                               <Eye className="w-4 h-4" />
                             </Button>
-                            
-                            <Button 
-                              size="sm" 
-                              variant="ghost" 
-                              onClick={(e) => { 
-                                e.stopPropagation(); 
-                                handleDownload(asset); 
+
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDownload(asset);
                               }}
                               title="Download"
                             >
                               <Download className="w-4 h-4" />
                             </Button>
-                            
+
                             <PermissionGuard permissions={[Permission.SHARE_MATERIALS]}>
-                              <Button 
-                                size="sm" 
-                                variant="ghost" 
-                                onClick={(e) => { 
-                                  e.stopPropagation(); 
-                                  handleShare(asset); 
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleShare(asset);
                                 }}
                                 title="Compartilhar"
                               >
                                 <Share2 className="w-4 h-4" />
                               </Button>
                             </PermissionGuard>
-                            
+
                             <PermissionGuard permissions={[Permission.DELETE_MATERIALS]}>
-                              <Button 
-                                size="sm" 
-                                variant="ghost" 
-                                onClick={(e) => { 
-                                  e.stopPropagation(); 
-                                  handleDeleteAsset(asset.id); 
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteAsset(asset.id);
                                 }}
                                 className="text-destructive hover:text-destructive"
                                 title="Excluir"
@@ -1988,11 +1987,11 @@ export function AssetManager({
                 {isFiltered ? 'Nenhum material encontrado neste projeto' : 'Nenhum material encontrado'}
               </h3>
               <p className="text-muted-foreground mb-4">
-                {searchFilters.query ? 'Tente ajustar sua pesquisa' : 
-                 isFiltered ? `Envie materiais para ${filterTitle ?? 'essa categoria'}` : 'Envie seus primeiros materiais'}
+                {searchFilters.query ? 'Tente ajustar sua pesquisa' :
+                  isFiltered ? `Envie materiais para ${filterTitle ?? 'essa categoria'}` : 'Envie seus primeiros materiais'}
               </p>
-              
-              <PermissionGuard 
+
+              <PermissionGuard
                 permissions={[Permission.UPLOAD_MATERIALS]}
                 fallback={
                   isViewer() ? (
@@ -2062,9 +2061,9 @@ export function AssetManager({
 
 
 
-  const captureAssetEvent = (eventName: string, payload: Record<string, unknown>) => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-    posthog.capture(eventName, payload);
-  };
+const captureAssetEvent = (eventName: string, payload: Record<string, unknown>) => {
+  if (typeof window === 'undefined') {
+    return;
+  }
+  posthog.capture(eventName, payload);
+};

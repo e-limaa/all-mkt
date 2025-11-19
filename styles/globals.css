@@ -8,79 +8,92 @@ html {
 
 :root {
   --font-size: 14px;
-  
-  /* Dark mode como padrão */
-  --background: #0a0a0a;
-  --foreground: #ffffff;
-  --card: #111111;
-  --card-foreground: #ffffff;
-  --popover: #111111;
-  --popover-foreground: #ffffff;
-  --primary: #dc2626; /* Vermelho para ações primárias */
+
+  /* Dark mode como padrão (Premium Dark) */
+  --background: #09090b;
+  /* Zinco muito escuro, quase preto */
+  --foreground: #fafafa;
+
+  --card: #18181b;
+  /* Zinco 900 */
+  --card-foreground: #fafafa;
+
+  --popover: #18181b;
+  --popover-foreground: #fafafa;
+
+  --primary: #dc2626;
+  /* Mantendo o vermelho da marca */
   --primary-foreground: #ffffff;
-  --secondary: #1a1a1a;
-  --secondary-foreground: #ffffff;
-  --muted: #1a1a1a;
-  --muted-foreground: #888888;
-  --accent: #1f1f1f;
-  --accent-foreground: #ffffff;
-  --destructive: #dc2626;
-  --destructive-foreground: #ffffff;
-  --border: #2a2a2a;
-  --input: #1a1a1a;
-  --input-background: #1a1a1a;
-  --switch-background: #2a2a2a;
-  --font-weight-medium: 500;
-  --font-weight-normal: 400;
+
+  --secondary: #27272a;
+  /* Zinco 800 */
+  --secondary-foreground: #fafafa;
+
+  --muted: #27272a;
+  --muted-foreground: #a1a1aa;
+  /* Zinco 400 */
+
+  --accent: #27272a;
+  --accent-foreground: #fafafa;
+
+  --destructive: #7f1d1d;
+  /* Vermelho mais escuro para destrutivo */
+  --destructive-foreground: #fef2f2;
+
+  --border: #27272a;
+  --input: #27272a;
+  --input-background: #09090b;
+  --switch-background: #3f3f46;
+
   --ring: #dc2626;
-  
-  /* Cores para gráficos */
+
+  /* Cores para gráficos (Vibrantes) */
   --chart-1: #dc2626;
   --chart-2: #f97316;
-  --chart-3: #eab308;
-  --chart-4: #22c55e;
-  --chart-5: #3b82f6;
-  
-  --radius: 0.75rem; /* Bordas mais arredondadas */
-  
-  /* Sidebar escura */
-  --sidebar: #0f0f0f;
-  --sidebar-foreground: #ffffff;
+  --chart-3: #fbbf24;
+  --chart-4: #34d399;
+  --chart-5: #60a5fa;
+
+  --radius: 0.75rem;
+
+  /* Sidebar */
+  --sidebar: #09090b;
+  --sidebar-foreground: #fafafa;
   --sidebar-primary: #dc2626;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #1a1a1a;
-  --sidebar-accent-foreground: #ffffff;
-  --sidebar-border: #2a2a2a;
+  --sidebar-accent: #27272a;
+  --sidebar-accent-foreground: #fafafa;
+  --sidebar-border: #27272a;
   --sidebar-ring: #dc2626;
 }
 
 .light {
   --background: #ffffff;
-  --foreground: #0a0a0a;
+  --foreground: #09090b;
   --card: #ffffff;
-  --card-foreground: #0a0a0a;
+  --card-foreground: #09090b;
   --popover: #ffffff;
-  --popover-foreground: #0a0a0a;
+  --popover-foreground: #09090b;
   --primary: #dc2626;
   --primary-foreground: #ffffff;
-  --secondary: #f1f5f9;
-  --secondary-foreground: #0a0a0a;
-  --muted: #f1f5f9;
-  --muted-foreground: #64748b;
-  --accent: #f1f5f9;
-  --accent-foreground: #0a0a0a;
-  --destructive: #dc2626;
+  --secondary: #f4f4f5;
+  --secondary-foreground: #18181b;
+  --muted: #f4f4f5;
+  --muted-foreground: #71717a;
+  --accent: #f4f4f5;
+  --accent-foreground: #18181b;
+  --destructive: #ef4444;
   --destructive-foreground: #ffffff;
-  --border: #e2e8f0;
+  --border: #e4e4e7;
   --input: #ffffff;
   --input-background: #ffffff;
-  --switch-background: #e2e8f0;
+  --switch-background: #e4e4e7;
   --ring: #dc2626;
   --sidebar: #ffffff;
-  --sidebar-foreground: #0a0a0a;
+  --sidebar-foreground: #09090b;
   --sidebar-primary: #dc2626;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #f1f5f9;
+  --sidebar-accent: #f4f4f5;
   --sidebar-accent-foreground: #0a0a0a;
   --sidebar-border: #e2e8f0;
   --sidebar-ring: #dc2626;
@@ -194,7 +207,9 @@ html {
       letter-spacing: 0.025em;
     }
 
-    input, textarea, select {
+    input,
+    textarea,
+    select {
       font-size: var(--text-sm);
       font-weight: var(--font-weight-normal);
       line-height: 1.5;
@@ -223,13 +238,14 @@ html {
 
 /* Estilos específicos para a sidebar */
 @layer components {
+
   /* Gap customizado para itens do menu da sidebar */
   .sidebar-menu-gap {
     gap: 4px !important;
     display: flex !important;
     flex-direction: column !important;
   }
-  
+
   /* Altura fixa para botões da sidebar */
   .sidebar-menu-button {
     height: 42px !important;
@@ -245,17 +261,17 @@ html {
     box-shadow: none !important;
     --tw-ring-color: transparent !important;
   }
-  
+
   /* Sidebar colapsada - mostrar apenas ícones */
   .sidebar-collapsed {
     width: var(--sidebar-width-icon);
   }
-  
+
   /* Transições suaves para sidebar */
   .sidebar-transition {
     transition: width 200ms ease-linear, transform 200ms ease-linear;
   }
-  
+
   /* Sidebar mobile - overlay */
   @media (max-width: 767px) {
     .sidebar-mobile {
@@ -267,11 +283,11 @@ html {
       transform: translateX(-100%);
       transition: transform 200ms ease-linear;
     }
-    
+
     .sidebar-mobile.open {
       transform: translateX(0);
     }
-    
+
     /* Overlay para mobile */
     .sidebar-overlay {
       position: fixed;
@@ -282,7 +298,7 @@ html {
       transition: opacity 200ms ease-linear;
       pointer-events: none;
     }
-    
+
     .sidebar-overlay.open {
       opacity: 1;
       pointer-events: auto;
@@ -292,17 +308,18 @@ html {
 
 /* Estilos para formulários - espaçamento entre labels e inputs */
 @layer components {
+
   /* Espaçamento padrão entre label e input - REDUZIDO PARA 8px */
   .form-field label {
     margin-bottom: 8px !important;
   }
-  
+
   /* Para casos específicos onde a classe mb-2 é aplicada */
   label.mb-2 {
     margin-bottom: 8px !important;
     display: block;
   }
-  
+
   /* Compatibilidade com mb-4 (mantido para compatibilidade, mas agora usa 8px) */
   label.mb-4 {
     margin-bottom: 8px !important;
@@ -318,19 +335,19 @@ html {
     box-sizing: border-box;
     max-width: 80vw;
     max-height: 90vh;
-    
+
     /* Prevenir problemas de overflow em containers pai */
     transform: none !important;
-    
+
     /* Garantir que o conteúdo seja visível */
     overflow: visible;
-    
+
     /* Sombra mais intensa para destacar o modal */
-    box-shadow: 
+    box-shadow:
       0 25px 50px -12px rgba(0, 0, 0, 0.5),
       0 0 0 1px rgba(255, 255, 255, 0.05);
   }
-  
+
   /* Garantir que o overlay cubra toda a tela */
   .modal-overlay {
     position: fixed !important;
@@ -341,26 +358,26 @@ html {
     width: 100vw !important;
     height: 100vh !important;
     z-index: 9999 !important;
-    
+
     /* Centralização perfeita */
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
-    
+
     /* Scroll se necessário */
     overflow-y: auto !important;
-    
+
     /* Fundo escuro */
     background-color: rgba(0, 0, 0, 0.85) !important;
   }
-  
+
   /* Garantir que imagens no modal sejam responsivas */
   .modal-container img {
     max-width: 100%;
     max-height: 100%;
     object-fit: contain;
   }
-  
+
   /* Garantir que vídeos no modal sejam responsivos */
   .modal-container video {
     max-width: 100%;
@@ -389,7 +406,7 @@ html {
   }
 }
 
-/* Garantir que o portal não seja afetado por transforms de containers pai */  
+/* Garantir que o portal não seja afetado por transforms de containers pai */
 .modal-portal {
   position: fixed !important;
   top: 0 !important;
@@ -398,7 +415,7 @@ html {
   pointer-events: none;
 }
 
-.modal-portal > * {
+.modal-portal>* {
   pointer-events: auto;
 }
 
@@ -408,6 +425,7 @@ html {
     opacity: 0;
     transform: scale(0.95);
   }
+
   to {
     opacity: 1;
     transform: scale(1);
@@ -419,6 +437,7 @@ html {
     opacity: 1;
     transform: scale(1);
   }
+
   to {
     opacity: 0;
     transform: scale(0.95);
@@ -465,5 +484,3 @@ html {
 .nextjs-badge {
   display: none !important;
 }
-
-
