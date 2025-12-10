@@ -1,5 +1,6 @@
 ﻿import React, { useState, useEffect, lazy, Suspense, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/router';
+import { useTheme } from 'next-themes';
 import { Toaster } from './components/ui/sonner';
 import { ConfigProvider, useConfig } from './contexts/ConfigContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -145,7 +146,7 @@ function DevelopmentModeAlert() {
     <Alert className="border-yellow-500/50 bg-yellow-500/10 mb-6">
       <AlertTriangle className="h-4 w-4 text-yellow-500" />
       <AlertDescription className="text-yellow-200">
-        <strong>Configuração obrigatória:</strong> não foi possível acessar o Supabase. 
+        <strong>Configuração obrigatória:</strong> não foi possível acessar o Supabase.
         Verifique as variáveis de ambiente e reinicie o aplicativo para continuar.
       </AlertDescription>
     </Alert>
@@ -191,14 +192,12 @@ function AppContent() {
     return typeof assetId === 'string' && assetId.length > 0 ? assetId : undefined;
   }, [router.query]);
 
-  // Garantir que o tema escuro seja aplicado
+  // Garantir que o tema seja aplicado corretamente via next-themes
+  const { setTheme } = useTheme();
+
   useEffect(() => {
-    if (systemSettings.darkMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  }, [systemSettings.darkMode]);
+    setTheme(systemSettings.darkMode ? 'dark' : 'light');
+  }, [systemSettings.darkMode, setTheme]);
 
   // Redirecionar visualizadores apenas quando tentarem acessar paginas sem permissao
   useEffect(() => {
@@ -316,8 +315,8 @@ function AppContent() {
     switch (currentPage) {
       case 'dashboard':
         return (
-          <PermissionGuard 
-            permissions={[Permission.VIEW_DASHBOARD]} 
+          <PermissionGuard
+            permissions={[Permission.VIEW_DASHBOARD]}
             fallback={<AccessDenied />}
           >
             <>
@@ -345,13 +344,13 @@ function AppContent() {
 
       case 'materials':
         return (
-          <PermissionGuard 
-            permissions={[Permission.VIEW_MATERIALS]} 
+          <PermissionGuard
+            permissions={[Permission.VIEW_MATERIALS]}
             fallback={<AccessDenied />}
           >
             <>
               <DevelopmentModeAlert />
-              <AssetManager 
+              <AssetManager
                 initialFilters={safeInitialFilters}
                 initialAssetId={selectedAssetId}
                 onBackToProjects={showBackToProjects ? handleBackToProjects : undefined}
@@ -361,42 +360,42 @@ function AppContent() {
             </>
           </PermissionGuard>
         );
-        
+
       case 'campaigns':
         return (
-          <PermissionGuard 
-            permissions={[Permission.VIEW_CAMPAIGNS]} 
+          <PermissionGuard
+            permissions={[Permission.VIEW_CAMPAIGNS]}
             fallback={<AccessDenied />}
           >
             <>
               <DevelopmentModeAlert />
-              <CampaignManager 
+              <CampaignManager
                 onNavigateToMaterials={handleNavigateToCampaignMaterials}
               />
             </>
           </PermissionGuard>
         );
-        
+
       case 'projects':
         return (
-          <PermissionGuard 
-            permissions={[Permission.VIEW_PROJECTS]} 
+          <PermissionGuard
+            permissions={[Permission.VIEW_PROJECTS]}
             fallback={<AccessDenied />}
           >
             <>
               <DevelopmentModeAlert />
-              <ProjectManager 
+              <ProjectManager
                 onPageChange={handlePageChange}
                 onNavigateToMaterials={handleNavigateToMaterials}
               />
             </>
           </PermissionGuard>
         );
-        
+
       case 'users':
         return (
-          <PermissionGuard 
-            permissions={[Permission.VIEW_USERS]} 
+          <PermissionGuard
+            permissions={[Permission.VIEW_USERS]}
             fallback={<AccessDenied />}
           >
             <>
@@ -405,11 +404,11 @@ function AppContent() {
             </>
           </PermissionGuard>
         );
-        
+
       case 'shared':
         return (
-          <PermissionGuard 
-            permissions={[Permission.VIEW_SHARED_LINKS]} 
+          <PermissionGuard
+            permissions={[Permission.VIEW_SHARED_LINKS]}
             fallback={<AccessDenied />}
           >
             <>
@@ -418,11 +417,11 @@ function AppContent() {
             </>
           </PermissionGuard>
         );
-        
+
       case 'settings':
         return (
-          <PermissionGuard 
-            permissions={[Permission.ACCESS_SETTINGS]} 
+          <PermissionGuard
+            permissions={[Permission.ACCESS_SETTINGS]}
             fallback={<AccessDenied />}
           >
             <>
@@ -447,18 +446,18 @@ function AppContent() {
             </>
           </PermissionGuard>
         );
-        
+
       default:
         // Para visualizadores, redirecionar para materiais ao invés do dashboard
         if (isViewer()) {
           return (
-            <PermissionGuard 
-              permissions={[Permission.VIEW_MATERIALS]} 
+            <PermissionGuard
+              permissions={[Permission.VIEW_MATERIALS]}
               fallback={<AccessDenied />}
             >
               <>
                 <DevelopmentModeAlert />
-                <AssetManager 
+                <AssetManager
                   initialFilters={safeInitialFilters}
                   onBackToProjects={showBackToProjects ? handleBackToProjects : undefined}
                   onBackToCampaigns={showBackToCampaigns ? handleBackToCampaigns : undefined}
@@ -467,10 +466,10 @@ function AppContent() {
             </PermissionGuard>
           );
         }
-        
+
         return (
-          <PermissionGuard 
-            permissions={[Permission.VIEW_DASHBOARD]} 
+          <PermissionGuard
+            permissions={[Permission.VIEW_DASHBOARD]}
             fallback={<AccessDenied />}
           >
             <>
