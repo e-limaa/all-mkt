@@ -3,6 +3,7 @@ const path = require('path');
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  turbopack: {},
   images: {
     remotePatterns: [
       {
@@ -25,14 +26,14 @@ const nextConfig = {
       use: ['@svgr/webpack'],
     });
 
-    config.resolve = config.resolve || {};
-    config.resolve.alias = {
-      ...(config.resolve.alias || {}),
-      'next/dist/compiled/next-devtools': require('path').resolve(
-        __dirname,
-        'lib/next-devtools-stub.ts',
-      ),
-    };
+    // config.resolve = config.resolve || {};
+    // config.resolve.alias = {
+    //   ...(config.resolve.alias || {}),
+    //   'next/dist/compiled/next-devtools': require('path').resolve(
+    //     __dirname,
+    //     'lib/next-devtools-stub.ts',
+    //   ),
+    // };
 
     return config;
   },
@@ -77,9 +78,7 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
+
 };
 
 module.exports = nextConfig;
