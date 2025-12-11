@@ -1703,6 +1703,16 @@ export function AssetManager({
                       {(() => {
                         const previewUrl = getPreviewUrl(asset);
                         if (!previewUrl) {
+                          if (asset.type === 'video' && asset.url) {
+                            return (
+                              <video
+                                src={asset.url}
+                                className="w-full h-full object-cover"
+                                muted
+                                preload="metadata"
+                              />
+                            );
+                          }
                           return (
                             <div className="w-full h-full flex items-center justify-center">
                               <TypeIcon className="h-8 w-8 text-muted-foreground sm:h-10 sm:w-10" />
