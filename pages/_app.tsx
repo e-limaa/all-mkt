@@ -1,4 +1,10 @@
 import type { AppProps } from "next/app";
+
+if (process.env.NODE_ENV === "development") {
+  if (typeof window !== "undefined") {
+    import("react-grab");
+  }
+}
 import { useEffect } from "react";
 import { useRouter } from "next/router";
 import { ThemeProvider } from "next-themes";

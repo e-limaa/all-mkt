@@ -261,10 +261,10 @@ export function AssetManager({
 
   const getTypeBadge = (type: string) => {
     const badges = {
-      image: { label: 'Imagem', variant: 'default' as const },
-      video: { label: 'Vdeo', variant: 'secondary' as const },
-      document: { label: 'Documento', variant: 'outline' as const },
-      archive: { label: 'Arquivo', variant: 'destructive' as const }
+      image: { label: 'Imagem', variant: 'blue' as const },
+      video: { label: 'Vídeo', variant: 'gray' as const },
+      document: { label: 'Documento', variant: 'gray' as const },
+      archive: { label: 'Arquivo', variant: 'gray' as const }
     };
     return badges[type as keyof typeof badges] || badges.archive;
   };
@@ -704,9 +704,9 @@ export function AssetManager({
   const getProjectPhase = (asset: Asset) => {
     if (asset.metadata?.projectPhase) {
       const phases = {
-        'vem-ai': { label: 'Vem A', variant: 'secondary' as const },
-        'breve-lancamento': { label: 'Breve Lanamento', variant: 'default' as const },
-        'lancamento': { label: 'Lanamento', variant: 'destructive' as const }
+        'vem-ai': { label: 'Vem Aí', variant: 'gray' as const },
+        'breve-lancamento': { label: 'Breve Lançamento', variant: 'blue' as const },
+        'lancamento': { label: 'Lançamento', variant: 'blue' as const }
       };
       return phases[asset.metadata.projectPhase as keyof typeof phases];
     }
@@ -1529,91 +1529,88 @@ export function AssetManager({
         )}
 
         {/* Filters */}
-        <Card className="bg-card/50 backdrop-blur-sm border-border/50">
-          <CardContent className="p-4">
-            <div className="flex flex-col lg:flex-row gap-4">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  placeholder="Pesquisar materiais..."
-                  value={searchFilters.query}
-                  onChange={(e) => handleSearch(e.target.value)}
-                  className="pl-10 bg-input-background border-border"
-                />
-              </div>
+        <div className="flex flex-col lg:flex-row gap-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="Pesquisar materiais..."
+              value={searchFilters.query}
+              onChange={(e) => handleSearch(e.target.value)}
+              className="pl-10 bg-input-background border-border"
+            />
+          </div>
 
-              <div className="flex gap-2">
-                <Select value={searchFilters.type} onValueChange={handleTypeFilter}>
-                  <SelectTrigger className="w-40 bg-input-background border-border">
-                    <SelectValue placeholder="Tipo" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos os tipos</SelectItem>
-                    <SelectItem value="image">Imagens</SelectItem>
-                    <SelectItem value="video">Vdeos</SelectItem>
-                    <SelectItem value="document">Documentos</SelectItem>
-                    <SelectItem value="archive">Arquivos</SelectItem>
-                  </SelectContent>
-                </Select>
+          <div className="flex gap-2">
+            <Select value={searchFilters.type} onValueChange={handleTypeFilter}>
+              <SelectTrigger className="w-[180px] bg-input-background border-border">
+                <SelectValue placeholder="Tipo" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os tipos</SelectItem>
+                <SelectItem value="image">Imagens</SelectItem>
+                <SelectItem value="video">Vdeos</SelectItem>
+                <SelectItem value="document">Documentos</SelectItem>
+                <SelectItem value="archive">Arquivos</SelectItem>
+              </SelectContent>
+            </Select>
 
-                <Select
-                  value={searchFilters.regional}
-                  onValueChange={handleRegionalFilter}
-                  disabled={isRegionalRestricted}
-                >
-                  <SelectTrigger className="w-40 bg-input-background border-border">
-                    <SelectValue placeholder="Regional" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {!isRegionalRestricted && (
-                      <SelectItem value="all">Todas as regionais</SelectItem>
-                    )}
-                    {availableRegionals.map(regional => (
-                      <SelectItem key={regional} value={regional}>
-                        {regional}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+            <Select
+              value={searchFilters.regional}
+              onValueChange={handleRegionalFilter}
+              disabled={isRegionalRestricted}
+            >
+              <SelectTrigger className="w-[180px] bg-input-background border-border">
+                <SelectValue placeholder="Regional" />
+              </SelectTrigger>
+              <SelectContent>
+                {!isRegionalRestricted && (
+                  <SelectItem value="all">Todas as regionais</SelectItem>
+                )}
+                {availableRegionals.map(regional => (
+                  <SelectItem key={regional} value={regional}>
+                    {regional.toLowerCase().split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
-                <Select value={searchFilters.origin} onValueChange={handleOriginFilter}>
-                  <SelectTrigger className="w-40 bg-input-background border-border">
-                    <SelectValue placeholder="Origem" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todas as origens</SelectItem>
-                    <SelectItem value="house">House (Tenda)</SelectItem>
-                    <SelectItem value="ev">EV</SelectItem>
-                  </SelectContent>
-                </Select>
+            <Select value={searchFilters.origin} onValueChange={handleOriginFilter}>
+              <SelectTrigger className="w-[180px] bg-input-background border-border">
+                <SelectValue placeholder="Origem" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas as origens</SelectItem>
+                <SelectItem value="house">House (Tenda)</SelectItem>
+                <SelectItem value="ev">EV</SelectItem>
+              </SelectContent>
+            </Select>
 
-                <div className="flex gap-1 border border-border rounded-lg p-1 bg-input-background">
-                  <Button
-                    variant={viewMode === 'grid' ? 'default' : 'ghost'}
-                    size="sm"
-                    onClick={() => setViewMode('grid')}
-                    className="w-8 h-8 p-0"
-                  >
-                    <Grid3X3 className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    variant={viewMode === 'list' ? 'default' : 'ghost'}
-                    size="sm"
-                    onClick={() => setViewMode('list')}
-                    className="w-8 h-8 p-0"
-                  >
-                    <List className="w-4 h-4" />
-                  </Button>
-                </div>
-              </div>
+            <div className="flex items-center gap-1 h-9 border border-border rounded-md px-1 bg-input-background">
+              <Button
+                variant={viewMode === 'grid' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setViewMode('grid')}
+                className="w-7 h-7 p-0 rounded-sm"
+              >
+                <Grid3X3 className="w-4 h-4" />
+              </Button>
+              <Button
+                variant={viewMode === 'list' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setViewMode('list')}
+                className="w-7 h-7 p-0 rounded-sm"
+              >
+                <List className="w-4 h-4" />
+              </Button>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
         {/* Selection Header */}
+        {/* Selection Header & Bulk Actions */}
         {filteredAssets.length > 0 && (
           <Card className="bg-card/50 backdrop-blur-sm border-border/50">
-            <CardContent className="p-4">
+            <CardContent className="p-4 !pb-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <Checkbox
@@ -1632,48 +1629,39 @@ export function AssetManager({
                 </div>
 
                 {selectedAssets.length > 0 && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleClearSelection}
-                    className="text-muted-foreground hover:text-foreground"
-                  >
-                    Limpar seleo
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <PermissionGuard permissions={[Permission.DOWNLOAD_MATERIALS]}>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleBulkDownload}
+                        className="bg-card hover:bg-accent border-border"
+                      >
+                        <Download className="w-4 h-4 mr-2" />
+                        Download ({selectedAssets.length})
+                      </Button>
+                    </PermissionGuard>
+                    <PermissionGuard permissions={[Permission.DELETE_MATERIALS]}>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleBulkDelete}
+                        className="bg-card hover:bg-accent border-border text-destructive hover:text-destructive"
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Excluir ({selectedAssets.length})
+                      </Button>
+                    </PermissionGuard>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleClearSelection}
+                      className="text-muted-foreground hover:text-foreground"
+                    >
+                      Limpar seleção
+                    </Button>
+                  </div>
                 )}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Bulk Actions */}
-        {selectedAssets.length > 0 && (
-          <Card className="bg-card/50 backdrop-blur-sm border-border/50">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium">Aes em massa:</span>
-                <PermissionGuard permissions={[Permission.DOWNLOAD_MATERIALS]}>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleBulkDownload}
-                    className="bg-card hover:bg-accent border-border"
-                  >
-                    <Download className="w-4 h-4 mr-2" />
-                    Download ({selectedAssets.length})
-                  </Button>
-                </PermissionGuard>
-                <PermissionGuard permissions={[Permission.DELETE_MATERIALS]}>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleBulkDelete}
-                    className="bg-card hover:bg-accent border-border text-destructive hover:text-destructive"
-                  >
-                    <Trash2 className="w-4 h-4 mr-2" />
-                    Excluir ({selectedAssets.length})
-                  </Button>
-                </PermissionGuard>
               </div>
             </CardContent>
           </Card>
@@ -1730,7 +1718,7 @@ export function AssetManager({
                         );
                       })()}
                       <div className="absolute top-2 right-2">
-                        <Badge variant={typeBadge.variant} className="text-[0.65rem] sm:text-xs">
+                        <Badge variant={typeBadge.variant} className="text-[0.65rem] sm:text-xs bg-zinc-800/70 text-white border-transparent hover:bg-zinc-800/80">
                           {typeBadge.label}
                         </Badge>
                       </div>
@@ -1752,20 +1740,20 @@ export function AssetManager({
                       </div>
 
                       <div className="flex min-w-0 flex-wrap items-center gap-1">
-                        <Badge variant="outline" className="max-w-full truncate text-[0.65rem] sm:text-xs">
+                        <Badge variant="outline" className="max-w-full text-[0.65rem] sm:text-xs">
                           {getCategoryName(asset)}
                         </Badge>
                         {getProjectPhase(asset) && (
-                          <Badge variant={getProjectPhase(asset)?.variant} className="max-w-full truncate text-[0.65rem] sm:text-xs">
+                          <Badge variant={getProjectPhase(asset)?.variant} className="max-w-full text-[0.65rem] sm:text-xs">
                             {getProjectPhase(asset)?.label}
                           </Badge>
                         )}
-                        <Badge variant="secondary" className="max-w-full truncate text-[0.65rem] sm:text-xs">
+                        <Badge variant="secondary" className="max-w-full text-[0.65rem] sm:text-xs">
                           {asset.origin === 'house' ? 'House' : 'EV'}
                         </Badge>
                         {asset.regional && (
-                          <Badge variant="outline" className="max-w-full truncate text-[0.65rem] sm:text-xs">
-                            {asset.regional}
+                          <Badge variant="outline" className="max-w-full text-[0.65rem] sm:text-xs">
+                            {asset.regional.toLowerCase().split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
                           </Badge>
                         )}
                       </div>
@@ -1773,14 +1761,14 @@ export function AssetManager({
                       <div className="flex gap-1 pt-2">
                         <Button
                           size="sm"
-                          variant="outline"
-                          className="h-8 w-8 rounded-xl sm:w-auto"
+                          variant="default"
+                          className="h-8 rounded-md px-3 flex-1"
                           onClick={(e) => {
                             e.stopPropagation();
                             handleViewAsset(asset);
                           }}
                         >
-                          <Eye className="h-3 w-3" />
+                          Visualizar
                         </Button>
 
                         <Button
@@ -1887,23 +1875,23 @@ export function AssetManager({
                               {asset.name}
                             </h3>
                             <div className="flex flex-wrap items-center gap-2 mb-2 min-w-0">
-                              <Badge variant={typeBadge.variant} className="max-w-full truncate text-[0.65rem] sm:text-xs">
+                              <Badge variant={typeBadge.variant} className="max-w-full text-[0.65rem] sm:text-xs">
                                 {typeBadge.label}
                               </Badge>
-                              <Badge variant="outline" className="max-w-full truncate text-[0.65rem] sm:text-xs">
+                              <Badge variant="outline" className="max-w-full text-[0.65rem] sm:text-xs">
                                 {getCategoryName(asset)}
                               </Badge>
                               {getProjectPhase(asset) && (
-                                <Badge variant={getProjectPhase(asset)?.variant} className="max-w-full truncate text-[0.65rem] sm:text-xs">
+                                <Badge variant={getProjectPhase(asset)?.variant} className="max-w-full text-[0.65rem] sm:text-xs">
                                   {getProjectPhase(asset)?.label}
                                 </Badge>
                               )}
-                              <Badge variant="secondary" className="max-w-full truncate text-[0.65rem] sm:text-xs">
+                              <Badge variant="secondary" className="max-w-full text-[0.65rem] sm:text-xs">
                                 {asset.origin === 'house' ? 'House' : 'EV'}
                               </Badge>
                               {asset.regional && (
-                                <Badge variant="outline" className="max-w-full truncate text-[0.65rem] sm:text-xs">
-                                  {asset.regional}
+                                <Badge variant="outline" className="max-w-full text-[0.65rem] sm:text-xs">
+                                  {asset.regional.toLowerCase().split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
                                 </Badge>
                               )}
                             </div>
@@ -1918,14 +1906,13 @@ export function AssetManager({
                           <div className="flex items-center gap-1">
                             <Button
                               size="sm"
-                              variant="ghost"
+                              variant="default"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleViewAsset(asset);
                               }}
-                              title="Visualizar"
                             >
-                              <Eye className="w-4 h-4" />
+                              Visualizar
                             </Button>
 
                             <Button

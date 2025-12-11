@@ -67,29 +67,29 @@ import posthog from "posthog-js";
 const getStatusBadge = (status: string) => {
   const badges = {
     "em-desenvolvimento": {
-      label: "Vem \u00ED",
+      label: "Vem aí",
       variant: "secondary" as const,
       icon: Construction,
     },
     "vem-ai": {
-      label: "Vem \u00ED",
+      label: "Vem aí",
       variant: "secondary" as const,
       icon: Construction,
     },
     "breve-lancamento": {
-      label: "Breve lan\u00E7amento",
-      variant: "secondary" as const,
+      label: "Breve lançamento",
+      variant: "blue" as const,
       icon: Construction,
     },
     lancamento: {
-      label: "Lan\u00E7amento",
-      variant: "default" as const,
+      label: "Lançamento",
+      variant: "blue" as const,
       icon: Building,
     },
     vendas: { label: "Em vendas", variant: "outline" as const, icon: Home },
     entregue: {
       label: "Entregue",
-      variant: "destructive" as const,
+      variant: "gray" as const,
       icon: CheckCircle,
     },
   };
@@ -135,19 +135,19 @@ const normalizeLaunchDateInput = (
       ? trimmed.split("T")[0]
       : trimmed;
 
-  if (/^\d{4}-\d{2}-\d{2}$/.test(datePortion)) {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(datePortion)) {
+      return datePortion;
+    }
+
+    const parsed = new Date(trimmed);
+    if (!Number.isNaN(parsed.getTime())) {
+      return parsed.toISOString().split("T")[0];
+    }
+
     return datePortion;
   }
 
-  const parsed = new Date(trimmed);
-  if (!Number.isNaN(parsed.getTime())) {
-    return parsed.toISOString().split("T")[0];
-  }
-
-  return datePortion;
-}
-
-return undefined;
+  return undefined;
 };
 
 const getRegionalLabel = (regional?: string | null): string => {
@@ -222,9 +222,9 @@ export function ProjectManager({
   const scopedProjects =
     isRegionalRestricted && userRegional
       ? projectsWithImages.filter(
-          (project) =>
-            (project.regional || "").trim().toUpperCase() === userRegional
-        )
+        (project) =>
+          (project.regional || "").trim().toUpperCase() === userRegional
+      )
       : projectsWithImages;
 
   console.log(
@@ -313,22 +313,22 @@ export function ProjectManager({
     } catch (error) {
       toast.error("Erro ao criar empreendimento");
       console.error(" Error creating project:", error);
-  }
-};
+    }
+  };
 
-const captureProjectEvent = (
-  eventName: string,
-  payload: Record<string, unknown>,
-) => {
-  if (typeof window === "undefined") {
-    return;
-  }
-  posthog.capture(eventName, payload);
-};
+  const captureProjectEvent = (
+    eventName: string,
+    payload: Record<string, unknown>,
+  ) => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    posthog.capture(eventName, payload);
+  };
 
   const handleUpdateProject = async (updatedProject: Project) => {
     if (!canEditProjects) {
-      toast.error("Voc no possui permisso para editar empreendimentos");
+      toast.error("Você não possui permissão para editar empreendimentos");
       return;
     }
 
@@ -364,7 +364,7 @@ const captureProjectEvent = (
 
     const nextRegional = (safeUpdates.regional ?? updatedProject.regional ?? "").toString().trim().toUpperCase();
     if (!nextRegional) {
-      toast.error("Regional e obrigatoria");
+      toast.error("Regional é obrigatória");
       return;
     }
     safeUpdates.regional = nextRegional;
@@ -387,7 +387,7 @@ const captureProjectEvent = (
 
   const handleDeleteProject = async (projectId: string) => {
     if (!canDeleteProjects) {
-      toast.error("Voc no possui permisso para excluir empreendimentos");
+      toast.error("Você não possui permissão para excluir empreendimentos");
       return;
     }
 
@@ -412,20 +412,18 @@ const captureProjectEvent = (
       return;
     }
 
-    // Se existe funo de callback para navegao, usa ela
+    // Se existe função de callback para navegação, usa ela
     if (onNavigateToMaterials) {
       onNavigateToMaterials(project.id, project.name);
     } else if (onPageChange) {
-      // Fallback: navegar para a pgina de materiais
+      // Fallback: navegar para a página de materiais
       onPageChange("materials");
       toast.success(`Navegando para materiais de "${project.name}"`);
     } else {
-      // Fallback: mostrar toast com informaes
+      // Fallback: mostrar toast com informações
       toast.success(
-        `${projectAssets.length} material${
-          projectAssets.length > 1 ? "is" : ""
-        } encontrado${projectAssets.length > 1 ? "s" : ""} para "${
-          project.name
+        `${projectAssets.length} material${projectAssets.length > 1 ? "is" : ""
+        } encontrado${projectAssets.length > 1 ? "s" : ""} para "${project.name
         }"`
       );
     }
@@ -442,10 +440,10 @@ const captureProjectEvent = (
     const scopedProjectsWithImages = scopedProjects;
     const projectsWithoutImage = isRegionalRestricted && userRegional
       ? projects.filter(
-          (project) =>
-            (project.regional || "").trim().toUpperCase() === userRegional &&
-            (!project.image || project.image.trim() === "")
-        )
+        (project) =>
+          (project.regional || "").trim().toUpperCase() === userRegional &&
+          (!project.image || project.image.trim() === "")
+      )
       : projects.filter((project) => !project.image || project.image.trim() === "");
 
     const totalProjects = scopedProjectsWithImages.length;
@@ -565,35 +563,31 @@ const captureProjectEvent = (
         </Card>
       </div>
       {/* Filters */}
-      <Card className="bg-card/50 backdrop-blur-sm border-border/50">
-        <CardContent className="p-4">
-          <div className="flex flex-col lg:flex-row gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                placeholder="Pesquisar empreendimentos..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 bg-input-background border-border"
-              />
-            </div>
+      <div className="flex flex-col lg:flex-row gap-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder="Pesquisar empreendimentos..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10 bg-input-background border-border"
+          />
+        </div>
 
-            <div className="flex gap-2">
-              <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-                <SelectTrigger className="w-48 bg-input-background border-border">
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                                <SelectContent>
-                  <SelectItem value="all">Todos os status</SelectItem>
-                  <SelectItem value="vem-ai">Vem Aí</SelectItem>
-                  <SelectItem value="breve-lancamento">Breve Lançamento</SelectItem>
-                  <SelectItem value="lancamento">Lançamento</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+        <div className="flex gap-2">
+          <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+            <SelectTrigger className="w-48 bg-input-background border-border">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos os status</SelectItem>
+              <SelectItem value="vem-ai">Vem Aí</SelectItem>
+              <SelectItem value="breve-lancamento">Breve Lançamento</SelectItem>
+              <SelectItem value="lancamento">Lançamento</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
 
       {/* Projects Grid - Layout igual ao visual de referncia */}
       <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -679,7 +673,7 @@ const captureProjectEvent = (
                 ? "Tente ajustar sua pesquisa"
                 : "Não há empreendimentos disponíveis"}
             </p>
-    
+
           </CardContent>
         </Card>
       )}
@@ -740,11 +734,11 @@ function ProjectForm({
     const newErrors: Record<string, string> = {};
 
     if (!formData.name.trim()) {
-      newErrors.name = "Nome e obrigatorio";
+      newErrors.name = "Nome é obrigatório";
     }
 
     if (!formData.regional.trim()) {
-      newErrors.regional = "Regional e obrigatoria";
+      newErrors.regional = "Regional é obrigatória";
     }
 
     const hasExistingImage = !!(
@@ -755,11 +749,11 @@ function ProjectForm({
     );
 
     if (!imageFile && !hasExistingImage) {
-      newErrors.image = "Imagem e obrigatoria";
+      newErrors.image = "Imagem é obrigatória";
     }
 
     if (!formData.projectPhase) {
-      newErrors.projectPhase = "Fase do empreendimento e obrigatoria";
+      newErrors.projectPhase = "Fase do empreendimento é obrigatória";
     }
 
     setErrors(newErrors);
@@ -782,7 +776,7 @@ function ProjectForm({
     if (file.size > 5 * 1024 * 1024) {
       setErrors((prev) => ({
         ...prev,
-        image: "Arquivo deve ter no mximo 5MB",
+        image: "Arquivo deve ter no máximo 5MB",
       }));
       return;
     }
@@ -842,7 +836,7 @@ function ProjectForm({
 
     if (!validateForm()) {
       console.log("[Form validation failed]:", errors);
-      toast.error("Por favor, corrija os erros do formulrio");
+      toast.error("Por favor, corrija os erros do formulário");
       return;
     }
 
@@ -862,9 +856,9 @@ function ProjectForm({
   };
 
   const getProjectPhases = () => [
-    { value: "vem-ai", label: "Vem aÃ­" },
-    { value: "breve-lancamento", label: "Breve lanÃ§amento" },
-    { value: "lancamento", label: "LanÃ§amento" },
+    { value: "vem-ai", label: "Vem aí" },
+    { value: "breve-lancamento", label: "Breve lançamento" },
+    { value: "lancamento", label: "Lançamento" },
   ];
 
   return (
@@ -879,9 +873,8 @@ function ProjectForm({
             value={formData.name}
             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
             placeholder="Ex: Residencial Vista Alegre"
-            className={`bg-input-background border-border ${
-              errors.name ? "border-red-500" : ""
-            }`}
+            className={`bg-input-background border-border ${errors.name ? "border-red-500" : ""
+              }`}
           />
           {errors.name && (
             <p className="text-xs text-red-500 mt-1">{errors.name}</p>
@@ -908,9 +901,8 @@ function ProjectForm({
           >
             <SelectTrigger
               id="regional"
-              className={`bg-input-background border-border ${
-                errors.regional ? "border-red-500" : ""
-              }`}
+              className={`bg-input-background border-border ${errors.regional ? "border-red-500" : ""
+                }`}
             >
               <SelectValue placeholder="Selecione a regional" />
             </SelectTrigger>
@@ -929,7 +921,7 @@ function ProjectForm({
 
         <div className="col-span-2 md:col-span-1">
           <Label htmlFor="launchDate" className="mb-2">
-            Previso de Lanamento
+            Previsão de Lançamento
           </Label>
           <Input
             id="launchDate"
@@ -957,9 +949,8 @@ function ProjectForm({
             }
           >
             <SelectTrigger
-              className={`bg-input-background border-border ${
-                errors.projectPhase ? "border-red-500" : ""
-              }`}
+              className={`bg-input-background border-border ${errors.projectPhase ? "border-red-500" : ""
+                }`}
             >
               <SelectValue placeholder="Selecione a fase" />
             </SelectTrigger>
@@ -1004,7 +995,7 @@ function ProjectForm({
         <div className="md:col-span-2 space-y-3">
           <Label className="text-base">Imagem do Empreendimento *</Label>
           <p className="text-xs text-muted-foreground">
-            A imagem ser usada como miniatura nos cards.  obrigatria para o
+            A imagem será usada como miniatura nos cards. É obrigatória para o
             empreendimento aparecer na listagem.
           </p>
 
@@ -1033,7 +1024,7 @@ function ProjectForm({
               <div className="flex flex-col items-center gap-2 text-muted-foreground">
                 <ImageIcon className="h-10 w-10" />
                 <p className="text-sm font-medium">Clique para enviar imagem</p>
-                <p className="text-xs">JPG, PNG ou WebP at 5MB</p>
+                <p className="text-xs">JPG, PNG ou WebP até 5MB</p>
               </div>
             )}
 
@@ -1066,7 +1057,7 @@ function ProjectForm({
           </div>
 
           <p className="text-xs text-muted-foreground">
-            Recomendamos imagens com proporo 4:3 e pelo menos 1200900 px.
+            Recomendamos imagens com proporção 4:3 e pelo menos 1200x900 px.
           </p>
 
           {errors.image && (

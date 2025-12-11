@@ -19,7 +19,7 @@ function Badge({ label, variant }: { label: string; variant?: string }) {
       style={{ background }}
     >
       <div className="box-border content-stretch flex gap-[8px] items-center justify-center overflow-clip px-[8px] py-[4px] relative rounded-[inherit]">
-        <p className="font-['Tenda:Medium',sans-serif] leading-[14px] not-italic relative shrink-0 text-[12px] text-nowrap text-white tracking-[0.0923px] whitespace-pre">
+        <p className="font-medium leading-[14px] not-italic relative shrink-0 text-[12px] text-nowrap text-white tracking-[0.0923px] whitespace-pre">
           {label}
         </p>
       </div>
@@ -338,6 +338,8 @@ function Frame1({
   );
 }
 
+import { Button } from "./ui/button";
+
 function ButtonBrandS({
   count,
   onClick,
@@ -348,24 +350,16 @@ function ButtonBrandS({
   disabled?: boolean;
 }) {
   return (
-    <button
-      type="button"
+    <Button
+      variant="default"
+      size="sm"
       onClick={onClick}
       disabled={disabled}
-      aria-label="Ver materiais"
-      className="basis-0 bg-[#d50037] hover:bg-[#c30034] transition-colors grow min-h-px min-w-[70px] relative rounded-[8px] shrink-0 border-0 p-0"
+      className="w-full flex-1"
     >
-      <div className="flex flex-row items-center justify-center min-w-inherit overflow-clip rounded-[inherit] size-full">
-        <div className="bg-clip-padding border-0 border-[transparent] border-solid box-border content-stretch flex gap-[12px] items-center justify-center min-w-inherit px-[12px] py-[8px] relative w-full">
-          <DetailsIcon />
-          <div className="flex flex-col font-['Tenda:Medium',sans-serif] justify-center leading-[0] not-italic relative shrink-0 text-[14px] text-center text-nowrap text-white">
-            <p className="leading-[20px] whitespace-pre">
-              Materiais{count > 0 ? ` (${count})` : ""}
-            </p>
-          </div>
-        </div>
-      </div>
-    </button>
+      <DetailsIcon />
+      <span>Materiais{count > 0 ? ` (${count})` : ""}</span>
+    </Button>
   );
 }
 

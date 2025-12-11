@@ -9,13 +9,13 @@ import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Textarea } from './ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
-import { 
-  DropdownMenu, 
-  DropdownMenuContent, 
-  DropdownMenuItem, 
-  DropdownMenuLabel, 
-  DropdownMenuSeparator, 
-  DropdownMenuTrigger 
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger
 } from './ui/dropdown-menu';
 import { toast } from 'sonner';
 import {
@@ -45,7 +45,7 @@ import { Permission } from '../types/enums';
 
 const getStatusBadge = (status: string) => {
   const badges = {
-    active: { label: 'Ativa', variant: 'default' as const, icon: PlayCircle },
+    active: { label: 'Ativa', variant: 'blue' as const, icon: PlayCircle },
     expiring: { label: 'Expirando', variant: 'secondary' as const, icon: AlertTriangle },
     inactive: { label: 'Agendada', variant: 'secondary' as const, icon: Clock },
     archived: { label: 'Encerrada', variant: 'outline' as const, icon: StopCircle }
@@ -74,27 +74,27 @@ export function CampaignManager({ onNavigateToMaterials }: CampaignManagerProps)
     }
     return 'No informado';
   };
-  
+
   // Permisses para modificaes
   const canCreateCampaigns = hasPermission(Permission.CREATE_CAMPAIGNS);
   const canEditCampaigns = hasPermission(Permission.EDIT_CAMPAIGNS);
   const canDeleteCampaigns = hasPermission(Permission.DELETE_CAMPAIGNS);
-const headerDescription = isViewer()
-  ? 'Visualize campanhas e seus materiais'
-  : 'Gerencie campanhas e organize materiais por aes de marketing';
+  const headerDescription = isViewer()
+    ? 'Visualize campanhas e seus materiais'
+    : 'Gerencie campanhas e organize materiais por aes de marketing';
 
-const captureCampaignEvent = (eventName: string, payload: Record<string, unknown>) => {
-  if (typeof window === 'undefined') {
-    return;
-  }
-  posthog.capture(eventName, payload);
-};
-  
+  const captureCampaignEvent = (eventName: string, payload: Record<string, unknown>) => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    posthog.capture(eventName, payload);
+  };
+
   const filteredCampaigns = campaigns.filter(campaign => {
     const matchesSearch = campaign.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         campaign.description?.toLowerCase().includes(searchQuery.toLowerCase());
+      campaign.description?.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = selectedStatus === 'all' || campaign.status === selectedStatus;
-    
+
     return matchesSearch && matchesStatus;
   });
 
@@ -196,7 +196,7 @@ const captureCampaignEvent = (eventName: string, payload: Record<string, unknown
 
   const handleViewMaterials = (campaign: Campaign) => {
     const campaignAssets = getCampaignAssets(campaign.id);
-    
+
     if (campaignAssets.length === 0) {
       toast.info(`Nenhum material encontrado para "${campaign.name}"`);
       return;
@@ -217,7 +217,7 @@ const captureCampaignEvent = (eventName: string, payload: Record<string, unknown
     const scheduledCampaigns = campaigns.filter(c => c.status === 'inactive').length;
     const archivedCampaigns = campaigns.filter(c => c.status === 'archived').length;
     const expiringCampaigns = campaigns.filter(c => c.status === 'expiring').length;
-    
+
     return { totalCampaigns, activeCampaigns, scheduledCampaigns, archivedCampaigns, expiringCampaigns };
   };
 
@@ -307,36 +307,32 @@ const captureCampaignEvent = (eventName: string, payload: Record<string, unknown
       </div>
 
       {/* Filters */}
-      <Card className="bg-card/50 backdrop-blur-sm border-border/50">
-        <CardContent className="p-4">
-          <div className="flex flex-col lg:flex-row gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                placeholder="Pesquisar campanhas..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 bg-input-background border-border"
-              />
-            </div>
-            
-            <div className="flex gap-2">
-              <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-                <SelectTrigger className="w-40 bg-input-background border-border">
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos os status</SelectItem>
-                  <SelectItem value="expiring">Expirando</SelectItem>
-                  <SelectItem value="active">Ativas</SelectItem>
-                  <SelectItem value="inactive">Agendadas</SelectItem>
-                  <SelectItem value="archived">Encerradas</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="flex flex-col lg:flex-row gap-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder="Pesquisar campanhas..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10 bg-input-background border-border"
+          />
+        </div>
+
+        <div className="flex gap-2">
+          <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+            <SelectTrigger className="w-40 bg-input-background border-border">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos os status</SelectItem>
+              <SelectItem value="expiring">Expirando</SelectItem>
+              <SelectItem value="active">Ativas</SelectItem>
+              <SelectItem value="inactive">Agendadas</SelectItem>
+              <SelectItem value="archived">Encerradas</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
 
       {/* Campaigns Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
@@ -344,14 +340,14 @@ const captureCampaignEvent = (eventName: string, payload: Record<string, unknown
           const statusBadge = getStatusBadge(campaign.status);
           const campaignAssets = getCampaignAssets(campaign.id);
           const StatusIcon = statusBadge.icon;
-          
+
           return (
             <Card key={campaign.id} className="group hover:shadow-lg transition-all duration-300 bg-card/50 backdrop-blur-sm border-border/50">
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
-                    <div 
-                      className="w-4 h-4 rounded-full" 
+                    <div
+                      className="w-4 h-4 rounded-full"
                       style={{ backgroundColor: campaign.color }}
                     />
                     <Badge variant={statusBadge.variant} className="text-xs">
@@ -382,7 +378,7 @@ const captureCampaignEvent = (eventName: string, payload: Record<string, unknown
                         {canDeleteCampaigns && (
                           <>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem 
+                            <DropdownMenuItem
                               onClick={() => handleDeleteCampaign(campaign.id)}
                               className="text-destructive"
                             >
@@ -395,7 +391,7 @@ const captureCampaignEvent = (eventName: string, payload: Record<string, unknown
                     </DropdownMenu>
                   )}
                 </div>
-                
+
                 <div>
                   <CardTitle className="text-lg font-semibold text-foreground">{campaign.name}</CardTitle>
                   {campaign.description && (
@@ -405,7 +401,7 @@ const captureCampaignEvent = (eventName: string, payload: Record<string, unknown
                   )}
                 </div>
               </CardHeader>
-              
+
               <CardContent className="space-y-4">
                 {/* Stats */}
                 <div className="grid grid-cols-2 gap-4">
@@ -420,7 +416,7 @@ const captureCampaignEvent = (eventName: string, payload: Record<string, unknown
                     <span className="font-medium text-foreground truncate">{getCreatorDisplayName(campaign.createdByName, campaign.createdBy)}</span>
                   </div>
                 </div>
-                
+
                 {/* Dates */}
                 <div className="space-y-2">
                   <div className="flex items-center gap-2 text-sm">
@@ -436,12 +432,12 @@ const captureCampaignEvent = (eventName: string, payload: Record<string, unknown
                     </div>
                   )}
                 </div>
-                
+
                 {/* Actions */}
                 <div className="flex gap-2 pt-2">
-                  <Button 
-                    variant="default" 
-                    size="sm" 
+                  <Button
+                    variant="default"
+                    size="sm"
                     className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground"
                     onClick={() => handleViewMaterials(campaign)}
                     disabled={campaignAssets.length === 0}
@@ -450,8 +446,8 @@ const captureCampaignEvent = (eventName: string, payload: Record<string, unknown
                     Ver Materiais {campaignAssets.length > 0 && `(${campaignAssets.length})`}
                   </Button>
                   {canEditCampaigns && (
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       size="sm"
                       className="bg-card hover:bg-accent border-border"
                       onClick={() => setEditingCampaign(campaign)}
@@ -474,7 +470,7 @@ const captureCampaignEvent = (eventName: string, payload: Record<string, unknown
             <p className="text-muted-foreground mb-4">
               {searchQuery ? 'Tente ajustar sua pesquisa' : 'No h campanhas disponveis'}
             </p>
-    
+
           </CardContent>
         </Card>
       )}
@@ -490,7 +486,7 @@ const captureCampaignEvent = (eventName: string, payload: Record<string, unknown
               </DialogDescription>
             </DialogHeader>
             {editingCampaign && (
-              <CampaignForm 
+              <CampaignForm
                 campaign={editingCampaign}
                 onSubmit={(data) => handleUpdateCampaign({ ...editingCampaign, ...data })}
               />
@@ -503,10 +499,10 @@ const captureCampaignEvent = (eventName: string, payload: Record<string, unknown
 }
 
 // Campaign Form Component
-function CampaignForm({ 
-  campaign, 
-  onSubmit 
-}: { 
+function CampaignForm({
+  campaign,
+  onSubmit
+}: {
   campaign?: Campaign;
   onSubmit: (data: Partial<Campaign>) => void;
 }) {

@@ -101,16 +101,16 @@ const FILTER_OPTIONS: Array<{
 
   label: string;
 }> = [
-  { value: "all", label: "Todos" },
+    { value: "all", label: "Todos" },
 
-  { value: "documentation", label: "Documentação" },
+    { value: "documentation", label: "Documentação" },
 
-  { value: "tools", label: "Ferramentas" },
+    { value: "tools", label: "Ferramentas" },
 
-  { value: "resources", label: "Recursos" },
+    { value: "resources", label: "Recursos" },
 
-  { value: "other", label: "Outros" },
-];
+    { value: "other", label: "Outros" },
+  ];
 
 const EMPTY_STATE_MESSAGE = {
   icon: Link2,
@@ -353,7 +353,7 @@ export function UsefulLinksManager() {
         onKeyDown={(event) => {
           if (event.key === "Enter" || event.key === " ") {
             event.preventDefault();
-            openLinkInNewTab(link.url);
+            openLinkInNewTab(link);
           }
         }}
       >
@@ -411,13 +411,13 @@ export function UsefulLinksManager() {
             {canManageLinks && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="text-muted-foreground hover:text-foreground"
-                  onClick={(event) => event.stopPropagation()}
-                  data-card-ignore-click
-                >
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-muted-foreground hover:text-foreground"
+                    onClick={(event) => event.stopPropagation()}
+                    data-card-ignore-click
+                  >
                     <MoreHorizontal className="size-4" />
                   </Button>
                 </DropdownMenuTrigger>
@@ -498,42 +498,43 @@ export function UsefulLinksManager() {
           </Button>
         }
       >
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex-1 min-w-0">
-            <div className="relative">
-              <div className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-muted-foreground">
-                <Search className="size-4" />
-              </div>
+      </PageHeader>
 
-              <Input
-                className="w-full border border-border/70 bg-card/30 pl-11 text-sm"
-                placeholder="Pesquisar links..."
-                value={searchTerm}
-                onChange={(event) => setSearchTerm(event.target.value)}
-              />
+      <div className="flex items-center justify-between gap-4 w-full">
+        <div className="flex-1 min-w-0">
+          <div className="relative">
+            <div className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-muted-foreground">
+              <Search className="size-4" />
             </div>
-          </div>
 
-          <div className="flex flex-nowrap items-center gap-2">
-            {FILTER_OPTIONS.map((option) => (
-              <button
-                key={option.value}
-                type="button"
-                onClick={() => setSelectedCategory(option.value)}
-                className={cn(
-                  "rounded-full px-3 py-1 text-xs font-semibold transition duration-150",
-
-                  option.value === selectedCategory
-                  ? "bg-destructive text-white"
-                    : "border border-border/60 bg-card/30 text-muted-foreground hover:border-border/80"
-                )}
-              >
-                {option.label}
-              </button>
-            ))}
+            <Input
+              className="w-full border border-border/70 bg-card/30 pl-11 text-sm"
+              placeholder="Pesquisar links..."
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+            />
           </div>
         </div>
-      </PageHeader>
+
+        <div className="flex flex-nowrap items-center gap-2">
+          {FILTER_OPTIONS.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => setSelectedCategory(option.value)}
+              className={cn(
+                "h-9 flex items-center rounded-full px-3 text-xs font-semibold transition duration-150",
+
+                option.value === selectedCategory
+                  ? "bg-destructive text-white"
+                  : "border border-border/60 bg-card/30 text-muted-foreground hover:border-border/80"
+              )}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      </div>
 
       {pinnedLinks.length > 0 && (
         <section className="space-y-4">
@@ -731,8 +732,8 @@ export function UsefulLinksManager() {
                   ? "Criando..."
                   : "Salvando..."
                 : dialogMode === "create"
-                ? "Criar link"
-                : "Salvar alterações"}
+                  ? "Criar link"
+                  : "Salvar alterações"}
             </Button>
           </DialogFooter>
         </DialogContent>
