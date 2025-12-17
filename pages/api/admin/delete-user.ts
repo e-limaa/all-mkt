@@ -1,6 +1,7 @@
 ﻿import type { NextApiRequest, NextApiResponse } from "next";
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "../../../types/supabase";
+import { logActivity } from "../../../lib/activity-logger";
 
 const supabaseUrl =
   process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
@@ -147,6 +148,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (tableDeleteError) {
     return res.status(500).json({ error: tableDeleteError.message });
   }
+
+  // Log activity
+  await logActivity(supabaseAdmin, {
+    action: 'delete_user',
+    entityType: 'user',
+    entityId: id,
+    userId: requesterAuth.user.id,
+    metadata: {
+      deletedUserId: id
+    }
+  });
 
   return res.status(200).json({ success: true });
 }

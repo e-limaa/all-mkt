@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "../../../types/supabase";
+import { logActivity } from "../../../lib/activity-logger";
 
 const supabaseUrl =
   process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
@@ -124,8 +125,8 @@ export default async function handler(
     typeof requesterMetadata.regional === "string"
       ? requesterMetadata.regional.trim().toUpperCase()
       : typeof requesterAppMetadata.regional === "string"
-      ? (requesterAppMetadata.regional as string).trim().toUpperCase()
-      : null;
+        ? (requesterAppMetadata.regional as string).trim().toUpperCase()
+        : null;
   const requesterRole =
     (effectiveRequesterProfile?.role as AllowedRole) ?? fallbackRole;
   const requesterRegional = normalizeRegional(
@@ -381,7 +382,19 @@ export default async function handler(
     return res.status(500).json({ error: upsertError.message });
   }
 
+  // Log activity
+  await logActivity(supabaseAdmin, {
+    action: 'update_user',
+    entityType: 'user',
+    entityId: id,
+    userId: requesterAuth.user.id,
+    metadata: {
+      email,
+      role: normalizedRole,
+      name,
+      regional: normalizedRegional
+    }
+  });
+
   return res.status(200).json({ userId: id });
 }
-
-

@@ -46,6 +46,7 @@ import { AssetViewer } from './AssetViewer';
 import { Progress } from './ui/progress';
 import { cn } from './ui/utils';
 import { supabase, supabaseUrl, logAssetDownloadEvent } from '../lib/supabase';
+import { logActivity } from '../lib/activity-logger';
 import { PageHeader } from './PageHeader';
 import posthog from 'posthog-js';
 
@@ -449,8 +450,20 @@ export function AssetManager({
         success,
         reason,
       });
-      if (success) {
+      if (success && supabase && userId) {
         void logAssetDownloadEvent(asset.id, userId);
+        void logActivity(supabase, {
+          action: 'download_asset',
+          entityType: 'asset',
+          entityId: asset.id,
+          userId: userId,
+          metadata: {
+            name: asset.name,
+            fileSize: asset.size,
+            fileType: asset.type,
+            regional: asset.regional
+          }
+        });
       }
     };
 
@@ -551,6 +564,20 @@ export function AssetManager({
       });
       assetsWithUrl.forEach(asset => {
         void logAssetDownloadEvent(asset.id, userId);
+        if (supabase && userId) {
+          void logActivity(supabase, {
+            action: 'download_asset',
+            entityType: 'asset',
+            entityId: asset.id,
+            userId: userId,
+            metadata: {
+              name: asset.name,
+              fileSize: asset.size,
+              fileType: asset.type,
+              regional: asset.regional
+            }
+          });
+        }
       });
     } catch (error) {
       console.error('[AssetManager] Erro no download em massa', error);

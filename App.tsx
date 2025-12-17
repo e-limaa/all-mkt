@@ -24,6 +24,7 @@ type AppPageKey =
   | 'campaigns'
   | 'projects'
   | 'users'
+  | 'activity'
   | 'shared'
   | 'settings';
 
@@ -41,6 +42,7 @@ const PAGE_TO_ROUTE: Record<AppPageKey, string> = {
   campaigns: '/campaigns',
   projects: '/projects',
   users: '/users',
+  activity: '/admin/activity',
   shared: '/shared',
   settings: '/settings',
 };
@@ -94,6 +96,9 @@ const ProjectManager = lazy(() =>
 );
 const UserManager = lazy(() =>
   import('./components/UserManager').then((module) => ({ default: module.UserManager })),
+);
+const AdminActivityPage = lazy(() =>
+  import('./pages/admin/activity').then((module) => ({ default: module.default })),
 );
 const UsefulLinksManager = lazy(() =>
   import('./components/UsefulLinksManager').then((module) => ({ default: module.UsefulLinksManager })),
@@ -401,6 +406,19 @@ function AppContent() {
             <>
               <DevelopmentModeAlert />
               <UserManager />
+            </>
+          </PermissionGuard>
+        );
+
+      case 'activity':
+        return (
+          <PermissionGuard
+            permissions={[Permission.VIEW_ACTIVITY_LOGS]}
+            fallback={<AccessDenied />}
+          >
+            <>
+              <DevelopmentModeAlert />
+              <AdminActivityPage />
             </>
           </PermissionGuard>
         );

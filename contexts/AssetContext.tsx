@@ -10,6 +10,7 @@ import { useConfig } from './ConfigContext';
 import { DEFAULT_SETTINGS } from '../lib/settings';
 import { Database } from '../types/supabase';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { logActivity } from '../lib/activity-logger';
 
 const buildSharePath = (params: {
   categoryType?: string | null;
@@ -104,7 +105,7 @@ interface AssetContextType {
   usefulLinks: UsefulLink[];
   createUsefulLink: (payload: UsefulLinkPayload) => Promise<UsefulLink>;
   updateUsefulLink: (id: string, updates: Partial<UsefulLinkPayload>) => Promise<UsefulLink>;
-  deleteUsefulLink: (id: string) => Promise<void>;  
+  deleteUsefulLink: (id: string) => Promise<void>;
   recordUsefulLinkClick: (id: string, currentCount?: number) => Promise<void>;
 }
 
@@ -383,8 +384,8 @@ export function AssetProvider({ children }: { children: ReactNode }) {
         })();
       const viewerGlobalAccess = Boolean(
         (user as unknown as { viewer_access_to_all?: boolean }).viewer_access_to_all ??
-          (user as unknown as { viewerAccessToAll?: boolean }).viewerAccessToAll ??
-          false,
+        (user as unknown as { viewerAccessToAll?: boolean }).viewerAccessToAll ??
+        false,
       );
 
       if (user.role === UserRole.ADMIN || user.role === UserRole.EDITOR_MARKETING) {
@@ -960,7 +961,7 @@ export function AssetProvider({ children }: { children: ReactNode }) {
 
   const fetchProjects = async () => {
     if (!supabase) return;
-    
+
     try {
       const supabaseClient = supabase as SupabaseClient<Database>;
       const { data, error } = await supabaseClient
@@ -1412,12 +1413,12 @@ export function AssetProvider({ children }: { children: ReactNode }) {
     if (!isConfigured) {
       // Modo de desenvolvimento - simular upload
       setLoading(true);
-      
+
       setTimeout(() => {
         const fileType = getFileType(file);
         const categoryType = projectId ? 'project' : 'campaign';
         const categoryId = projectId || campaignId!;
-        
+
         let categoryName = '';
         if (projectId) {
           const project = projects.find(p => p.id === projectId);
@@ -1473,7 +1474,7 @@ export function AssetProvider({ children }: { children: ReactNode }) {
         toast.success('Material enviado com sucesso! (Modo desenvolvimento)');
         setLoading(false);
       }, 2000);
-      
+
       return;
     }
 
@@ -1485,10 +1486,10 @@ export function AssetProvider({ children }: { children: ReactNode }) {
       const fileType = getFileType(file);
       const fileFormat = file.name.split('.').pop()?.toLowerCase() || '';
       const filename = `${user.id}/${uuidv4()}.${fileFormat}`;
-      
+
       await uploadFile(file, 'assets', filename);
       const fileUrl = getPublicUrl('assets', filename);
-      
+
       let thumbnailUrl = null;
       if (fileType === 'image') {
         thumbnailUrl = fileUrl;
@@ -1497,7 +1498,7 @@ export function AssetProvider({ children }: { children: ReactNode }) {
       const categoryType = projectId ? 'project' : 'campaign';
       const categoryId = projectId || campaignId!;
       const assetId = uuidv4();
-      
+
       let categoryName = '';
       if (projectId) {
         const project = projects.find(p => p.id === projectId);
@@ -1554,6 +1555,21 @@ export function AssetProvider({ children }: { children: ReactNode }) {
       if (error) throw error;
 
       await fetchAssets();
+      await fetchAssets();
+
+      await logActivity(supabase, {
+        action: 'upload_asset',
+        entityType: 'asset',
+        entityId: assetId,
+        metadata: {
+          name: metadata?.name || file.name,
+          fileSize: file.size,
+          fileType,
+          regional: categoryRegional
+        },
+        userId: user.id
+      });
+
       toast.success('Material enviado com sucesso!');
     } catch (error: any) {
       console.error('Error uploading asset:', error);
@@ -1621,20 +1637,20 @@ export function AssetProvider({ children }: { children: ReactNode }) {
           prev.map(asset =>
             asset.id === id
               ? {
-                  ...asset,
-                  ...updates,
+                ...asset,
+                ...updates,
+                categoryType: targetCategoryType,
+                categoryId: targetCategoryId ?? asset.categoryId,
+                categoryName: targetCategoryName || asset.categoryName,
+                sharePath: buildSharePath({
                   categoryType: targetCategoryType,
                   categoryId: targetCategoryId ?? asset.categoryId,
                   categoryName: targetCategoryName || asset.categoryName,
-                  sharePath: buildSharePath({
-                    categoryType: targetCategoryType,
-                    categoryId: targetCategoryId ?? asset.categoryId,
-                    categoryName: targetCategoryName || asset.categoryName,
-                    assetId: asset.id,
-                  }),
-                  regional: targetRegional,
-                  origin: updates.origin ?? asset.origin,
-                }
+                  assetId: asset.id,
+                }),
+                regional: targetRegional,
+                origin: updates.origin ?? asset.origin,
+              }
               : asset,
           ),
         ),
@@ -1690,6 +1706,15 @@ export function AssetProvider({ children }: { children: ReactNode }) {
       if (error) throw error;
 
       await fetchAssets();
+
+      await logActivity(supabase, {
+        action: 'update_asset',
+        entityType: 'asset',
+        entityId: id,
+        metadata: { updates: updatePayload },
+        userId: user.id
+      });
+
       toast.success('Material atualizado com sucesso!');
     } catch (error: any) {
       console.error('Error updating asset:', error);
@@ -1724,6 +1749,15 @@ export function AssetProvider({ children }: { children: ReactNode }) {
       if (error) throw error;
 
       await fetchAssets();
+      await fetchAssets();
+
+      await logActivity(supabase, {
+        action: 'delete_asset',
+        entityType: 'asset',
+        entityId: id,
+        userId: user.id
+      });
+
       toast.success('Material excluido com sucesso!');
     } catch (error: any) {
       console.error('Error deleting asset:', error);
@@ -1835,13 +1869,25 @@ export function AssetProvider({ children }: { children: ReactNode }) {
 
     try {
       const payload = mapCampaignToDb({ ...campaign, createdBy: user.id, regional: normalizedRegional });
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('campaigns')
-        .insert(payload);
+        .insert(payload)
+        .select();
 
       if (error) throw error;
 
       await fetchCampaigns();
+
+      if (data && data[0]) {
+        await logActivity(supabase, {
+          action: 'create_campaign',
+          entityType: 'campaign',
+          entityId: data[0].id,
+          metadata: { name: payload.name, regional: payload.regional },
+          userId: user.id
+        });
+      }
+
       toast.success('Campanha criada com sucesso!');
     } catch (error) {
       console.error('Error creating campaign:', error);
@@ -1879,6 +1925,17 @@ export function AssetProvider({ children }: { children: ReactNode }) {
     if (!supabase) throw new Error('Supabase nao configurado');
 
     const updatesWithRegional: Partial<Campaign> = { ...updates };
+
+    // Filter out fields that haven't changed
+    const originalCampaign = campaigns.find(c => c.id === id);
+    if (originalCampaign) {
+      (Object.keys(updatesWithRegional) as Array<keyof Campaign>).forEach(key => {
+        if (updatesWithRegional[key] === originalCampaign[key]) {
+          delete updatesWithRegional[key];
+        }
+      });
+    }
+
     if (updatesWithRegional.regional !== undefined) {
       const normalizedRegional = (updatesWithRegional.regional || '').trim().toUpperCase();
       if (!normalizedRegional) {
@@ -1887,8 +1944,18 @@ export function AssetProvider({ children }: { children: ReactNode }) {
       updatesWithRegional.regional = normalizedRegional;
     }
 
+    // If nothing changed after filtering, return early (optional, but good optimization)
+    if (Object.keys(updatesWithRegional).length === 0) {
+      toast.info('Nenhuma alteração detectada.');
+      return;
+    }
+
     try {
       const mappedUpdates = mapCampaignToDb(updatesWithRegional);
+
+      // Double check mapped updates against original DB values if possible, 
+      // but relying on the previous filter is usually enough for the log noise issue.
+
       const { error } = await supabase
         .from('campaigns')
         .update(mappedUpdates)
@@ -1897,6 +1964,15 @@ export function AssetProvider({ children }: { children: ReactNode }) {
       if (error) throw error;
 
       await fetchCampaigns();
+
+      await logActivity(supabase, {
+        action: 'update_campaign',
+        entityType: 'campaign',
+        entityId: id,
+        metadata: { updates: mappedUpdates },
+        userId: user.id
+      });
+
       toast.success('Campanha atualizada com sucesso!');
     } catch (error) {
       console.error('Error updating campaign:', error);
@@ -1923,6 +1999,15 @@ export function AssetProvider({ children }: { children: ReactNode }) {
       if (error) throw error;
 
       await fetchCampaigns();
+      await fetchCampaigns();
+
+      await logActivity(supabase, {
+        action: 'delete_campaign',
+        entityType: 'campaign',
+        entityId: id,
+        userId: user.id
+      });
+
       toast.success('Campanha excluida com sucesso!');
     } catch (error: any) {
       console.error('Error deleting campaign:', error);
@@ -1974,11 +2059,24 @@ export function AssetProvider({ children }: { children: ReactNode }) {
       payload.created_at = new Date().toISOString();
       payload.updated_at = new Date().toISOString();
 
-      const { error } = await supabase.from('projects').insert(payload);
+      const { data, error } = await supabase
+        .from('projects')
+        .insert(payload)
+        .select();
 
       if (error) throw error;
 
       await fetchProjects();
+      await fetchProjects();
+
+      await logActivity(supabase, {
+        action: 'create_project',
+        entityType: 'project',
+        entityId: data[0].id,
+        metadata: { name: payload.name, regional: payload.regional },
+        userId: user.id
+      });
+
       toast.success('Projeto criado com sucesso!');
     } catch (error) {
       console.error('Error creating project:', error);
@@ -2010,6 +2108,23 @@ export function AssetProvider({ children }: { children: ReactNode }) {
 
     try {
       const normalizedUpdates: Record<string, unknown> = { ...updates };
+
+      // Filter out fields that haven't changed
+      const originalProject = projects.find(p => p.id === id);
+      if (originalProject) {
+        Object.keys(normalizedUpdates).forEach(key => {
+          const k = key as keyof Project;
+          if (normalizedUpdates[key] === originalProject[k]) {
+            delete normalizedUpdates[key];
+          }
+        });
+      }
+
+      if (Object.keys(normalizedUpdates).length === 0) {
+        toast.info('Nenhuma alteração detectada.');
+        return;
+      }
+
       if (normalizedUpdates.regional !== undefined) {
         const normalizedRegional = (normalizedUpdates.regional || '').toString().trim().toUpperCase();
         if (!normalizedRegional) {
@@ -2038,6 +2153,16 @@ export function AssetProvider({ children }: { children: ReactNode }) {
       }
 
       await fetchProjects();
+      await fetchProjects();
+
+      await logActivity(supabase, {
+        action: 'update_project',
+        entityType: 'project',
+        entityId: id,
+        metadata: { updates: payload },
+        userId: user.id
+      });
+
       toast.success('Projeto atualizado com sucesso!');
     } catch (error) {
       console.error('Error updating project:', error);
@@ -2064,6 +2189,15 @@ export function AssetProvider({ children }: { children: ReactNode }) {
       if (error) throw error;
 
       await fetchProjects();
+      await fetchProjects();
+
+      await logActivity(supabase, {
+        action: 'delete_project',
+        entityType: 'project',
+        entityId: id,
+        userId: user.id
+      });
+
       toast.success('Projeto excluido com sucesso!');
     } catch (error: any) {
       console.error('Error deleting project:', error);
@@ -2074,7 +2208,7 @@ export function AssetProvider({ children }: { children: ReactNode }) {
 
   const getFileType = (file: File): Asset['type'] => {
     const mimeType = file.type;
-    
+
     if (mimeType.startsWith('image/')) return 'image';
     if (mimeType.startsWith('video/')) return 'video';
     if (mimeType.includes('pdf') || mimeType.includes('document') || mimeType.includes('text')) return 'document';

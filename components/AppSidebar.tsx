@@ -36,7 +36,7 @@ const NAVIGATION_GROUPS = [
   {
     id: "administration",
     label: "Administração",
-    items: ["users", "settings"],
+    items: ["users", "activity", "settings"],
   },
 ];
 
@@ -83,9 +83,8 @@ export function AppSidebar({ currentPage, onPageChange }: AppSidebarProps) {
           <React.Fragment key={group.id}>
             {index > 0 && <SidebarSeparator className="mx-2" />}
             <SidebarGroup
-              className={`px-2 py-3 ${
-                compactSidebar ? "pt-3 pb-3" : "pt-4 pb-3"
-              }`}
+              className={`px-2 py-3 ${compactSidebar ? "pt-3 pb-3" : "pt-4 pb-3"
+                }`}
             >
               <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
               <SidebarGroupContent>
@@ -104,9 +103,8 @@ export function AppSidebar({ currentPage, onPageChange }: AppSidebarProps) {
                           tooltip={
                             state === "collapsed" ? item.label : undefined
                           }
-                          className={`w-full justify-start px-2 lg:px-3 sidebar-menu-button cursor-pointer ${
-                            compactSidebar ? "py-1.5" : "py-2"
-                          }`}
+                          className={`w-full justify-start px-2 lg:px-3 sidebar-menu-button cursor-pointer ${compactSidebar ? "py-1.5" : "py-2"
+                            }`}
                         >
                           <Icon className="h-5 w-5 flex-shrink-0" />
                           <span className="text-sm">{item.label}</span>

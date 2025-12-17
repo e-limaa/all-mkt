@@ -1,4 +1,4 @@
-import { LucideIcon, BarChart3, FileImage, Target, Building, Share2, Users, Settings } from "lucide-react";
+import { LucideIcon, BarChart3, FileImage, Target, Building, Share2, Users, Settings, Activity } from "lucide-react";
 import { Permission } from "../types/enums";
 
 export type NavigationItem = {
@@ -48,6 +48,13 @@ const BASE_NAVIGATION_ITEMS: NavigationItem[] = [
     href: "users",
     icon: Users,
     permission: Permission.VIEW_USERS,
+  },
+  {
+    id: "activity",
+    label: "Atividades",
+    href: "activity",
+    icon: Activity,
+    permission: Permission.VIEW_ACTIVITY_LOGS,
   },
   {
     id: "settings",

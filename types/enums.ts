@@ -14,32 +14,33 @@ export enum Permission {
   DELETE_MATERIALS = 'delete_materials',
   DOWNLOAD_MATERIALS = 'download_materials',
   SHARE_MATERIALS = 'share_materials',
-  
+
   // Campaign permissions
   VIEW_CAMPAIGNS = 'view_campaigns',
   CREATE_CAMPAIGNS = 'create_campaigns',
   EDIT_CAMPAIGNS = 'edit_campaigns',
   DELETE_CAMPAIGNS = 'delete_campaigns',
-  
+
   // Project permissions
   VIEW_PROJECTS = 'view_projects',
   CREATE_PROJECTS = 'create_projects',
   EDIT_PROJECTS = 'edit_projects',
   DELETE_PROJECTS = 'delete_projects',
-  
+
   // User management
   VIEW_USERS = 'view_users',
   CREATE_USERS = 'create_users',
   EDIT_USERS = 'edit_users',
   DELETE_USERS = 'delete_users',
   MANAGE_PERMISSIONS = 'manage_permissions',
-  
+
   // System permissions
   VIEW_DASHBOARD = 'view_dashboard',
   VIEW_ANALYTICS = 'view_analytics',
   ACCESS_SETTINGS = 'access_settings',
   MANAGE_SYSTEM = 'manage_system',
-  
+  VIEW_ACTIVITY_LOGS = 'view_activity_logs',
+
   // Shared links
   VIEW_SHARED_LINKS = 'view_shared_links',
   CREATE_SHARED_LINKS = 'create_shared_links',
@@ -83,6 +84,7 @@ const MARKETING_EDITOR_PERMISSIONS: Permission[] = [
   Permission.VIEW_SHARED_LINKS,
   Permission.CREATE_SHARED_LINKS,
   Permission.MANAGE_USEFUL_LINKS,
+  Permission.VIEW_ACTIVITY_LOGS,
 ];
 
 const TRADE_EDITOR_PERMISSIONS: Permission[] = [
@@ -130,7 +132,8 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     Permission.VIEW_SHARED_LINKS,
     Permission.CREATE_SHARED_LINKS,
     Permission.MANAGE_SHARED_LINKS,
-    Permission.MANAGE_USEFUL_LINKS
+    Permission.MANAGE_USEFUL_LINKS,
+    Permission.VIEW_ACTIVITY_LOGS
   ],
   [UserRole.EDITOR_MARKETING]: MARKETING_EDITOR_PERMISSIONS,
   [UserRole.EDITOR_TRADE]: TRADE_EDITOR_PERMISSIONS,

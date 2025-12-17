@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { supabaseAdmin } from '../../../lib/supabase/admin';
 import { v4 as uuidv4 } from 'uuid';
+import { logActivity } from '../../../lib/activity-logger';
 
 const buildSharePath = (params: {
   categoryType?: string | null;
@@ -161,6 +162,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (insertError) {
         throw new Error(insertError.message);
       }
+
+      // Log activity
+      await logActivity(supabaseAdmin, {
+        action: 'upload_asset',
+        entityType: 'asset',
+        entityId: assetId,
+        userId: user.id,
+        metadata: {
+          fileName: item.originalName,
+          categoryType,
+          categoryName,
+          regional: normalizedCategoryRegional
+        }
+      });
     }
 
     return res.status(200).json({ success: true });

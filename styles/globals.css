@@ -1,5 +1,10 @@
 ﻿@import "tailwindcss";
 
+#next-route-announcer,
+nextjs-portal {
+  display: none !important;
+}
+
 html {
   font-size: clamp(14px, 3vw, 16px);
 }

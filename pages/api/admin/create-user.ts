@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "../../../types/supabase";
+import { logActivity } from "../../../lib/activity-logger";
 
 const supabaseUrl =
   process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
@@ -33,10 +34,10 @@ const normalizeOriginScope = (value: unknown): 'house' | 'ev' | null => {
   return trimmed === "house" || trimmed === "ev" ? (trimmed as 'house' | 'ev') : null;
 };
 
-  const extractAvatarUrl = (metadata: Record<string, unknown> | null | undefined): string | null => {
-    const value = metadata && typeof metadata === 'object' ? metadata['avatar_url'] : undefined;
-    return typeof value === 'string' ? value : null;
-  };
+const extractAvatarUrl = (metadata: Record<string, unknown> | null | undefined): string | null => {
+  const value = metadata && typeof metadata === 'object' ? metadata['avatar_url'] : undefined;
+  return typeof value === 'string' ? value : null;
+};
 
 const isMissingOriginColumn = (error: unknown): boolean => {
   if (!error || typeof error !== "object") return false;
@@ -124,8 +125,8 @@ export default async function handler(
     typeof requesterMetadata.regional === "string"
       ? requesterMetadata.regional.trim().toUpperCase()
       : typeof requesterAppMetadata.regional === "string"
-      ? (requesterAppMetadata.regional as string).trim().toUpperCase()
-      : null;
+        ? (requesterAppMetadata.regional as string).trim().toUpperCase()
+        : null;
   const requesterRole =
     (effectiveRequesterProfile?.role as AllowedRole) ?? fallbackRole;
   const requesterRegional =
@@ -270,6 +271,20 @@ export default async function handler(
   if (upsertError) {
     return res.status(500).json({ error: upsertError.message });
   }
+
+  // Log activity
+  await logActivity(supabaseAdmin, {
+    action: 'create_user',
+    entityType: 'user',
+    entityId: createdUser.user.id,
+    userId: requesterAuth.user.id,
+    metadata: {
+      email,
+      role: normalizedRole,
+      regional: normalizedRegional,
+      name
+    }
+  });
 
   return res.status(200).json({ userId: createdUser.user.id });
 }

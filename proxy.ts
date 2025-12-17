@@ -25,7 +25,7 @@ const createSupabaseClient = (request: NextRequest, response: NextResponse) => {
   });
 };
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const response = NextResponse.next();
 
   try {
@@ -42,7 +42,7 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(redirectUrl);
     }
   } catch (error) {
-    console.error('[middleware] Supabase auth check falhou:', error);
+    console.error('[proxy] Supabase auth check falhou:', error);
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = '/login';
     redirectUrl.searchParams.set('message', 'Falha na verificação de sessão. Faça login novamente.');

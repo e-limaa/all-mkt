@@ -1,4 +1,5 @@
 export const REGIONAL_OPTIONS = [
+  { value: 'TODAS', label: 'Todas' },
   { value: 'BAHIA', label: 'Bahia' },
   { value: 'CAMPINAS', label: 'Campinas' },
   { value: 'CEARA', label: 'Ceara' },
