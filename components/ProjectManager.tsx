@@ -496,7 +496,7 @@ export function ProjectManager({
       {!isViewer() && stats.totalProjectsIncomplete > 0 && (
         <Alert className="border-orange-500/50 bg-orange-500/10">
           <AlertCircle className="h-4 w-4 text-orange-500" />
-          <AlertDescription className="text-orange-200">
+          <AlertDescription className="text-orange-700 dark:text-orange-200">
             <strong>{stats.totalProjectsIncomplete}</strong> empreendimento
             {stats.totalProjectsIncomplete > 1 ? "s" : ""}
             {stats.totalProjectsIncomplete > 1
@@ -605,7 +605,7 @@ export function ProjectManager({
                   <button
                     type="button"
                     aria-label="Mais ações"
-                    className="bg-[#0e0e0e] relative rounded-[8.5px] shrink-0 w-[33.5px] h-[33.5px] border border-[#2a2a2a] p-0 text-muted-foreground hover:bg-[#181818] flex items-center justify-center"
+                    className="bg-card relative rounded-[8.5px] shrink-0 w-[33.5px] h-[33.5px] border border-border p-0 text-muted-foreground hover:bg-muted/40 flex items-center justify-center"
                   >
                     <MoreHorizontal className="w-4 h-4" />
                   </button>

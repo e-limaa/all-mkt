@@ -5,15 +5,13 @@ import { Switch } from './ui/switch';
 import { Label } from './ui/label';
 import { Input } from './ui/input';
 import { Separator } from './ui/separator';
-import { Settings as SettingsIcon, Bell, Shield, Database, Palette } from 'lucide-react';
-import { useAssets } from '../contexts/AssetContext';
+import { Settings as SettingsIcon, Palette } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useConfig } from '../contexts/ConfigContext';
 import { toast } from 'sonner';
 import { DEFAULT_SETTINGS, rowToSettings, saveSystemSettings, SettingsFormState } from '../lib/settings';
 
 export function Settings() {
-  const { dashboardStats } = useAssets();
   const { user } = useAuth();
   const {
     isSupabaseEnabled,
@@ -32,17 +30,16 @@ export function Settings() {
     setSettings({ ...systemSettings });
   }, [systemSettings]);
 
-  const storageUsedGb = useMemo(
-    () => Number(dashboardStats?.storageUsed ?? 0),
-    [dashboardStats?.storageUsed],
-  );
 
-  const storageUsagePercent = useMemo(() => {
-    if (!settings.storageLimitGb || settings.storageLimitGb <= 0) {
-      return 0;
-    }
-    return Math.min((storageUsedGb / settings.storageLimitGb) * 100, 100);
-  }, [storageUsedGb, settings.storageLimitGb]);
+
+  const handleToggleChange = (key: keyof SettingsFormState) => (checked: boolean) => {
+    setSettings((prev) => ({
+      ...prev,
+      [key]: checked,
+    }));
+  };
+
+
 
   const handleInputChange =
     (key: keyof SettingsFormState) => (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -57,12 +54,7 @@ export function Settings() {
       }));
     };
 
-  const handleToggleChange = (key: keyof SettingsFormState) => (checked: boolean) => {
-    setSettings((prev) => ({
-      ...prev,
-      [key]: checked,
-    }));
-  };
+
 
   const handleSave = async () => {
     if (!isSupabaseEnabled) {
@@ -184,145 +176,11 @@ export function Settings() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Bell className="w-5 h-5" />
-            Notificações
-          </CardTitle>
-          <CardDescription>
-            Configure alertas e notificações do sistema
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <Label>Notificações por Email</Label>
-              <p className="text-sm text-muted-foreground">
-                Receber notificações sobre novos uploads e atividades
-              </p>
-            </div>
-            <Switch
-              checked={settings.emailNotifications}
-              onCheckedChange={handleToggleChange('emailNotifications')}
-              disabled={isFormDisabled}
-            />
-          </div>
 
-          <Separator />
 
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <Label>Alertas do Sistema</Label>
-              <p className="text-sm text-muted-foreground">
-                Avisos sobre atualizações, manutenções e disponibilidade
-              </p>
-            </div>
-            <Switch
-              checked={settings.systemNotifications}
-              onCheckedChange={handleToggleChange('systemNotifications')}
-              disabled={isFormDisabled}
-            />
-          </div>
-        </CardContent>
-      </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Shield className="w-5 h-5" />
-            Segurança
-          </CardTitle>
-          <CardDescription>
-            Configure opções de acesso e proteção
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <Label>Autenticação em Duas Etapas</Label>
-              <p className="text-sm text-muted-foreground">
-                Exigir uma segunda verificação durante o login
-              </p>
-            </div>
-            <Switch
-              checked={settings.twoFactor}
-              onCheckedChange={handleToggleChange('twoFactor')}
-              disabled={isFormDisabled}
-            />
-          </div>
 
-          <Separator />
 
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <Label>Permitir múltiplas sessões</Label>
-              <p className="text-sm text-muted-foreground">
-                Autorizar o login simultâneo em vários dispositivos
-              </p>
-            </div>
-            <Switch
-              checked={settings.multiSessions}
-              onCheckedChange={handleToggleChange('multiSessions')}
-              disabled={isFormDisabled}
-            />
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Database className="w-5 h-5" />
-            Armazenamento
-          </CardTitle>
-          <CardDescription>
-            Ajuste limites e política de backup
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span>Espaço utilizado</span>
-              <span>{storageUsedGb.toFixed(2)} GB de {settings.storageLimitGb} GB</span>
-            </div>
-            <div className="w-full bg-muted rounded-full h-2">
-              <div
-                className="bg-primary h-2 rounded-full transition-all"
-                style={{ width: `${storageUsagePercent}%` }}
-              ></div>
-            </div>
-          </div>
-
-          <div>
-            <Label htmlFor="storage-limit" className="mb-2">Limite de armazenamento (GB)</Label>
-            <Input
-              id="storage-limit"
-              type="number"
-              min={1}
-              value={settings.storageLimitGb}
-              onChange={handleInputChange('storageLimitGb')}
-              disabled={isFormDisabled}
-            />
-          </div>
-
-          <Separator />
-
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <Label>Backup automático</Label>
-              <p className="text-sm text-muted-foreground">
-                Realizar cópias de segurança de forma recorrente
-              </p>
-            </div>
-            <Switch
-              checked={settings.autoBackup}
-              onCheckedChange={handleToggleChange('autoBackup')}
-              disabled={isFormDisabled}
-            />
-          </div>
-        </CardContent>
-      </Card>
 
       <Card>
         <CardHeader>

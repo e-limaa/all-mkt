@@ -128,8 +128,8 @@ export function LoginScreen() {
           <div className="space-y-4 text-center sm:text-left">
             <h2 className="text-2xl font-semibold text-white sm:text-3xl">Login</h2>
             <p className="text-sm text-white/60">
-              Seja bem-vindo(a) ao {brandName}. Faca login para continuar e
-              ficar por dentro de tudo que acontece no marketing estrategico.
+              Seja bem-vindo(a) ao {brandName}.<br />
+              Faça login para continuar e ficar por dentro de todos os materiais da Construtora Tenda.
             </p>
           </div>
 
@@ -146,17 +146,7 @@ export function LoginScreen() {
               </Alert>
             )}
 
-            {systemSettings.twoFactor && (
-              <Alert
-                className="border-white/15 bg-white/5 text-white"
-                aria-live="polite"
-              >
-                <AlertDescription className="text-sm text-white/80">
-                  A autenticacao em duas etapas esta ativa. Apos o login, sera
-                  solicitado um codigo adicional enviado ao seu email.
-                </AlertDescription>
-              </Alert>
-            )}
+
 
             {info && (
               <Alert
@@ -249,10 +239,7 @@ export function LoginScreen() {
 
           <div className="space-y-2 pt-4 text-center text-[0.75rem] text-white/40 sm:text-xs">
             <p>Sistema de gestao digital de ativos imobiliarios</p>
-            <p>
-              Dica: Use qualquer email valido com senha &quot;123456&quot; para
-              testar integracoes internas.
-            </p>
+
             {adminEmail ? (
               <p className="text-white/55">
                 Suporte:{" "}

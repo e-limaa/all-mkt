@@ -1,6 +1,7 @@
 import React from "react";
 import svgPaths from "../imports/svg-feo1wkj7xw";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
+import { cn } from "@/lib/utils";
 
 const badgeBackgroundMap: Record<string, string> = {
   secondary: "#f6b03f",
@@ -65,7 +66,7 @@ function Heading({ title }: { title: string }) {
       className="h-[24.5px] overflow-clip relative shrink-0 w-full"
       data-name="Heading 3"
     >
-      <p className="absolute font-['Tenda:Medium',sans-serif] leading-[24.5px] left-0 not-italic text-[15.75px] text-nowrap text-white top-0 tracking-[-0.2922px] whitespace-pre">
+      <p className="absolute font-['Tenda:Medium',sans-serif] leading-[24.5px] left-0 not-italic text-[15.75px] text-nowrap text-foreground top-0 tracking-[-0.2922px] whitespace-pre">
         {title}
       </p>
     </div>
@@ -85,7 +86,8 @@ function LocationIcon() {
           <path
             d={svgPaths.p5dc1140}
             id="Vector"
-            stroke="var(--stroke-0, #888888)"
+            stroke="currentColor"
+            className="text-muted-foreground"
             strokeLinecap="round"
             strokeLinejoin="round"
             strokeWidth="1.16667"
@@ -93,7 +95,8 @@ function LocationIcon() {
           <path
             d={svgPaths.p37b99980}
             id="Vector_2"
-            stroke="var(--stroke-0, #888888)"
+            stroke="currentColor"
+            className="text-muted-foreground"
             strokeLinecap="round"
             strokeLinejoin="round"
             strokeWidth="1.16667"
@@ -117,7 +120,8 @@ function CalendarIcon() {
           <path
             d="M4.66699 1.16675V3.50008"
             id="Vector"
-            stroke="var(--stroke-0, #888888)"
+            stroke="currentColor"
+            className="text-muted-foreground"
             strokeLinecap="round"
             strokeLinejoin="round"
             strokeWidth="1.16667"
@@ -125,7 +129,8 @@ function CalendarIcon() {
           <path
             d="M9.33301 1.16675V3.50008"
             id="Vector_2"
-            stroke="var(--stroke-0, #888888)"
+            stroke="currentColor"
+            className="text-muted-foreground"
             strokeLinecap="round"
             strokeLinejoin="round"
             strokeWidth="1.16667"
@@ -133,7 +138,8 @@ function CalendarIcon() {
           <path
             d={svgPaths.p24a2b500}
             id="Vector_3"
-            stroke="var(--stroke-0, #888888)"
+            stroke="currentColor"
+            className="text-muted-foreground"
             strokeLinecap="round"
             strokeLinejoin="round"
             strokeWidth="1.16667"
@@ -141,7 +147,8 @@ function CalendarIcon() {
           <path
             d="M1.75 5.83333H12.25"
             id="Vector_4"
-            stroke="var(--stroke-0, #888888)"
+            stroke="currentColor"
+            className="text-muted-foreground"
             strokeLinecap="round"
             strokeLinejoin="round"
             strokeWidth="1.16667"
@@ -163,10 +170,10 @@ function UserGroupIcon() {
       >
         <g id="user / group">
           <g id="icon">
-            <path d={svgPaths.p81e2000} fill="var(--fill-0, #888888)" />
-            <path d={svgPaths.p37e21700} fill="var(--fill-0, #888888)" />
-            <path d={svgPaths.p27202380} fill="var(--fill-0, #888888)" />
-            <path d={svgPaths.p2a28c680} fill="var(--fill-0, #888888)" />
+            <path d={svgPaths.p81e2000} fill="currentColor" className="text-muted-foreground" />
+            <path d={svgPaths.p37e21700} fill="currentColor" className="text-muted-foreground" />
+            <path d={svgPaths.p27202380} fill="currentColor" className="text-muted-foreground" />
+            <path d={svgPaths.p2a28c680} fill="currentColor" className="text-muted-foreground" />
           </g>
         </g>
       </svg>
@@ -187,7 +194,7 @@ function DetailsIcon() {
           <path
             d={svgPaths.p2e968f80}
             id="Vector"
-            stroke="var(--stroke-0, white)"
+            stroke="currentColor"
             strokeLinecap="round"
             strokeLinejoin="round"
             strokeWidth="1.16667"
@@ -211,7 +218,7 @@ function MenuIcon() {
           <path
             d={svgPaths.p3c37dc0}
             id="Vector"
-            stroke="var(--stroke-0, white)"
+            stroke="currentColor"
             strokeLinecap="round"
             strokeLinejoin="round"
             strokeWidth="1.16667"
@@ -219,7 +226,7 @@ function MenuIcon() {
           <path
             d={svgPaths.p255cea00}
             id="Vector_2"
-            stroke="var(--stroke-0, white)"
+            stroke="currentColor"
             strokeLinecap="round"
             strokeLinejoin="round"
             strokeWidth="1.16667"
@@ -227,7 +234,7 @@ function MenuIcon() {
           <path
             d={svgPaths.p3d07880}
             id="Vector_3"
-            stroke="var(--stroke-0, white)"
+            stroke="currentColor"
             strokeLinecap="round"
             strokeLinejoin="round"
             strokeWidth="1.16667"
@@ -250,10 +257,10 @@ function InfoRow({
   return (
     <div className="content-stretch flex gap-[7px] h-[17.5px] items-center relative shrink-0 w-full">
       {icon}
-      <p className="font-['Tenda:Regular',sans-serif] leading-[17.5px] not-italic relative shrink-0 text-[#888888] text-[12.25px] text-nowrap tracking-[-0.0179px] whitespace-pre">
+      <p className="font-['Tenda:Regular',sans-serif] leading-[17.5px] not-italic relative shrink-0 text-muted-foreground text-[12.25px] text-nowrap tracking-[-0.0179px] whitespace-pre">
         {label}
       </p>
-      <p className="font-['Tenda:Regular',sans-serif] leading-[17.5px] not-italic relative shrink-0 text-[12.25px] text-nowrap text-white tracking-[-0.0179px] whitespace-pre">
+      <p className="font-['Tenda:Regular',sans-serif] leading-[17.5px] not-italic relative shrink-0 text-[12.25px] text-nowrap text-foreground tracking-[-0.0179px] whitespace-pre">
         {value}
       </p>
     </div>
@@ -278,7 +285,7 @@ function Frame3({
         <LocationIcon />
         <div className="h-[17.5px] relative shrink-0 w-[140px]">
           <div className="bg-clip-padding border-0 border-[transparent] border-solid box-border h-[17.5px] relative w-full">
-            <p className="absolute font-['Tenda:Regular',sans-serif] leading-[17.5px] left-0 not-italic text-[#888888] text-[12.25px] text-nowrap top-[0.5px] tracking-[-0.0179px] whitespace-pre">
+            <p className="absolute font-['Tenda:Regular',sans-serif] leading-[17.5px] left-0 not-italic text-muted-foreground text-[12.25px] text-nowrap top-[0.5px] tracking-[-0.0179px] whitespace-pre">
               {location}
             </p>
           </div>
@@ -312,12 +319,12 @@ function Frame1({
         <div className="relative shrink-0">
           <div className="bg-clip-padding border-0 border-[transparent] border-solid box-border content-stretch flex gap-[7px] items-start relative">
             <UserGroupIcon />
-            <p className="font-['Tenda:Regular',sans-serif] leading-[17.5px] not-italic relative shrink-0 text-[#888888] text-[12.25px] text-nowrap tracking-[-0.0179px] whitespace-pre">
+            <p className="font-['Tenda:Regular',sans-serif] leading-[17.5px] not-italic relative shrink-0 text-muted-foreground text-[12.25px] text-nowrap tracking-[-0.0179px] whitespace-pre">
               {createdByLabel}
             </p>
           </div>
         </div>
-        <p className="font-['Tenda:Regular',sans-serif] leading-[17.5px] not-italic relative shrink-0 text-[12.25px] text-nowrap text-white tracking-[-0.0179px] whitespace-pre">
+        <p className="font-['Tenda:Regular',sans-serif] leading-[17.5px] not-italic relative shrink-0 text-[12.25px] text-nowrap text-foreground tracking-[-0.0179px] whitespace-pre">
           {createdBy}
         </p>
       </div>
@@ -325,12 +332,12 @@ function Frame1({
         <div className="relative shrink-0">
           <div className="bg-clip-padding border-0 border-[transparent] border-solid box-border content-stretch flex gap-[7px] items-start relative">
             <CalendarIcon />
-            <p className="font-['Tenda:Regular',sans-serif] leading-[17.5px] not-italic relative shrink-0 text-[#888888] text-[12.25px] text-nowrap tracking-[-0.0179px] whitespace-pre">
+            <p className="font-['Tenda:Regular',sans-serif] leading-[17.5px] not-italic relative shrink-0 text-muted-foreground text-[12.25px] text-nowrap tracking-[-0.0179px] whitespace-pre">
               {creationLabel}
             </p>
           </div>
         </div>
-        <p className="font-['Tenda:Regular',sans-serif] leading-[17.5px] not-italic relative shrink-0 text-[12.25px] text-nowrap text-white tracking-[-0.0179px] whitespace-pre">
+        <p className="font-['Tenda:Regular',sans-serif] leading-[17.5px] not-italic relative shrink-0 text-[12.25px] text-nowrap text-foreground tracking-[-0.0179px] whitespace-pre">
           {creationDate}
         </p>
       </div>
@@ -365,10 +372,10 @@ function ButtonBrandS({
 
 function MenuButton({ children }: { children: React.ReactNode }) {
   return (
-    <div className="bg-[#0e0e0e] relative rounded-[8.5px] self-stretch shrink-0 w-[33.5px]">
+    <div className="bg-secondary relative rounded-[8.5px] self-stretch shrink-0 w-[33.5px]">
       <div
         aria-hidden="true"
-        className="absolute border border-[#2a2a2a] border-solid inset-0 pointer-events-none rounded-[8.5px]"
+        className="absolute border border-border border-solid inset-0 pointer-events-none rounded-[8.5px]"
       />
       <div className="bg-clip-padding border-0 border-[transparent] border-solid box-border content-stretch flex h-full items-center justify-center p-px relative w-[33.5px]">
         {children}
@@ -457,7 +464,7 @@ function EmpreendimentoManager1({
 function PrimitiveDiv() {
   return (
     <div
-      className="bg-[#2a2a2a] h-px shrink-0 w-full"
+      className="bg-border h-px shrink-0 w-full"
       data-name="Primitive.div"
     />
   );
@@ -500,7 +507,10 @@ export function ProjectCard({
 }: ProjectCardProps) {
   return (
     <div
-      className={`bg-[#0e0e0e] relative rounded-[14.5px] size-full border border-[#2a2a2a] overflow-hidden ${className}`}
+      className={cn(
+        "bg-card relative rounded-[14.5px] size-full border border-border overflow-hidden",
+        className
+      )}
       data-name="Card"
     >
       <div className="size-full">
@@ -528,3 +538,4 @@ export function ProjectCard({
     </div>
   );
 }
+

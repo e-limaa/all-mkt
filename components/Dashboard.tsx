@@ -214,7 +214,7 @@ export function Dashboard() {
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <motion.h1
-                        className="text-3xl font-bold tracking-tight bg-gradient-to-r from-white to-white/60 bg-clip-text text-transparent"
+                        className="text-3xl font-bold tracking-tight text-foreground"
                         initial={{ opacity: 0, x: -20 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ duration: 0.5 }}
@@ -237,7 +237,7 @@ export function Dashboard() {
                 >
                     <Button
                         variant="outline"
-                        className="w-full sm:w-auto bg-white/5 border-white/10 hover:bg-white/10 hover:text-white transition-all duration-300"
+                        className="w-full sm:w-auto hover:bg-muted transition-all duration-300"
                         onClick={() => setIsExportDialogOpen(true)}
                     >
                         <Download className="mr-2 h-4 w-4" />
@@ -249,15 +249,15 @@ export function Dashboard() {
             {/* Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <motion.div variants={itemVariants}>
-                    <Card className="bg-card/40 backdrop-blur-xl border-white/5 hover:border-primary/50 hover:shadow-[0_0_30px_-10px_rgba(220,38,38,0.3)] transition-all duration-500 group">
+                    <Card className="bg-card border-border hover:border-primary/50 hover:shadow-[0_0_30px_-10px_rgba(220,38,38,0.3)] transition-all duration-500 group">
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium text-muted-foreground group-hover:text-white transition-colors">Total de Materiais</CardTitle>
+                            <CardTitle className="text-sm font-medium text-muted-foreground group-hover:text-foreground transition-colors">Total de Materiais</CardTitle>
                             <div className="p-2 rounded-full bg-primary/10 group-hover:bg-primary/20 transition-colors">
                                 <FolderOpen className="h-4 w-4 text-primary" />
                             </div>
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold text-white">{formatNumber(dashboardStats.totalAssets)}</div>
+                            <div className="text-2xl font-bold text-foreground">{formatNumber(dashboardStats.totalAssets)}</div>
                             <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
                                 <span className="text-emerald-500 flex items-center"><ArrowUpRight className="h-3 w-3 mr-0.5" /> +12%</span> vs mês passado
                             </p>
@@ -266,15 +266,15 @@ export function Dashboard() {
                 </motion.div>
 
                 <motion.div variants={itemVariants}>
-                    <Card className="bg-card/40 backdrop-blur-xl border-white/5 hover:border-orange-500/50 hover:shadow-[0_0_30px_-10px_rgba(249,115,22,0.3)] transition-all duration-500 group">
+                    <Card className="bg-card border-border hover:border-orange-500/50 hover:shadow-[0_0_30px_-10px_rgba(249,115,22,0.3)] transition-all duration-500 group">
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium text-muted-foreground group-hover:text-white transition-colors">Downloads</CardTitle>
+                            <CardTitle className="text-sm font-medium text-muted-foreground group-hover:text-foreground transition-colors">Downloads</CardTitle>
                             <div className="p-2 rounded-full bg-orange-500/10 group-hover:bg-orange-500/20 transition-colors">
                                 <Download className="h-4 w-4 text-orange-500" />
                             </div>
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold text-white">{formatNumber(dashboardStats.downloadCount)}</div>
+                            <div className="text-2xl font-bold text-foreground">{formatNumber(dashboardStats.downloadCount)}</div>
                             <p className="text-xs text-muted-foreground mt-1">
                                 Downloads acumulados no mês
                             </p>
@@ -283,15 +283,15 @@ export function Dashboard() {
                 </motion.div>
 
                 <motion.div variants={itemVariants}>
-                    <Card className="bg-card/40 backdrop-blur-xl border-white/5 hover:border-blue-500/50 hover:shadow-[0_0_30px_-10px_rgba(59,130,246,0.3)] transition-all duration-500 group">
+                    <Card className="bg-card border-border hover:border-blue-500/50 hover:shadow-[0_0_30px_-10px_rgba(59,130,246,0.3)] transition-all duration-500 group">
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium text-muted-foreground group-hover:text-white transition-colors">Usuários Ativos</CardTitle>
+                            <CardTitle className="text-sm font-medium text-muted-foreground group-hover:text-foreground transition-colors">Usuários Ativos</CardTitle>
                             <div className="p-2 rounded-full bg-blue-500/10 group-hover:bg-blue-500/20 transition-colors">
                                 <Users className="h-4 w-4 text-blue-500" />
                             </div>
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold text-white">{formatNumber(dashboardStats.totalUsers)}</div>
+                            <div className="text-2xl font-bold text-foreground">{formatNumber(dashboardStats.totalUsers)}</div>
                             <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
                                 <span className="text-emerald-500 flex items-center"><ArrowUpRight className="h-3 w-3 mr-0.5" /> +3</span> novos usuários
                             </p>
@@ -300,15 +300,15 @@ export function Dashboard() {
                 </motion.div>
 
                 <motion.div variants={itemVariants}>
-                    <Card className="bg-card/40 backdrop-blur-xl border-white/5 hover:border-purple-500/50 hover:shadow-[0_0_30px_-10px_rgba(168,85,247,0.3)] transition-all duration-500 group">
+                    <Card className="bg-card border-border hover:border-purple-500/50 hover:shadow-[0_0_30px_-10px_rgba(168,85,247,0.3)] transition-all duration-500 group">
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium text-muted-foreground group-hover:text-white transition-colors">Links Ativos</CardTitle>
+                            <CardTitle className="text-sm font-medium text-muted-foreground group-hover:text-foreground transition-colors">Links Ativos</CardTitle>
                             <div className="p-2 rounded-full bg-purple-500/10 group-hover:bg-purple-500/20 transition-colors">
                                 <Share2 className="h-4 w-4 text-purple-500" />
                             </div>
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold text-white">{formatNumber(dashboardStats.activeSharedLinks)}</div>
+                            <div className="text-2xl font-bold text-foreground">{formatNumber(dashboardStats.activeSharedLinks)}</div>
                             <p className="text-xs text-muted-foreground mt-1">
                                 Links úteis cadastrados
                             </p>
@@ -320,7 +320,7 @@ export function Dashboard() {
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
                 {/* Upcoming Launches */}
                 <motion.div variants={itemVariants} className="lg:col-span-1">
-                    <Card className="h-full bg-card/40 backdrop-blur-xl border-white/5">
+                    <Card className="h-full bg-card border-border">
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2 text-lg">
                                 <Calendar className="w-5 h-5 text-primary" />
@@ -339,12 +339,12 @@ export function Dashboard() {
                                                 initial={{ opacity: 0, x: -10 }}
                                                 animate={{ opacity: 1, x: 0 }}
                                                 transition={{ delay: 0.1 * index }}
-                                                className="flex items-start justify-between gap-4 p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors border border-white/5"
+                                                className="flex items-start justify-between gap-4 p-3 rounded-lg bg-muted/30 hover:bg-muted/80 transition-colors border border-border"
                                             >
                                                 <div className="flex-1 min-w-0">
-                                                    <p className="text-sm font-medium truncate text-white">{launch.name}</p>
+                                                    <p className="text-sm font-medium truncate text-foreground">{launch.name}</p>
                                                     <div className="flex items-center gap-2 mt-1">
-                                                        <Badge variant="secondary" className="text-[10px] uppercase tracking-wide bg-white/10 text-white/80 border-0">
+                                                        <Badge variant="secondary" className="text-[10px] uppercase tracking-wide bg-muted text-muted-foreground border-0">
                                                             {launchTypeLabel(launch.type)}
                                                         </Badge>
                                                     </div>
@@ -373,7 +373,7 @@ export function Dashboard() {
                 <motion.div variants={itemVariants} className="lg:col-span-3 space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         {/* Campaigns Chart */}
-                        <Card className="bg-card/40 backdrop-blur-xl border-white/5">
+                        <Card className="bg-card border-border">
                             <CardHeader>
                                 <CardTitle className="text-base">Materiais por Campanha</CardTitle>
                                 <CardDescription>Top campanhas ativas</CardDescription>
@@ -382,23 +382,23 @@ export function Dashboard() {
                                 <div className="h-[350px] w-full">
                                     <ResponsiveContainer width="100%" height="100%">
                                         <BarChart data={campaignData} layout="vertical" margin={{ left: 0 }}>
-                                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" horizontal={false} />
+                                            <CartesianGrid strokeDasharray="3 3" stroke="currentColor" className="text-muted/30" horizontal={false} />
                                             <XAxis type="number" hide />
                                             <YAxis
                                                 dataKey="name"
                                                 type="category"
                                                 width={100}
-                                                tick={{ fill: 'rgba(255,255,255,0.7)', fontSize: 12 }}
+                                                tick={{ fill: 'currentColor', fontSize: 12, className: 'text-muted-foreground' }}
                                                 tickLine={false}
                                                 axisLine={false}
                                             />
                                             <Tooltip
-                                                cursor={{ fill: 'rgba(255,255,255,0.05)' }}
+                                                cursor={{ fill: 'currentColor', className: 'text-muted/20' }}
                                                 contentStyle={{
-                                                    backgroundColor: 'rgba(24, 24, 27, 0.9)',
-                                                    border: '1px solid rgba(255,255,255,0.1)',
+                                                    backgroundColor: 'var(--card)',
+                                                    borderColor: 'var(--border)',
                                                     borderRadius: '8px',
-                                                    color: '#fff'
+                                                    color: 'var(--foreground)'
                                                 }}
                                             />
                                             <Bar dataKey="assets" fill="var(--chart-1)" radius={[0, 4, 4, 0]} barSize={20} />
@@ -409,7 +409,7 @@ export function Dashboard() {
                         </Card>
 
                         {/* Projects Chart */}
-                        <Card className="bg-card/40 backdrop-blur-xl border-white/5">
+                        <Card className="bg-card border-border">
                             <CardHeader>
                                 <CardTitle className="text-base">Materiais por Empreendimento</CardTitle>
                                 <CardDescription>Top empreendimentos</CardDescription>
@@ -418,23 +418,23 @@ export function Dashboard() {
                                 <div className="h-[350px] w-full">
                                     <ResponsiveContainer width="100%" height="100%">
                                         <BarChart data={projectData} layout="vertical" margin={{ left: 0 }}>
-                                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" horizontal={false} />
+                                            <CartesianGrid strokeDasharray="3 3" stroke="currentColor" className="text-muted/30" horizontal={false} />
                                             <XAxis type="number" hide />
                                             <YAxis
                                                 dataKey="name"
                                                 type="category"
                                                 width={100}
-                                                tick={{ fill: 'rgba(255,255,255,0.7)', fontSize: 12 }}
+                                                tick={{ fill: 'currentColor', fontSize: 12, className: 'text-muted-foreground' }}
                                                 tickLine={false}
                                                 axisLine={false}
                                             />
                                             <Tooltip
-                                                cursor={{ fill: 'rgba(255,255,255,0.05)' }}
+                                                cursor={{ fill: 'currentColor', className: 'text-muted/20' }}
                                                 contentStyle={{
-                                                    backgroundColor: 'rgba(24, 24, 27, 0.9)',
-                                                    border: '1px solid rgba(255,255,255,0.1)',
+                                                    backgroundColor: 'var(--card)',
+                                                    borderColor: 'var(--border)',
                                                     borderRadius: '8px',
-                                                    color: '#fff'
+                                                    color: 'var(--foreground)'
                                                 }}
                                             />
                                             <Bar dataKey="assets" fill="var(--chart-5)" radius={[0, 4, 4, 0]} barSize={20} />
@@ -450,7 +450,7 @@ export function Dashboard() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Storage Usage */}
                 <motion.div variants={itemVariants}>
-                    <Card className="h-full bg-card/40 backdrop-blur-xl border-white/5">
+                    <Card className="h-full bg-card border-border">
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
                                 <HardDrive className="w-5 h-5 text-primary" />
@@ -463,18 +463,18 @@ export function Dashboard() {
                         <CardContent className="space-y-6">
                             <div className="relative pt-2">
                                 <div className="flex justify-between mb-2 text-sm font-medium">
-                                    <span className="text-white">{storagePercentage.toFixed(1)}% Usado</span>
+                                    <span className="text-foreground">{storagePercentage.toFixed(1)}% Usado</span>
                                     <span className="text-muted-foreground">{(dashboardStats.storageLimit - dashboardStats.storageUsed).toFixed(1)}GB Livres</span>
                                 </div>
-                                <Progress value={storagePercentage} className="h-3 bg-white/10" indicatorClassName="bg-gradient-to-r from-primary to-orange-500" />
+                                <Progress value={storagePercentage} className="h-3 bg-secondary" indicatorClassName="bg-gradient-to-r from-primary to-orange-500" />
                             </div>
 
                             <div className="grid grid-cols-2 gap-4 pt-4">
-                                <div className="p-3 rounded-lg bg-white/5 border border-white/5">
+                                <div className="p-3 rounded-lg bg-muted/40 border border-border">
                                     <p className="text-xs text-muted-foreground">Total</p>
-                                    <p className="text-lg font-bold text-white">{formatFileSize(dashboardStats.storageLimit * 1024 * 1024 * 1024)}</p>
+                                    <p className="text-lg font-bold text-foreground">{formatFileSize(dashboardStats.storageLimit * 1024 * 1024 * 1024)}</p>
                                 </div>
-                                <div className="p-3 rounded-lg bg-white/5 border border-white/5">
+                                <div className="p-3 rounded-lg bg-muted/40 border border-border">
                                     <p className="text-xs text-muted-foreground">Disponível</p>
                                     <p className="text-lg font-bold text-emerald-500">{formatFileSize((dashboardStats.storageLimit - dashboardStats.storageUsed) * 1024 * 1024 * 1024)}</p>
                                 </div>
@@ -485,7 +485,7 @@ export function Dashboard() {
 
                 {/* Asset Types */}
                 <motion.div variants={itemVariants}>
-                    <Card className="h-full bg-card/40 backdrop-blur-xl border-white/5">
+                    <Card className="h-full bg-card border-border">
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
                                 <Archive className="w-5 h-5 text-primary" />
@@ -500,15 +500,15 @@ export function Dashboard() {
                                     const percentage = dashboardStats.totalAssets > 0 ? (item.value / dashboardStats.totalAssets) * 100 : 0;
 
                                     return (
-                                        <div key={item.name} className="group flex items-center justify-between p-2 rounded-lg hover:bg-white/5 transition-colors">
+                                        <div key={item.name} className="group flex items-center justify-between p-2 rounded-lg hover:bg-muted/80 transition-colors">
                                             <div className="flex items-center gap-3">
-                                                <div className="p-2 rounded-md bg-white/5 group-hover:bg-white/10 transition-colors">
-                                                    <Icon className="w-4 h-4 text-muted-foreground group-hover:text-white" style={{ color: item.color }} />
+                                                <div className="p-2 rounded-md bg-muted group-hover:bg-muted-foreground/10 transition-colors">
+                                                    <Icon className="w-4 h-4 text-muted-foreground group-hover:text-foreground" style={{ color: item.color }} />
                                                 </div>
-                                                <span className="text-sm font-medium text-white">{item.name}</span>
+                                                <span className="text-sm font-medium text-foreground">{item.name}</span>
                                             </div>
                                             <div className="text-right">
-                                                <span className="text-sm font-bold text-white">{item.value}</span>
+                                                <span className="text-sm font-bold text-foreground">{item.value}</span>
                                                 <span className="text-xs text-muted-foreground ml-2">({percentage.toFixed(1)}%)</span>
                                             </div>
                                         </div>
@@ -521,7 +521,7 @@ export function Dashboard() {
 
                 {/* Recent Activity */}
                 <motion.div variants={itemVariants}>
-                    <Card className="h-full bg-card/40 backdrop-blur-xl border-white/5">
+                    <Card className="h-full bg-card border-border">
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
                                 <Activity className="w-5 h-5 text-primary" />
@@ -532,10 +532,10 @@ export function Dashboard() {
                         <CardContent>
                             <div className="space-y-4">
                                 {dashboardStats.recentActivity.slice(0, 5).map((activity, index) => (
-                                    <div key={activity.id} className="flex items-start gap-3 pb-3 border-b border-white/5 last:border-0 last:pb-0">
+                                    <div key={activity.id} className="flex items-start gap-3 pb-3 border-b border-border last:border-0 last:pb-0">
                                         <div className="w-2 h-2 bg-primary rounded-full mt-2 flex-shrink-0 shadow-[0_0_10px_rgba(220,38,38,0.5)]" />
                                         <div className="flex-1 min-w-0">
-                                            <p className="text-sm font-medium truncate text-white">
+                                            <p className="text-sm font-medium truncate text-foreground">
                                                 <span className="text-primary">{activity.userName}</span> {activity.type === 'upload' ? 'enviou' : activity.type === 'download' ? 'baixou' : 'compartilhou'}
                                             </p>
                                             <p className="text-xs text-muted-foreground truncate">
@@ -543,7 +543,7 @@ export function Dashboard() {
                                             </p>
                                             <div className="flex items-center gap-2 mt-1">
                                                 {activity.categoryName && (
-                                                    <Badge variant="outline" className="text-[10px] border-white/10 text-white/60">
+                                                    <Badge variant="outline" className="text-[10px] border-border text-muted-foreground">
                                                         {activity.categoryName}
                                                     </Badge>
                                                 )}

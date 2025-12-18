@@ -67,7 +67,7 @@ const CATEGORY_META: Record<
 
     icon: BookOpen,
 
-    badgeClass: "border border-red-500/40 bg-red-500/10 text-red-300",
+    badgeClass: "border border-red-500/40 bg-red-500/10 text-red-700 dark:text-red-300",
   },
 
   tools: {
@@ -75,7 +75,7 @@ const CATEGORY_META: Record<
 
     icon: Zap,
 
-    badgeClass: "border border-amber-500/40 bg-amber-500/10 text-amber-300",
+    badgeClass: "border border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300",
   },
 
   resources: {
@@ -83,7 +83,7 @@ const CATEGORY_META: Record<
 
     icon: Globe,
 
-    badgeClass: "border border-blue-500/40 bg-blue-500/10 text-blue-300",
+    badgeClass: "border border-blue-500/40 bg-blue-500/10 text-blue-700 dark:text-blue-300",
   },
 
   other: {
@@ -92,7 +92,7 @@ const CATEGORY_META: Record<
     icon: Link2,
 
     badgeClass:
-      "border border-fuchsia-500/40 bg-fuchsia-500/10 text-fuchsia-300",
+      "border border-fuchsia-500/40 bg-fuchsia-500/10 text-fuchsia-700 dark:text-fuchsia-300",
   },
 };
 
@@ -687,7 +687,7 @@ export function UsefulLinksManager() {
                       "flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold transition",
 
                       formState.category === value
-                        ? "border-transparent bg-white/10 text-white shadow-lg"
+                        ? "border-transparent bg-primary text-primary-foreground shadow-lg"
                         : "border-border/60 bg-card/30 text-muted-foreground hover:border-border/80"
                     )}
                   >

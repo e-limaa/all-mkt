@@ -1538,7 +1538,7 @@ export function AssetManager({
           <Alert className="border-blue-500/50 bg-blue-500/10">
             <Filter className="h-4 w-4 text-blue-500" />
             <AlertDescription className="flex items-center justify-between">
-              <span className="text-blue-200">
+              <span className="text-blue-700 dark:text-blue-200">
                 Exibindo apenas materiais de <strong>{filterTitle ?? 'Categoria'}</strong> ({filteredAssets.length} item{filteredAssets.length !== 1 ? 's' : ''})
               </span>
               {!isFiltered && (
@@ -1546,7 +1546,7 @@ export function AssetManager({
                   variant="ghost"
                   size="sm"
                   onClick={clearFilters}
-                  className="text-blue-200 hover:text-blue-100 h-auto p-1"
+                  className="text-blue-700 hover:text-blue-800 dark:text-blue-200 dark:hover:text-blue-100 h-auto p-1"
                 >
                   <X className="w-4 h-4" />
                 </Button>

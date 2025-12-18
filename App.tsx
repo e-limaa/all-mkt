@@ -300,14 +300,7 @@ function AppContent() {
     return (
       <>
         <DevelopmentModeAlert />
-        {!systemSettings.emailNotifications && (
-          <Alert className="border-yellow-500/40 bg-yellow-500/10 mb-4">
-            <MailX className="h-4 w-4 text-yellow-500" />
-            <AlertDescription className="text-yellow-100">
-              Notificacoes por email estao desativadas pelo administrador.
-            </AlertDescription>
-          </Alert>
-        )}
+
         <LoginScreen />
       </>
     );
@@ -326,22 +319,7 @@ function AppContent() {
           >
             <>
               <DevelopmentModeAlert />
-              {isAdmin() && !systemSettings.emailNotifications && (
-                <Alert className="border-blue-500/40 bg-blue-500/10 mb-4">
-                  <MailX className="h-4 w-4 text-blue-200" />
-                  <AlertDescription className="text-blue-100">
-                    Emails automáticos estão desativados. Ative-os nas Configurações para avisos de upload e compartilhamento.
-                  </AlertDescription>
-                </Alert>
-              )}
-              {isAdmin() && !systemSettings.systemNotifications && (
-                <Alert className="border-red-500/40 bg-red-500/10 mb-4">
-                  <BellOff className="h-4 w-4 text-red-300" />
-                  <AlertDescription className="text-red-200">
-                    Alertas do sistema estão desativados. Nenhum aviso será exibido aos usuários.
-                  </AlertDescription>
-                </Alert>
-              )}
+
               <Dashboard />
             </>
           </PermissionGuard>
@@ -444,22 +422,7 @@ function AppContent() {
           >
             <>
               <DevelopmentModeAlert />
-              {isAdmin() && !systemSettings.emailNotifications && (
-                <Alert className="border-blue-500/40 bg-blue-500/10 mb-4">
-                  <MailX className="h-4 w-4 text-blue-200" />
-                  <AlertDescription className="text-blue-100">
-                    O envio de emails automáticos está desativado. Atualize esta configuração para reativar convites e avisos.
-                  </AlertDescription>
-                </Alert>
-              )}
-              {isAdmin() && !systemSettings.systemNotifications && (
-                <Alert className="border-red-500/40 bg-red-500/10 mb-4">
-                  <BellOff className="h-4 w-4 text-red-300" />
-                  <AlertDescription className="text-red-200">
-                    Alertas na interface estão desativados. Toques de sucesso ou erro não serão exibidos aos usuários.
-                  </AlertDescription>
-                </Alert>
-              )}
+
               <Settings />
             </>
           </PermissionGuard>
@@ -536,7 +499,7 @@ function AppFrame() {
           <N8nFloatingWidgetLazy />
         </Suspense>
       ) : null}
-      {systemSettings.systemNotifications && <Toaster />}
+      <Toaster />
     </div>
   );
 }

@@ -20,7 +20,7 @@ const badgeVariants = cva(
         blue:
           "border-[#2B7FFF] bg-[#2B7FFF]/15 text-[#2B7FFF] hover:bg-[#2B7FFF]/25",
         gray:
-          "border-transparent bg-zinc-500/15 text-zinc-300 hover:bg-zinc-500/25",
+          "border-transparent bg-zinc-500/15 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-500/25",
       },
     },
     defaultVariants: {
