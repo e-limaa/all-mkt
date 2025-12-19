@@ -120,19 +120,29 @@ const FullScreenLoader = ({ message = 'Carregando...' }: { message?: string }) =
   </div>
 );
 
-// Access Denied Component
-function AccessDenied() {
+// Access Denied / Redirect Component
+function RedirectFallback() {
+  const router = useRouter();
+  const { isViewer } = usePermissions();
+
+  useEffect(() => {
+    // Prevent infinite loops: check if we are already on the target page
+    const currentPath = router.pathname;
+
+    if (isViewer()) {
+      if (currentPath !== '/materials') {
+        void router.replace('/materials');
+      }
+    } else {
+      if (currentPath !== '/dashboard') {
+        void router.replace('/dashboard');
+      }
+    }
+  }, [isViewer, router]);
+
   return (
-    <div className="flex items-center justify-center min-h-[400px]">
-      <Card className="w-full max-w-md">
-        <CardContent className="p-8 text-center">
-          <ShieldX className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
-          <h2 className="text-xl font-semibold mb-2">Acesso Negado</h2>
-          <p className="text-muted-foreground">
-            Você não possui permissão para acessar esta página. Entre em contato com o administrador do sistema.
-          </p>
-        </CardContent>
-      </Card>
+    <div className="flex h-screen w-full items-center justify-center">
+      <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
     </div>
   );
 }
@@ -315,7 +325,7 @@ function AppContent() {
         return (
           <PermissionGuard
             permissions={[Permission.VIEW_DASHBOARD]}
-            fallback={<AccessDenied />}
+            fallback={<RedirectFallback />}
           >
             <>
               <DevelopmentModeAlert />
@@ -329,7 +339,7 @@ function AppContent() {
         return (
           <PermissionGuard
             permissions={[Permission.VIEW_MATERIALS]}
-            fallback={<AccessDenied />}
+            fallback={<RedirectFallback />}
           >
             <>
               <DevelopmentModeAlert />
@@ -348,7 +358,7 @@ function AppContent() {
         return (
           <PermissionGuard
             permissions={[Permission.VIEW_CAMPAIGNS]}
-            fallback={<AccessDenied />}
+            fallback={<RedirectFallback />}
           >
             <>
               <DevelopmentModeAlert />
@@ -363,7 +373,7 @@ function AppContent() {
         return (
           <PermissionGuard
             permissions={[Permission.VIEW_PROJECTS]}
-            fallback={<AccessDenied />}
+            fallback={<RedirectFallback />}
           >
             <>
               <DevelopmentModeAlert />
@@ -379,7 +389,7 @@ function AppContent() {
         return (
           <PermissionGuard
             permissions={[Permission.VIEW_USERS]}
-            fallback={<AccessDenied />}
+            fallback={<RedirectFallback />}
           >
             <>
               <DevelopmentModeAlert />
@@ -392,7 +402,7 @@ function AppContent() {
         return (
           <PermissionGuard
             permissions={[Permission.VIEW_ACTIVITY_LOGS]}
-            fallback={<AccessDenied />}
+            fallback={<RedirectFallback />}
           >
             <>
               <DevelopmentModeAlert />
@@ -405,7 +415,7 @@ function AppContent() {
         return (
           <PermissionGuard
             permissions={[Permission.VIEW_SHARED_LINKS]}
-            fallback={<AccessDenied />}
+            fallback={<RedirectFallback />}
           >
             <>
               <DevelopmentModeAlert />
@@ -418,7 +428,7 @@ function AppContent() {
         return (
           <PermissionGuard
             permissions={[Permission.ACCESS_SETTINGS]}
-            fallback={<AccessDenied />}
+            fallback={<RedirectFallback />}
           >
             <>
               <DevelopmentModeAlert />
@@ -434,7 +444,7 @@ function AppContent() {
           return (
             <PermissionGuard
               permissions={[Permission.VIEW_MATERIALS]}
-              fallback={<AccessDenied />}
+              fallback={<RedirectFallback />}
             >
               <>
                 <DevelopmentModeAlert />
@@ -451,7 +461,7 @@ function AppContent() {
         return (
           <PermissionGuard
             permissions={[Permission.VIEW_DASHBOARD]}
-            fallback={<AccessDenied />}
+            fallback={<RedirectFallback />}
           >
             <>
               <DevelopmentModeAlert />

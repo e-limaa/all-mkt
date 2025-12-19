@@ -54,11 +54,7 @@ function AdminActivityContent() {
             <Head>
                 <title>Atividades Recentes - Admin</title>
             </Head>
-            <div className="container mx-auto py-8">
-                <h1 className="text-3xl font-bold mb-6">Atividades do Sistema</h1>
-                <p className="text-muted-foreground mb-8">
-                    Monitore as ações recentes dos usuários, uploads e alterações no sistema.
-                </p>
+            <div className="container mx-auto">
                 <ActivityDashboard />
             </div>
             <Toaster />

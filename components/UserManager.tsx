@@ -22,15 +22,18 @@ import { Input } from "./ui/input";
 import { PasswordInput } from "./ui/password-input";
 import { Label } from "./ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
-import { Users, Crown, Settings, Eye, Loader2, Pencil, Trash2, MapPin, Globe2 } from "lucide-react";
+import { Users, Crown, Settings, Eye, Loader2, Pencil, Trash2, MapPin, Globe2, MailPlus, Copy, X } from "lucide-react";
 import { UserRole } from "../types/enums";
 import { useAuth } from "../contexts/AuthContext";
 import { Database } from "../types/supabase";
 import { supabase, isSupabaseConfigured } from "../lib/supabase";
+import { PageHeader } from "./PageHeader";
 import { toast } from "sonner";
-import { formatDistanceToNow } from "date-fns";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 import { REGIONAL_OPTIONS } from "../lib/regionals";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 
 type UserRow = Database["public"]["Tables"]["users"]["Row"];
 
@@ -46,6 +49,16 @@ interface DisplayUser {
   createdBy: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+interface InviteRow {
+  id: string;
+  email: string;
+  role: UserRole;
+  token: string;
+  created_at: string;
+  used_at: string | null;
+  created_by: string;
 }
 
 const ROLE_OPTIONS_ADMIN = [
@@ -98,7 +111,7 @@ const mapRowToUser = (row: UserRow): DisplayUser => ({
   id: row.id,
   name: row.name,
   email: row.email,
-  role: row.role as UserRole,
+  role: (row.role as UserRole) || UserRole.VIEWER,
   avatarUrl: row.avatar_url,
   regional: row.regional ? row.regional.toUpperCase() : null,
   originScope: row.material_origin_scope
@@ -106,960 +119,704 @@ const mapRowToUser = (row: UserRow): DisplayUser => ({
     : null,
   viewerAccessToAll: Boolean(row.viewer_access_to_all),
   createdBy: row.created_by ?? null,
-  createdAt: row.created_at,
-  updatedAt: row.updated_at,
+  createdAt: row.created_at || new Date().toISOString(),
+  updatedAt: row.updated_at || new Date().toISOString(),
 });
-
-type DialogMode = "create" | "edit";
 
 export function UserManager() {
   const { user: currentUser, session } = useAuth();
-  const isAdmin = currentUser?.role === UserRole.ADMIN;
-  const isEditorTrade = currentUser?.role === UserRole.EDITOR_TRADE;
-  const isEditorMarketing = currentUser?.role === UserRole.EDITOR_MARKETING;
   const [users, setUsers] = useState<DisplayUser[]>([]);
+  const [invites, setInvites] = useState<InviteRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [dialogMode, setDialogMode] = useState<DialogMode>("create");
-  const [editingUserId, setEditingUserId] = useState<string | null>(null);
-  const [creatingOrUpdating, setCreatingOrUpdating] = useState(false);
-  const [userToDelete, setUserToDelete] = useState<DisplayUser | null>(null);
-  const [deleteLoading, setDeleteLoading] = useState(false);
-  const [formValues, setFormValues] = useState({
+  const [invitesLoading, setInvitesLoading] = useState(false);
+
+  const [searchTerm, setSearchTerm] = useState("");
+
+  // User Management
+  const [isUserOpen, setIsUserOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<DisplayUser | null>(null);
+  const [deletingUser, setDeletingUser] = useState<DisplayUser | null>(null);
+  const [actionLoading, setActionLoading] = useState(false);
+
+  // Invite Management
+  const [isInviteOpen, setIsInviteOpen] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState<UserRole>(UserRole.VIEWER);
+  const [inviteLoading, setInviteLoading] = useState(false);
+
+  // Form states
+  const [formData, setFormData] = useState({
     name: "",
     email: "",
-    password: "",
+    password: "", // Only for creation
     role: UserRole.VIEWER,
     regional: "",
-    originScope: "",
+    originScope: null as 'house' | 'ev' | null,
     viewerAccessToAll: false,
   });
 
-  const canCreateUsers = Boolean(isAdmin || isEditorTrade || isEditorMarketing);
-  const configured = isSupabaseConfigured();
-  const availableRoleOptions = useMemo(() => {
-    if (isAdmin) {
-      return ROLE_OPTIONS_ADMIN;
-    }
-    if (isEditorMarketing) {
-      return ROLE_OPTIONS_MARKETING;
-    }
-    if (isEditorTrade) {
-      return ROLE_OPTIONS_TRADE;
-    }
-    return [] as typeof ROLE_OPTIONS_ADMIN;
-  }, [isAdmin, isEditorMarketing, isEditorTrade]);
-  const isRoleSelectionFixed = availableRoleOptions.length <= 1;
-  const currentRoleOption =
-    availableRoleOptions.find((option) => option.value === formValues.role) ??
-    availableRoleOptions[0] ??
-    null;
+  const canManageUsers = useMemo(() => {
+    return currentUser?.role === UserRole.ADMIN || currentUser?.role === UserRole.EDITOR_TRADE;
+  }, [currentUser]);
 
-  const fetchUsersList = useCallback(
-    async () => {
-      if (!supabase) {
-        setUsers([]);
-        setLoading(false);
-        return;
-      }
+  const fetchUsers = useCallback(async () => {
+    if (!session?.access_token) return;
 
-      const baseSelect =
-        "id, name, email, role, avatar_url, regional, viewer_access_to_all, created_by, created_at, updated_at";
-      const selectWithOrigin = `${baseSelect}, material_origin_scope`;
-
-      let query = supabase
-        .from("users")
-        .select(selectWithOrigin)
-        .order("created_at", { ascending: false });
-
-      if (isEditorTrade && currentUser?.id) {
-        query = query.eq("created_by", currentUser.id);
-      }
-
-      let { data, error } = await query;
-
-      if (error && (error.message || "").includes("material_origin_scope")) {
-        let fallbackQuery = supabase
-          .from("users")
-          .select(baseSelect)
-          .order("created_at", { ascending: false });
-        if (isEditorTrade && currentUser?.id) {
-          fallbackQuery = fallbackQuery.eq("created_by", currentUser.id);
-        }
-        const fallback = await fallbackQuery;
-        if (!fallback.error) {
-          const fallbackData = (fallback.data ?? []) as Array<Omit<UserRow, "material_origin_scope">>;
-          data = fallbackData.map((row) => ({
-            ...row,
-            material_origin_scope: null as UserRow["material_origin_scope"],
-          }));
-          error = null;
-        } else {
-          error = fallback.error;
-        }
-      }
-
-      if (error) {
-        throw error;
-      }
-
-      const mapped = (data ?? []).map(mapRowToUser);
-      setUsers(
-        isEditorTrade && currentUser?.id
-          ? mapped.filter((user) => user.createdBy === currentUser.id)
-          : mapped
-      );
-    },
-    [currentUser?.id, isEditorTrade]
-  );
-
-  useEffect(() => {
-    if (!configured) {
-      setUsers([]);
-      toast.error('Supabase n?o configurado. Verifique as vari?veis de ambiente.');
-      setLoading(false);
-      return;
-    }
-
-    const loadUsers = async () => {
+    try {
       setLoading(true);
-      try {
-        await fetchUsersList();
-      } catch (error) {
-        console.error("[UserManager] Falha ao carregar usuarios", error);
-        const message = error instanceof Error ? error.message : "Nao foi possivel carregar os usuarios";
-        toast.error(message);
-        setUsers([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    void loadUsers();
-  }, [configured, fetchUsersList]);
-
-  const stats = useMemo(() => {
-    const total = users.length;
-    const admins = users.filter((u) => u.role === UserRole.ADMIN).length;
-    const marketingEditors = users.filter((u) => u.role === UserRole.EDITOR_MARKETING).length;
-    const tradeEditors = users.filter((u) => u.role === UserRole.EDITOR_TRADE).length;
-    const viewers = users.filter((u) => u.role === UserRole.VIEWER).length;
-    const viewersGlobal = users.filter(
-      (u) => u.role === UserRole.VIEWER && u.viewerAccessToAll
-    ).length;
-
-    return {
-      total,
-      admins,
-      marketingEditors,
-      tradeEditors,
-      viewers,
-      viewersGlobal,
-    };
-  }, [users]);
-
-  const regionalIsRequired =
-    formValues.role === UserRole.EDITOR_TRADE ||
-    (formValues.role === UserRole.VIEWER && !formValues.viewerAccessToAll);
-
-  const originIsRequired =
-    formValues.role === UserRole.VIEWER && !formValues.viewerAccessToAll;
-
-  const shouldShowOriginSelect =
-    formValues.role === UserRole.VIEWER && !formValues.viewerAccessToAll;
-
-  const disableRegionalSelect =
-    (formValues.role === UserRole.EDITOR_TRADE && isEditorTrade) ||
-    (formValues.role === UserRole.VIEWER && isEditorTrade);
-
-  const allowedOriginOptions = useMemo(() => ORIGIN_OPTIONS, []);
-
-  if (!configured) {
-    return (
-      <Alert variant="destructive">
-        <AlertTitle>Supabase n?o configurado</AlertTitle>
-        <AlertDescription>
-          Configure as vari?veis de ambiente do Supabase e reinicie o servidor para gerenciar usu?rios.
-        </AlertDescription>
-      </Alert>
-    );
-  }
-
-  const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = event.target;
-    setFormValues((previous) => ({ ...previous, [name]: value }));
-  };
-
-  const handleRoleChange = (value: string) => {
-    const nextRole = value as UserRole;
-
-    if (!availableRoleOptions.some((option) => option.value === nextRole)) {
-      return;
-    }
-
-    setFormValues((previous) => {
-      const updated = { ...previous, role: nextRole };
-
-      if (nextRole === UserRole.EDITOR_TRADE) {
-        updated.viewerAccessToAll = false;
-        if (isEditorTrade) {
-          updated.regional = (currentUser?.regional ?? "").toUpperCase();
-        } else {
-          updated.regional = "";
-        }
-        updated.originScope = "";
-      } else if (nextRole === UserRole.VIEWER) {
-        if (isEditorTrade) {
-          updated.viewerAccessToAll = false;
-          updated.regional = (currentUser?.regional ?? "").toUpperCase();
-        }
-        updated.originScope = "";
-      } else {
-        updated.viewerAccessToAll = false;
-        updated.originScope = "";
-      }
-
-      return updated;
-    });
-  };
-
-  const handleViewerAccessChange = (checked: boolean | "indeterminate") => {
-    setFormValues((previous) => ({
-      ...previous,
-      viewerAccessToAll: Boolean(checked),
-      regional: Boolean(checked) ? "" : previous.regional,
-      originScope: Boolean(checked) ? "" : previous.originScope,
-    }));
-  };
-
-  const resetForm = (presetRole?: UserRole) => {
-    const defaultRole =
-      presetRole ??
-      (availableRoleOptions.length > 0
-        ? availableRoleOptions[0].value
-        : UserRole.VIEWER);
-
-    const shouldForceRegional =
-      defaultRole === UserRole.EDITOR_TRADE ||
-      (defaultRole === UserRole.VIEWER && isEditorTrade);
-
-    setFormValues({
-      name: "",
-      email: "",
-      password: "",
-      role: defaultRole,
-      regional: shouldForceRegional
-        ? (currentUser?.regional ?? "").toUpperCase()
-        : "",
-      originScope: "",
-      viewerAccessToAll: false,
-    });
-    setEditingUserId(null);
-    setDialogMode("create");
-  };
-
-  const openCreateDialog = () => {
-    if (!canCreateUsers) {
-      toast.error("Voc\u00ea n\u00e3o possui permiss\u00e3o para criar usu\u00e1rios.");
-      return;
-    }
-
-    resetForm();
-    setDialogMode("create");
-    setIsDialogOpen(true);
-  };
-
-  const canManageUser = (target: DisplayUser) => {
-    if (isAdmin) return true;
-    if (isEditorMarketing) {
-      if (target.role === UserRole.ADMIN || target.role === UserRole.EDITOR_MARKETING) {
-        return false;
-      }
-      return target.role === UserRole.EDITOR_TRADE || target.role === UserRole.VIEWER;
-    }
-    if (isEditorTrade) {
-      if (target.role !== UserRole.VIEWER) return false;
-      if (target.viewerAccessToAll) return false;
-      const currentRegional = (currentUser?.regional ?? "").toUpperCase();
-      return Boolean(currentRegional) && target.regional === currentRegional;
-    }
-    return false;
-  };
-
-  const openEditDialog = (user: DisplayUser) => {
-    if (!canManageUser(user)) {
-      toast.error("Voc\u00ea n\u00e3o possui permiss\u00e3o para editar este usu\u00e1rio.");
-      return;
-    }
-
-    setDialogMode("edit");
-    setEditingUserId(user.id);
-    setFormValues({
-      name: user.name,
-      email: user.email,
-      password: "",
-      role: user.role,
-      regional: user.regional ?? "",
-      originScope: user.originScope ?? "",
-      viewerAccessToAll: user.viewerAccessToAll,
-    });
-    setIsDialogOpen(true);
-  };
-
-  const refreshUsers = async () => {
-    if (!supabase) {
-      throw new Error('Supabase n?o configurado.');
-    }
-
-    try {
-      await fetchUsersList();
-    } catch (error) {
-      console.error("[UserManager] Falha ao atualizar usuarios", error);
-      toast.error("Nao foi possivel atualizar a lista de usuarios");
-    }
-  };
-
-  const handleSubmit = async (event: React.FormEvent) => {
-    event.preventDefault();
-
-    if (!formValues.name.trim() || !formValues.email.trim()) {
-      toast.error("Preencha nome e email.");
-      return;
-    }
-
-    if (dialogMode === "create" && !formValues.password.trim()) {
-      toast.error("Informe uma senha provisoria.");
-      return;
-    }
-
-    if (!session?.access_token) {
-      toast.error("Sessao invalida. Faca login novamente.");
-      return;
-    }
-
-    if (dialogMode === "edit" && !editingUserId) {
-      toast.error("Selecione um usuario para editar.");
-      return;
-    }
-
-    if (dialogMode === "create" && !canCreateUsers) {
-      toast.error("Voce nao possui permissao para criar usuarios.");
-      return;
-    }
-
-    if (dialogMode === "edit" && editingUserId) {
-      const target = users.find((user) => user.id === editingUserId);
-      if (target && !canManageUser(target)) {
-        toast.error("Voce nao possui permissao para editar este usuario.");
-        return;
-      }
-    }
-
-    const desiredRole = formValues.role;
-    if (!availableRoleOptions.some((option) => option.value === desiredRole)) {
-      toast.error("Perfil selecionado nao permitido.");
-      return;
-    }
-    if (
-      isEditorMarketing &&
-      (desiredRole === UserRole.ADMIN || desiredRole === UserRole.EDITOR_MARKETING)
-    ) {
-      toast.error("Editor Marketing nao pode selecionar este perfil.");
-      return;
-    }
-
-    let normalizedRegional = formValues.regional.trim().toUpperCase();
-    let normalizedViewerGlobal = formValues.viewerAccessToAll;
-    let normalizedOriginScope = (formValues.originScope || "").trim().toLowerCase();
-
-    if (desiredRole === UserRole.EDITOR_TRADE) {
-      normalizedViewerGlobal = false;
-      normalizedOriginScope = "";
-      if (isEditorTrade) {
-        const currentRegional = (currentUser?.regional ?? "").toUpperCase();
-        if (!currentRegional) {
-          toast.error("Seu perfil nao possui regional definida.");
-          return;
-        }
-        normalizedRegional = currentRegional;
-      } else if (!normalizedRegional) {
-        toast.error("Selecione a regional para o Editor Trade.");
-        return;
-      }
-    } else if (desiredRole === UserRole.EDITOR_MARKETING) {
-      normalizedRegional = "";
-      normalizedOriginScope = "";
-    }
-
-    if (desiredRole === UserRole.VIEWER) {
-      if (isEditorTrade) {
-        normalizedViewerGlobal = false;
-        const currentRegional = (currentUser?.regional ?? "").toUpperCase();
-        if (!currentRegional) {
-          toast.error("Seu perfil nao possui regional definida.");
-          return;
-        }
-        normalizedRegional = currentRegional;
-        if (!normalizedOriginScope || (normalizedOriginScope !== "house" && normalizedOriginScope !== "ev")) {
-          toast.error("Selecione a origem (House ou EV) para o viewer.");
-          return;
-        }
-      } else if (normalizedViewerGlobal) {
-        normalizedRegional = "";
-        normalizedOriginScope = "";
-      } else {
-        if (!normalizedRegional) {
-          toast.error("Defina uma regional ou marque acesso a todas.");
-          return;
-        }
-        if (!normalizedOriginScope || (normalizedOriginScope !== "house" && normalizedOriginScope !== "ev")) {
-          toast.error("Selecione a origem (House ou EV) para o viewer.");
-          return;
-        }
-      }
-    } else {
-      normalizedViewerGlobal = false;
-      normalizedOriginScope = "";
-    }
-
-    const payload: Record<string, unknown> = {
-      name: formValues.name.trim(),
-      email: formValues.email.trim(),
-      role: desiredRole,
-      regional: normalizedRegional ? normalizedRegional : null,
-      originScope:
-        normalizedOriginScope && (normalizedOriginScope === "house" || normalizedOriginScope === "ev")
-          ? normalizedOriginScope
-          : null,
-      viewerAccessToAll: normalizedViewerGlobal,
-    };
-
-    if (dialogMode === "create") {
-      payload.password = formValues.password;
-    } else if (formValues.password.trim()) {
-      payload.password = formValues.password.trim();
-    }
-
-    if (dialogMode === "edit") {
-      payload.id = editingUserId;
-    }
-
-    setCreatingOrUpdating(true);
-
-    try {
-      const endpoint =
-        dialogMode === "create" ? "/api/admin/create-user" : "/api/admin/update-user";
-      const method = dialogMode === "create" ? "POST" : "PUT";
-
-      const response = await fetch(endpoint, {
-        method,
+      const response = await fetch('/api/admin/list-users', {
         headers: {
-          "Content-Type": "application/json",
           Authorization: `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
-        const body = await response.json().catch(() => ({}));
-        throw new Error(body.error || "Nao foi possivel salvar o usuario.");
+        throw new Error('Falha ao carregar usuários');
       }
 
-      toast.success(
-        dialogMode === "create"
-          ? "Usuario criado com sucesso!"
-          : "Usuario atualizado com sucesso!"
-      );
-      setIsDialogOpen(false);
-      resetForm();
-      await refreshUsers();
-    } catch (error) {
-      console.error("[UserManager] Falha ao salvar usuario", error);
-      const message = error instanceof Error ? error.message : "Nao foi possivel salvar o usuario.";
-      toast.error(message);
+      const data = await response.json();
+      setUsers((data || []).map(mapRowToUser));
+    } catch (err) {
+      console.error("Error fetching users:", err);
+      toast.error("Erro ao carregar usuários.");
     } finally {
-      setCreatingOrUpdating(false);
+      setLoading(false);
+    }
+  }, [session]);
+
+  const fetchInvites = useCallback(async () => {
+    if (!canManageUsers || !supabase) return;
+    try {
+      setInvitesLoading(true);
+      const { data, error } = await supabase
+        .from("user_invites" as any)
+        .select("*")
+        .is("used_at", null)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      setInvites((data as unknown as InviteRow[]) || []);
+    } catch (err) {
+      console.error("Error fetching invites:", err);
+    } finally {
+      setInvitesLoading(false);
+    }
+  }, [canManageUsers]);
+
+  useEffect(() => {
+    fetchUsers();
+    fetchInvites();
+  }, [fetchUsers, fetchInvites]);
+
+  const filteredUsers = useMemo(() => {
+    return users.filter((u) =>
+      u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      u.email.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [users, searchTerm]);
+
+  // --- Handlers: Invites ---
+
+  const handleCreateInvite = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inviteEmail) return;
+    if (!supabase) return;
+
+    setInviteLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("user_invites" as any)
+        .insert({
+          email: inviteEmail,
+          role: inviteRole,
+          created_by: currentUser?.id
+        })
+        .select()
+        .single();
+
+      if (error) {
+        // Handle "Unique constraint" error (Email already invited)
+        if (error.message?.includes("unique")) {
+          // 1. Check if the user is already registered (Active user)
+          const { data: existingUser } = await supabase
+            .from("users")
+            .select("id")
+            .eq("email", inviteEmail)
+            .maybeSingle();
+
+          if (existingUser) {
+            throw new Error("Este usuário já está cadastrado no sistema.");
+          }
+
+          // 2. If user is NOT registered, it means we have an orphaned/stale invite.
+          // We can offer to overwrite/resend, or just do it automatically if it's cleaner.
+          // Let's create a NEW invite by deleting the old one first.
+
+          // Delete old invite
+          const { error: deleteOldError } = await supabase
+            .from("user_invites" as any)
+            .delete()
+            .eq("email", inviteEmail);
+
+          if (deleteOldError) {
+            console.error("Erro ao limpar convite antigo:", deleteOldError);
+            throw new Error("Já existe um convite pendente e não foi possível substituí-lo.");
+          }
+
+          // Retry creation
+          const { data: retryData, error: retryError } = await supabase
+            .from("user_invites" as any)
+            .insert({
+              email: inviteEmail,
+              role: inviteRole,
+              created_by: currentUser?.id
+            })
+            .select()
+            .single();
+
+          if (retryError) throw retryError;
+
+          toast.success("Convite antigo substituído e enviado com sucesso!");
+          setInviteEmail("");
+          setIsInviteOpen(false);
+          fetchInvites();
+          return; // Exit function on success
+        }
+        throw error;
+      }
+
+      toast.success("Convite criado com sucesso!");
+      setInviteEmail("");
+      setIsInviteOpen(false);
+      fetchInvites();
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || "Erro ao criar convite.");
+    } finally {
+      setInviteLoading(false);
     }
   };
 
-  const handleDelete = async () => {
-    if (!userToDelete || !session?.access_token) {
-      setUserToDelete(null);
-      return;
-    }
+  const handleCopyInviteLink = (token: string) => {
+    const link = `${window.location.origin}/register?token=${token}`;
+    navigator.clipboard.writeText(link);
+    toast.success("Link copiado para a área de transferência!");
+  };
 
-    if (userToDelete.id === currentUser?.id) {
-      toast.error("Voce nao pode excluir a propria conta.");
-      setUserToDelete(null);
-      return;
-    }
-
-    if (!canManageUser(userToDelete)) {
-      toast.error("Voce nao possui permissao para excluir este usuario.");
-      setUserToDelete(null);
-      return;
-    }
-
-    setDeleteLoading(true);
+  const handleRevokeInvite = async (id: string) => {
+    if (!supabase) return;
     try {
+      const { error } = await supabase
+        .from("user_invites" as any)
+        .delete()
+        .eq("id", id);
+
+      if (error) throw error;
+      toast.success("Convite revogado.");
+      fetchInvites();
+    } catch (err) {
+      toast.error("Erro ao revogar convite.");
+    }
+  };
+
+  // --- Handlers: Users ---
+
+  // --- Handlers: Users ---
+
+  const handleCreateUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setActionLoading(true);
+
+    try {
+      if (!session?.access_token) {
+        throw new Error("Sessão inválida. Tente fazer login novamente.");
+      }
+
+      const response = await fetch("/api/admin/create-user", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+          name: formData.name,
+          role: formData.role,
+          regional: formData.regional || null,
+          originScope: formData.originScope,
+          viewerAccessToAll: formData.viewerAccessToAll,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Erro ao criar usuário.");
+      }
+
+      toast.success("Usuário criado com sucesso!");
+      setIsUserOpen(false);
+      fetchUsers();
+      resetForm();
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao criar usuário.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleEditUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingUser) return;
+    if (!supabase) return;
+    setActionLoading(true);
+
+    try {
+      const { error } = await supabase
+        .from("users")
+        .update({
+          name: formData.name,
+          role: formData.role,
+          regional: formData.regional || null,
+          material_origin_scope: formData.originScope,
+          viewer_access_to_all: formData.viewerAccessToAll
+        })
+        .eq("id", editingUser.id);
+
+      if (error) throw error;
+
+      toast.success("Usuário atualizado com sucesso!");
+      setEditingUser(null);
+      fetchUsers();
+      resetForm();
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao atualizar usuário.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleDeleteUser = async () => {
+    if (!deletingUser) return;
+    setActionLoading(true);
+
+    try {
+      if (!session?.access_token) {
+        throw new Error("Sessão inválida. Tente fazer login novamente.");
+      }
+
       const response = await fetch("/api/admin/delete-user", {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`,
+          "Authorization": `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({ id: userToDelete.id }),
+        body: JSON.stringify({ id: deletingUser.id }),
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        const body = await response.json().catch(() => ({}));
-        throw new Error(body.error || "Nao foi possivel excluir o usuario.");
+        throw new Error(data.error || "Erro ao excluir usuário.");
       }
 
-      toast.success("Usuario excluido com sucesso!");
-      setUserToDelete(null);
-      await refreshUsers();
-    } catch (error) {
-      console.error("[UserManager] Falha ao excluir usuario", error);
-      const message = error instanceof Error ? error.message : "Nao foi possivel excluir o usuario.";
-      toast.error(message);
+      toast.success("Usuário removido.");
+      setDeletingUser(null);
+      fetchUsers();
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao remover usuário.");
     } finally {
-      setDeleteLoading(false);
+      setActionLoading(false);
     }
   };
 
+  const resetForm = () => {
+    setFormData({
+      name: "",
+      email: "",
+      password: "",
+      role: UserRole.VIEWER,
+      regional: "",
+      originScope: null,
+      viewerAccessToAll: false,
+    });
+  };
+
+  const openEdit = (user: DisplayUser) => {
+    setEditingUser(user);
+    setFormData({
+      name: user.name,
+      email: user.email,
+      password: "",
+      role: user.role,
+      regional: user.regional || "",
+      originScope: user.originScope,
+      viewerAccessToAll: user.viewerAccessToAll,
+    });
+  };
+
+  if (!isSupabaseConfigured()) {
+    return (
+      <Card className="border-yellow-500/50 bg-yellow-500/10">
+        <CardContent className="pt-6">
+          <div className="flex items-center gap-2 text-yellow-600 dark:text-yellow-400">
+            <p>Supabase não configurado. Adicione as credenciais no arquivo .env</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="flex items-center gap-3">
-            <Users className="w-8 h-8 text-primary" />
-            Gerenciamento de Usuarios
-          </h1>
-          <p className="text-muted-foreground mt-1">Gerencie usuarios e permissoes do sistema</p>
-        </div>
+      <Tabs defaultValue="users" className="w-full space-y-6">
+        <PageHeader
+          icon={Users}
+          title="Usuários"
+          description="Gerencie o acesso e permissões da equipe"
+          className="w-full"
+          action={
+            <TabsList className="grid w-full md:w-auto grid-cols-2 bg-muted/50 p-1.5 h-auto rounded-xl">
+              <TabsTrigger value="users" className="transition-all hover:bg-background/60 data-[state=active]:hover:bg-background py-2 px-6">Usuários Ativos</TabsTrigger>
+              <TabsTrigger value="invites" className="transition-all hover:bg-background/60 data-[state=active]:hover:bg-background py-2 px-6">Convites Pendentes</TabsTrigger>
+            </TabsList>
+          }
+        />
 
-        <Button
-          className="bg-primary hover:bg-primary/90"
-          onClick={openCreateDialog}
-          disabled={!canCreateUsers}
-        >
-          <Users className="w-4 h-4 mr-2" />
-          Novo Usuario
-        </Button>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.total}</div>
-            <p className="text-xs text-muted-foreground">Usuarios cadastrados</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Visualizadores</CardTitle>
-            <Eye className="h-4 w-4 text-green-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.viewers}</div>
-            <p className="text-xs text-muted-foreground">
-              Globais: {stats.viewersGlobal}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Admins</CardTitle>
-            <Crown className="h-4 w-4 text-yellow-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.admins}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Editores Marketing</CardTitle>
-            <Settings className="h-4 w-4 text-blue-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.marketingEditors}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Editores Trade</CardTitle>
-            <MapPin className="h-4 w-4 text-orange-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.tradeEditors}</div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Usuarios do Sistema</CardTitle>
-          <CardDescription>Lista de todos os usuarios cadastrados no sistema</CardDescription>
-        </CardHeader>
-        <CardContent className="p-0">
-          {loading ? (
-            <div className="p-6 text-sm text-muted-foreground">Carregando usuarios...</div>
-          ) : users.length === 0 ? (
-            <div className="p-6 text-sm text-muted-foreground">Nenhum usuario encontrado. Crie o primeiro usuario para comecar.</div>
-          ) : (
-            <div className="space-y-0">
-              {users.map((user) => {
-                const roleBadge = getRoleBadge(user.role);
-                const roleIcon = getRoleIcon(user.role);
-                const initials = user.name
-                  .split(" ")
-                  .map((part) => part[0])
-                  .join("")
-                  .substring(0, 2)
-                  .toUpperCase();
-                let lastInteraction = "--";
-                if (user.updatedAt) {
-                  try {
-                    lastInteraction = formatDistanceToNow(new Date(user.updatedAt), { addSuffix: true });
-                  } catch (error) {
-                    lastInteraction = "--";
-                  }
-                }
-                const canEditUser = canManageUser(user);
-                const canDeleteUser =
-                  canEditUser &&
-                  user.id !== currentUser?.id &&
-                  (
-                    isAdmin ||
-                    (isEditorTrade && user.role === UserRole.VIEWER) ||
-                    (
-                      isEditorMarketing &&
-                      (user.role === UserRole.VIEWER || user.role === UserRole.EDITOR_TRADE)
-                    )
-                  );
-
-                return (
-                  <div
-                    key={user.id}
-                    className="flex items-center justify-between p-4 border-b border-border last:border-0 hover:bg-muted/50 transition-colors"
-                  >
-                    <div className="flex items-center gap-4">
-                      <Avatar className="w-10 h-10">
-                        {user.avatarUrl ? <AvatarImage src={user.avatarUrl} alt={user.name} /> : null}
-                        <AvatarFallback>{initials}</AvatarFallback>
-                      </Avatar>
-
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-medium truncate">{user.name}</h3>
-                          {user.id === currentUser?.id && (
-                            <Badge variant="outline" className="text-xs">
-                              Voce
-                            </Badge>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
-                          <span className="truncate">{user.email}</span>
-                        </div>
-                        <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
-                          <span className="inline-flex items-center gap-1">
-                            {user.regional ? (
-                              <MapPin className="w-3 h-3" />
-                            ) : (
-                              <Globe2 className="w-3 h-3" />
-                            )}
-                            {user.regional ? user.regional : "Todas as regionais"}
-                          </span>
-                          {user.originScope && (
-                            <span className="inline-flex items-center gap-1">
-                              <Globe2 className="w-3 h-3" />
-                              {user.originScope === "house" ? "House" : "EV"}
-                            </span>
-                          )}
-                          {user.role === UserRole.VIEWER && user.viewerAccessToAll && (
-                            <Badge variant="secondary" className="text-[10px] uppercase tracking-wide">
-                              Viewer Global
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-4">
-                      <div className="flex items-center gap-2">
-                        {roleIcon}
-                        <Badge variant={roleBadge.variant}>{roleBadge.label}</Badge>
-                      </div>
-
-                      <div className="text-xs text-muted-foreground min-w-[120px] text-right">{lastInteraction}</div>
-
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => openEditDialog(user)}
-                          disabled={!canEditUser}
-                        >
-                          <Pencil className="w-4 h-4 mr-2" />
-                          Editar
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-destructive hover:text-destructive"
-                          onClick={() => setUserToDelete(user)}
-                          disabled={!canDeleteUser}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-                  </CardContent>
-      </Card>
-
-      <Dialog open={isDialogOpen} onOpenChange={(open) => {
-        setIsDialogOpen(open);
-        if (!open) {
-          resetForm();
-        }
-      }}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{dialogMode === "edit" ? "Editar Usuario" : "Novo Usuario"}</DialogTitle>
-            <DialogDescription>
-              {dialogMode === "edit"
-                ? "Atualize os dados do usuario selecionado."
-                : "Informe os dados do usuario que recebera acesso ao sistema."}
-            </DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4" autoComplete="off">
-            <div className="space-y-2">
-              <Label htmlFor="name">Nome</Label>
-              <Input
-                id="name"
-                name="name"
-                value={formValues.name}
-                onChange={handleInputChange}
-                placeholder="Ex: Maria Souza"
-                autoComplete="off"
-                autoCorrect="off"
-                spellCheck={false}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                name="email"
-                type="email"
-                value={formValues.email}
-                onChange={handleInputChange}
-                placeholder="usuario@empresa.com"
-                autoComplete="off"
-                autoCorrect="off"
-                spellCheck={false}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">
-                {dialogMode === "edit" ? "Nova senha (opcional)" : "Senha provisoria"}
-              </Label>
-                <PasswordInput
-                  id="password"
-                  name="password"
-                  value={formValues.password}
-                  onChange={handleInputChange}
-                  placeholder={dialogMode === "edit" ? "Deixe em branco para manter a senha" : "Defina uma senha inicial"}
-                  autoComplete={dialogMode === "edit" ? "new-password" : "new-password"}
+        <TabsContent value="users" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle>Membros da Equipe</CardTitle>
+                <div className="flex items-center gap-2">
+                  {canManageUsers && (
+                    <Button onClick={() => { resetForm(); setIsUserOpen(true); }} className="bg-[#E4002B] hover:bg-[#E4002B]/90 h-10 rounded-lg shadow-sm font-medium">
+                      <Users className="mr-2 h-4 w-4" />
+                      Criar Manualmente
+                    </Button>
+                  )}
+                </div>
+              </div>
+              <div className="mt-4 relative max-w-sm">
+                <Users className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar por nome ou email..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-8"
                 />
-              {dialogMode === "edit" && (
-                <p className="text-xs text-muted-foreground">Deixe em branco para manter a senha atual.</p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label>Perfil de acesso</Label>
-              {isRoleSelectionFixed ? (
-                <div className="flex h-10 items-center rounded-md border border-border bg-muted px-3 text-sm text-muted-foreground">
-                  {currentRoleOption?.label ?? "Visualizador"}
+              </div>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <div className="flex justify-center p-8">
+                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                 </div>
               ) : (
-                <Select
-                  value={formValues.role}
-                  onValueChange={handleRoleChange}
-                  disabled={!isAdmin}
-                >
-                  <SelectTrigger className="bg-input-background border-border">
-                    <SelectValue placeholder="Selecione o perfil" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableRoleOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="space-y-4">
+                  {filteredUsers.map((user) => (
+                    <div
+                      key={user.id}
+                      className="flex items-center justify-between p-4 rounded-lg border bg-card/50 hover:bg-accent/50 transition-colors"
+                    >
+                      <div className="flex items-center gap-4">
+                        <Avatar>
+                          <AvatarImage src={user.avatarUrl || undefined} />
+                          <AvatarFallback>
+                            {user.name.slice(0, 2).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="font-medium">{user.name}</p>
+                          <p className="text-sm text-muted-foreground">{user.email}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <div className="flex flex-col items-end gap-1">
+                          <Badge variant={getRoleBadge(user.role).variant}>
+                            {getRoleBadge(user.role).label}
+                          </Badge>
+                          {user.regional && (
+                            <Badge variant="outline" className="text-xs">
+                              {user.regional}
+                            </Badge>
+                          )}
+                        </div>
+                        {canManageUsers && (
+                          <div className="flex items-center gap-1">
+                            <Button variant="ghost" size="icon" onClick={() => openEdit(user)}>
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-destructive hover:text-destructive"
+                              onClick={() => setDeletingUser(user)}
+                              disabled={user.id === currentUser?.id}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                  {filteredUsers.length === 0 && (
+                    <p className="text-center text-muted-foreground py-8">Nenhum usuário encontrado.</p>
+                  )}
+                </div>
               )}
-            </div>
-            {isAdmin && formValues.role === UserRole.VIEWER && (
-              <div className="flex items-center gap-2">
-                <input
-                  id="viewerAccessToAll"
-                  type="checkbox"
-                  className="h-4 w-4"
-                  checked={formValues.viewerAccessToAll}
-                  onChange={(event) => handleViewerAccessChange(event.target.checked)}
-                />
-                <Label
-                  htmlFor="viewerAccessToAll"
-                  className="cursor-pointer select-none text-sm"
-                >
-                  Viewer com acesso a todas as regionais
-                </Label>
-              </div>
-            )}
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-            {(formValues.role === UserRole.EDITOR_TRADE ||
-              (formValues.role === UserRole.VIEWER && !formValues.viewerAccessToAll)) && (
-              <div className="space-y-2">
-                <Label htmlFor="regional">
-                  Regional {regionalIsRequired ? "*" : ""}
-                </Label>
-                <Select
-                  value={formValues.regional}
-                  onValueChange={(value) =>
-                    setFormValues((previous) => ({
-                      ...previous,
-                      regional: value,
-                    }))
-                  }
-                  disabled={disableRegionalSelect}
-                >
-                  <SelectTrigger
-                    id="regional"
-                    className={`bg-input-background border-border ${
-                      regionalIsRequired && !formValues.regional
-                        ? "border-red-500"
-                        : ""
-                    }`}
-                    disabled={disableRegionalSelect}
-                  >
-                    <SelectValue placeholder="Selecione a regional" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {REGIONAL_OPTIONS.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {disableRegionalSelect && (
-                  <p className="text-xs text-muted-foreground">
-                    A regional sera definida automaticamente como{" "}
-                    {currentUser?.regional ?? "sua regional"}.
-                  </p>
+        <TabsContent value="invites" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Gerenciar Convites</CardTitle>
+                  <CardDescription>Envie convites por email para novos membros</CardDescription>
+                </div>
+                {canManageUsers && (
+                  <Button onClick={() => setIsInviteOpen(true)} className="bg-[#E4002B] hover:bg-[#E4002B]/90 h-10 rounded-lg shadow-sm font-medium" >
+                    <MailPlus className="mr-2 h-4 w-4" />
+                    Novo Convite
+                  </Button>
                 )}
               </div>
-            )}
-            {shouldShowOriginSelect && (
-              <div className="space-y-2">
-                <Label htmlFor="originScope">Origem *</Label>
-                <Select
-                  value={formValues.originScope}
-                  onValueChange={(value) =>
-                    setFormValues((previous) => ({
-                      ...previous,
-                      originScope: value,
-                    }))
-                  }
-                >
-                  <SelectTrigger
-                    id="originScope"
-                    className={`bg-input-background border-border ${
-                      originIsRequired && !formValues.originScope
-                        ? "border-red-500"
-                        : ""
-                    }`}
-                  >
-                    <SelectValue placeholder="Selecione a origem do usuario" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {(allowedOriginOptions.length > 0
-                      ? allowedOriginOptions
-                      : ORIGIN_OPTIONS
-                    ).map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
+            </CardHeader>
+            <CardContent>
+              {invitesLoading ? (
+                <div className="flex justify-center p-8">
+                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {invites.map((invite) => (
+                    <div key={invite.id} className="flex items-center justify-between p-4 rounded-lg border">
+                      <div className="space-y-1">
+                        <p className="font-medium">{invite.email}</p>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <Badge variant={getRoleBadge(invite.role).variant} className="text-xs">
+                            {getRoleBadge(invite.role).label}
+                          </Badge>
+                          <span>• Criado em {format(new Date(invite.created_at), "dd/MM/yyyy HH:mm")}</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button variant="outline" size="sm" onClick={() => handleCopyInviteLink(invite.token)}>
+                          <Copy className="mr-2 h-3 w-3" />
+                          Copiar Link
+                        </Button>
+                        <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => handleRevokeInvite(invite.id)}>
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                  {invites.length === 0 && (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <MailPlus className="mx-auto h-12 w-12 opacity-20 mb-3" />
+                      <p>Nenhum convite pendente.</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
+      {/* Invite Dialog */}
+      <Dialog open={isInviteOpen} onOpenChange={setIsInviteOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Convidar Usuário</DialogTitle>
+            <DialogDescription>
+              Gere um link de convite para um novo membro.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleCreateInvite} className="space-y-4">
+            <div className="space-y-2">
+              <Label>Email</Label>
+              <Input
+                type="email"
+                placeholder="email@exemplo.com"
+                value={inviteEmail}
+                onChange={(e) => setInviteEmail(e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Função</Label>
+              <Select
+                value={inviteRole}
+                onValueChange={(v) => setInviteRole(v as UserRole)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {currentUser?.role === UserRole.ADMIN ? (
+                    ROLE_OPTIONS_ADMIN.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
                       </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
+                    ))
+                  ) : (
+                    ROLE_OPTIONS_TRADE.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)} disabled={creatingOrUpdating}>
+              <Button type="button" variant="outline" onClick={() => setIsInviteOpen(false)}>
                 Cancelar
               </Button>
-              <Button type="submit" disabled={creatingOrUpdating}>
-                {creatingOrUpdating ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Salvando...
-                  </>
-                ) : dialogMode === "edit" ? (
-                  "Salvar alteracoes"
-                ) : (
-                  "Criar usuario"
-                )}
+              <Button type="submit" disabled={inviteLoading}>
+                {inviteLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Gerar Convite
               </Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
 
-      <AlertDialog open={userToDelete !== null} onOpenChange={(open) => {
+      {/* Create/Edit User Dialog */}
+      <Dialog open={isUserOpen || !!editingUser
+      } onOpenChange={(open) => {
         if (!open) {
-          setUserToDelete(null);
+          setIsUserOpen(false);
+          setEditingUser(null);
         }
       }}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>{editingUser ? 'Editar Usuário' : 'Novo Usuário'}</DialogTitle>
+            <DialogDescription>
+              {editingUser ? 'Edite os dados do usuário.' : 'Crie um novo usuário manualmente.'}
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={editingUser ? handleEditUser : handleCreateUser} className="space-y-4">
+            <div className="space-y-2">
+              <Label>Nome Completo</Label>
+              <Input
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Email</Label>
+              <Input
+                type="email"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                required
+                disabled={!!editingUser}
+                className={editingUser ? "bg-muted" : ""}
+              />
+            </div>
+            {!editingUser && (
+              <div className="space-y-2">
+                <Label>Senha</Label>
+                <PasswordInput
+                  value={formData.password}
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  required
+                />
+              </div>
+            )}
+            <div className="space-y-2">
+              <Label>Função</Label>
+              <Select
+                value={formData.role}
+                onValueChange={(v) => setFormData({ ...formData, role: v as UserRole })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {currentUser?.role === UserRole.ADMIN ? (
+                    ROLE_OPTIONS_ADMIN.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))
+                  ) : (
+                    ROLE_OPTIONS_TRADE.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {(formData.role === UserRole.EDITOR_TRADE || formData.role === UserRole.VIEWER) && (
+              <div className="space-y-2">
+                <Label>Regional (Opcional)</Label>
+                <Select
+                  value={formData.regional}
+                  onValueChange={(v) => setFormData({ ...formData, regional: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione uma regional" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas</SelectItem>
+                    {REGIONAL_OPTIONS.map((reg) => (
+                      <SelectItem key={reg.value} value={reg.value}>
+                        {reg.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => { setIsUserOpen(false); setEditingUser(null); }}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={actionLoading}>
+                {actionLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {editingUser ? 'Salvar' : 'Criar'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog >
+
+      {/* Delete User Alert */}
+      < AlertDialog open={!!deletingUser} onOpenChange={(open) => !open && setDeletingUser(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Excluir usuario</AlertDialogTitle>
+            <AlertDialogTitle>Tem certeza?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta acao removera o usuario selecionado do sistema. Esta operacao nao pode ser desfeita.
+              Isso removerá o acesso do usuário <strong>{deletingUser?.name}</strong> ao sistema.
+              Essa ação não pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleteLoading} onClick={() => setUserToDelete(null)}>
-              Cancelar
-            </AlertDialogCancel>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={handleDelete}
-              disabled={deleteLoading}
+              onClick={handleDeleteUser}
+              className="bg-destructive hover:bg-destructive/90"
+              disabled={actionLoading}
             >
-              {deleteLoading ? "Excluindo..." : "Excluir"}
+              {actionLoading ? "Removendo..." : "Remover Usuário"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
-      </AlertDialog>
-    </div>
+      </AlertDialog >
+    </div >
   );
 }

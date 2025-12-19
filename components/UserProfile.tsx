@@ -240,7 +240,7 @@ export function UserProfile() {
 
   return (
     <>
-      <DropdownMenu open={isMenuOpen} onOpenChange={setIsMenuOpen}>
+      <DropdownMenu open={isMenuOpen} onOpenChange={setIsMenuOpen} modal={false}>
         <DropdownMenuTrigger asChild>
           <button
             type="button"

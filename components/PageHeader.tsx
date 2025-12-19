@@ -53,7 +53,7 @@ export function PageHeader({
                 <h1 className="text-xl font-semibold leading-tight text-foreground sm:text-2xl">
                   {title}
                 </h1>
-                <p className="text-sm text-muted-foreground sm:text-base">{description}</p>
+                <p className="text-base text-muted-foreground">{description}</p>
               </div>
             </div>
           </div>

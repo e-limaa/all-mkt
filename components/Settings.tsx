@@ -8,6 +8,7 @@ import { Separator } from './ui/separator';
 import { Settings as SettingsIcon, Palette } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useConfig } from '../contexts/ConfigContext';
+import { PageHeader } from './PageHeader';
 import { toast } from 'sonner';
 import { DEFAULT_SETTINGS, rowToSettings, saveSystemSettings, SettingsFormState } from '../lib/settings';
 
@@ -30,8 +31,26 @@ export function Settings() {
     setSettings({ ...systemSettings });
   }, [systemSettings]);
 
+  if (!isSupabaseEnabled) {
+    return (
+      <div className="space-y-6">
+        <PageHeader
+          icon={SettingsIcon}
+          title="Configurações"
+          description="Gerencie as preferências globais do sistema"
+        />
+        <Card className="bg-card/50 backdrop-blur-sm border-border/50">
+          <CardContent className="p-6">
+            <div className="flex items-center gap-2 text-yellow-600 dark:text-yellow-400">
+              <p>Configure as credenciais do Supabase para gerenciar as configurações do sistema.</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
-
+  // Helper for toggle changes
   const handleToggleChange = (key: keyof SettingsFormState) => (checked: boolean) => {
     setSettings((prev) => ({
       ...prev,
@@ -39,8 +58,7 @@ export function Settings() {
     }));
   };
 
-
-
+  // Helper for input changes
   const handleInputChange =
     (key: keyof SettingsFormState) => (event: React.ChangeEvent<HTMLInputElement>) => {
       const value = event.target.value;
@@ -53,8 +71,6 @@ export function Settings() {
             : value,
       }));
     };
-
-
 
   const handleSave = async () => {
     if (!isSupabaseEnabled) {
@@ -86,20 +102,6 @@ export function Settings() {
     }
   };
 
-  if (!isSupabaseEnabled) {
-    return (
-      <div className="space-y-4">
-        <Card className="bg-card/50 backdrop-blur-sm border-border/50">
-          <CardContent className="p-6">
-            <p className="text-sm text-muted-foreground">
-              Configure as credenciais do Supabase para gerenciar as configurações do sistema.
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
   if (systemSettingsLoading) {
     return (
       <div className="space-y-4">
@@ -117,15 +119,16 @@ export function Settings() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="flex items-center gap-3">
-          <SettingsIcon className="w-8 h-8 text-primary" />
-          Configurações
-        </h1>
-        <p className="text-muted-foreground mt-1">
-          Ajuste preferências e comportamentos do sistema
-        </p>
-      </div>
+      <PageHeader
+        icon={SettingsIcon}
+        title="Configurações"
+        description="Gerencie as preferências globais do sistema"
+        action={
+          <Button onClick={handleSave} disabled={saving || systemSettingsLoading}>
+            {saving ? 'Salvando...' : 'Salvar Alterações'}
+          </Button>
+        }
+      />
 
       {loadError && (
         <Card className="bg-destructive/10 border-destructive/40">

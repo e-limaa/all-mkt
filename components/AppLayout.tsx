@@ -1,5 +1,5 @@
- 'use client';
- 
+'use client';
+
 import React, { useEffect } from 'react';
 import Head from 'next/head';
 import {
@@ -123,7 +123,7 @@ export function AppLayout({ currentPage, onPageChange, children }: AppLayoutProp
             </div>
           </div>
 
-          <div className="ml-auto flex items-center gap-2">
+          <div className="ml-auto flex items-center gap-4">
             {adminEmail && (
               <span className="hidden text-xs text-muted-foreground md:inline-flex">
                 Suporte:{' '}

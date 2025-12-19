@@ -210,12 +210,7 @@ export function LoginScreen() {
               >
                 Esqueci minha senha
               </button>
-              <Link
-                href="/signup"
-                className="font-semibold text-[#E4002B] transition-colors hover:text-[#ff3752]"
-              >
-                Criar conta
-              </Link>
+
             </div>
 
             <Button
@@ -340,15 +335,7 @@ export function LoginScreen() {
             >
               Voltar ao login
             </button>
-            <p>
-              Nao possui conta ainda?{" "}
-              <Link
-                className="font-semibold text-[#E4002B] transition-colors hover:text-[#ff3752]"
-                href="/signup"
-              >
-                Criar conta
-              </Link>
-            </p>
+
           </div>
         </>
       )}

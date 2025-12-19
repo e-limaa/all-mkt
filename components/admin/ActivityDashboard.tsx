@@ -10,6 +10,9 @@ import { REGIONAL_OPTIONS } from '@/lib/regionals';
 
 import { endOfDay } from 'date-fns';
 
+import { PageHeader } from '../PageHeader';
+import { Activity } from 'lucide-react';
+
 export function ActivityDashboard() {
     const { session } = useAuth();
     const [logs, setLogs] = useState([]);
@@ -113,52 +116,57 @@ export function ActivityDashboard() {
     };
 
     return (
-        <Card className="w-full">
-            <CardHeader>
-                <CardTitle>Histórico de Atividades</CardTitle>
-            </CardHeader>
-            <CardContent>
-                <ActivityLogFilters
-                    startDate={dateRange?.from}
-                    endDate={dateRange?.to}
-                    selectedActions={selectedActions}
-                    regional={selectedRegional}
-                    userId={selectedUser}
-                    onDateChange={handleDateChange}
-                    onActionChange={handleActionChange}
-                    onRegionalChange={(r) => {
-                        setSelectedRegional(r);
-                        setPagination(prev => ({ ...prev, page: 1 }));
-                    }}
-                    onUserChange={(u) => {
-                        setSelectedUser(u);
-                        setPagination(prev => ({ ...prev, page: 1 }));
-                    }}
-                    regionalOptions={REGIONAL_OPTIONS.filter(r => r.value !== 'TODAS')}
-                    userOptions={userOptions}
-                    isLoading={isLoading}
-                />
-                <ActivityLogList logs={logs} isLoading={isLoading} />
+        <div className="space-y-6">
+            <PageHeader
+                icon={Activity}
+                title="Histórico de Atividades"
+                description="Monitore as ações realizadas no sistema"
+                className="w-full"
+            />
+            <Card className="w-full">
+                <CardContent className="pt-6">
+                    <ActivityLogFilters
+                        startDate={dateRange?.from}
+                        endDate={dateRange?.to}
+                        selectedActions={selectedActions}
+                        regional={selectedRegional}
+                        userId={selectedUser}
+                        onDateChange={handleDateChange}
+                        onActionChange={handleActionChange}
+                        onRegionalChange={(r) => {
+                            setSelectedRegional(r);
+                            setPagination(prev => ({ ...prev, page: 1 }));
+                        }}
+                        onUserChange={(u) => {
+                            setSelectedUser(u);
+                            setPagination(prev => ({ ...prev, page: 1 }));
+                        }}
+                        regionalOptions={REGIONAL_OPTIONS.filter(r => r.value !== 'TODAS')}
+                        userOptions={userOptions}
+                        isLoading={isLoading}
+                    />
+                    <ActivityLogList logs={logs} isLoading={isLoading} />
 
-                {/* Simple Pagination */}
-                <div className="flex justify-center mt-4 gap-2">
-                    <button
-                        disabled={pagination.page <= 1 || isLoading}
-                        onClick={() => setPagination(prev => ({ ...prev, page: prev.page - 1 }))}
-                        className="px-3 py-1 border rounded disabled:opacity-50"
-                    >
-                        Anterior
-                    </button>
-                    <span className="py-1">Página {pagination.page} de {Math.max(1, pagination.totalPages)}</span>
-                    <button
-                        disabled={pagination.page >= pagination.totalPages || isLoading}
-                        onClick={() => setPagination(prev => ({ ...prev, page: prev.page + 1 }))}
-                        className="px-3 py-1 border rounded disabled:opacity-50"
-                    >
-                        Próxima
-                    </button>
-                </div>
-            </CardContent>
-        </Card>
+                    {/* Simple Pagination */}
+                    <div className="flex justify-center mt-4 gap-2">
+                        <button
+                            disabled={pagination.page <= 1 || isLoading}
+                            onClick={() => setPagination(prev => ({ ...prev, page: prev.page - 1 }))}
+                            className="px-3 py-1 border rounded disabled:opacity-50"
+                        >
+                            Anterior
+                        </button>
+                        <span className="py-1">Página {pagination.page} de {Math.max(1, pagination.totalPages)}</span>
+                        <button
+                            disabled={pagination.page >= pagination.totalPages || isLoading}
+                            onClick={() => setPagination(prev => ({ ...prev, page: prev.page + 1 }))}
+                            className="px-3 py-1 border rounded disabled:opacity-50"
+                        >
+                            Próxima
+                        </button>
+                    </div>
+                </CardContent>
+            </Card>
+        </div>
     );
 }
