@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
-import { supabase } from '../lib/supabase';
+import { supabase, uploadFile, getPublicUrl } from '../lib/supabase';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { PasswordInput } from '../components/ui/password-input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Upload, X, User } from 'lucide-react';
 import { toast, Toaster } from 'sonner';
 import {
     Select,
@@ -33,6 +33,8 @@ export default function RegisterPage() {
         confirmPassword: '',
         regional: '',
     });
+    const [avatarFile, setAvatarFile] = useState<File | null>(null);
+    const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
 
     useEffect(() => {
         if (!router.isReady) return;
@@ -64,6 +66,28 @@ export default function RegisterPage() {
             setError(err.message || 'Erro ao validar convite.');
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        if (file.size > 15 * 1024 * 1024) {
+            toast.error("A imagem deve ter no máximo 15MB");
+            return;
+        }
+
+        setAvatarFile(file);
+        const objectUrl = URL.createObjectURL(file);
+        setAvatarPreview(objectUrl);
+    };
+
+    const handleRemoveAvatar = () => {
+        setAvatarFile(null);
+        if (avatarPreview) {
+            URL.revokeObjectURL(avatarPreview);
+            setAvatarPreview(null);
         }
     };
 
@@ -109,6 +133,33 @@ export default function RegisterPage() {
             if (authError) throw authError;
 
             if (authData.user) {
+                let avatarBase64 = null;
+                let avatarFileName = null;
+
+                // 1.5 Convert Avatar to Base64 (Server-side upload)
+                if (avatarFile) {
+                    try {
+                        const fileExt = avatarFile.name.split('.').pop();
+                        avatarFileName = `avatar.${fileExt}`;
+
+                        avatarBase64 = await new Promise((resolve, reject) => {
+                            const reader = new FileReader();
+                            reader.readAsDataURL(avatarFile);
+                            reader.onload = () => {
+                                const base64String = reader.result as string;
+                                // Remove data URL prefix (e.g. "data:image/png;base64,")
+                                const base64Content = base64String.split(',')[1];
+                                resolve(base64Content);
+                            };
+                            reader.onerror = error => reject(error);
+                        });
+
+                    } catch (uploadErr) {
+                        console.error("Erro ao preparar avatar:", uploadErr);
+                        toast.error("Erro ao processar imagem. O cadastro seguirá sem foto.");
+                    }
+                }
+
                 // 2. Call Secure Setup API to create Profile and Mark Invite Used
                 // We do this server-side to ensure Role and Name are set correctly (bypassing RLS/Triggers limitations)
                 const response = await fetch('/api/auth/setup-account', {
@@ -121,10 +172,26 @@ export default function RegisterPage() {
                         userId: authData.user.id,
                         name: form.name,
                         regional: regionalToSave,
+                        avatarBase64, // Send base64 content
+                        avatarFileName, // Send filename
                     }),
                 });
 
                 const result = await response.json();
+
+                if (result.debugLogs) {
+                    console.log('--- SETUP ACCOUNT DEBUG LOGS (SERVER) ---');
+                    result.debugLogs.forEach((log: string) => console.log(log));
+                    console.log('--- END DEBUG LOGS ---');
+
+                    if (result.verifiedUser) {
+                        console.log('Verified User State:', result.verifiedUser);
+                        if (!result.verifiedUser.avatar_url) {
+                            console.error('CRITICAL: Avatar URL missing in verification read!');
+                            toast.error('Aviso: Foto não confirmada no servidor.');
+                        }
+                    }
+                }
 
                 if (!response.ok) {
                     throw new Error(result.error || 'Erro ao configurar perfil.');
@@ -214,6 +281,51 @@ export default function RegisterPage() {
                     <CardContent className="pt-6">
                         <form onSubmit={handleSubmit} className="space-y-6">
                             <div className="space-y-2">
+                                <Label className="text-zinc-300">Foto de Perfil (Opcional)</Label>
+                                <div className="flex items-center gap-4">
+                                    <div className="h-16 w-16 rounded-full bg-zinc-800 flex items-center justify-center overflow-hidden border border-zinc-700">
+                                        {avatarPreview ? (
+                                            <img src={avatarPreview} alt="Preview" className="h-full w-full object-cover" />
+                                        ) : (
+                                            <User className="h-8 w-8 text-zinc-500" />
+                                        )}
+                                    </div>
+                                    <div className="flex-1">
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            id="avatar-upload"
+                                            className="hidden"
+                                            onChange={handleAvatarChange}
+                                        />
+                                        {avatarPreview ? (
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={handleRemoveAvatar}
+                                                className="w-full border-red-500/50 text-red-500 hover:bg-red-500/10 hover:text-red-400"
+                                            >
+                                                <X className="mr-2 h-4 w-4" />
+                                                Remover foto
+                                            </Button>
+                                        ) : (
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                size="sm"
+                                                className="w-full border-zinc-700 text-zinc-300 hover:bg-zinc-800 hover:text-white"
+                                                onClick={() => document.getElementById('avatar-upload')?.click()}
+                                            >
+                                                <Upload className="mr-2 h-4 w-4" />
+                                                Escolher foto
+                                            </Button>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="space-y-2">
                                 <Label className="text-zinc-300">Email</Label>
                                 <Input
                                     value={invite.email}
@@ -221,6 +333,8 @@ export default function RegisterPage() {
                                     className="bg-zinc-950 border-zinc-700 text-zinc-500"
                                 />
                             </div>
+
+
 
                             <div className="space-y-2">
                                 <Label htmlFor="name" className="text-zinc-300">Nome Completo</Label>
@@ -233,6 +347,8 @@ export default function RegisterPage() {
                                     className="bg-zinc-950 border-zinc-700 text-white"
                                 />
                             </div>
+
+
 
                             {needsRegional && (
                                 <div className="space-y-2">

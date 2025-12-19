@@ -125,12 +125,45 @@ export function AppSidebar({ currentPage, onPageChange }: AppSidebarProps) {
             <div className="flex items-center gap-3 px-3 py-3 text-sm text-sidebar-foreground/70">
               {state === "expanded" && (
                 <>
-                  <div className="h-2 w-2 rounded-full bg-green-500" />
-                  <span className="truncate">{user?.name}</span>
+                  <div className="relative">
+                    {user?.avatar_url ? (
+                      <img
+                        src={user.avatar_url}
+                        alt={user.name}
+                        className="h-8 w-8 rounded-full object-cover border border-sidebar-border"
+                      />
+                    ) : (
+                      <div className="h-8 w-8 rounded-full bg-sidebar-accent flex items-center justify-center border border-sidebar-border">
+                        <span className="text-xs font-semibold text-sidebar-accent-foreground">
+                          {user?.name?.substring(0, 2).toUpperCase()}
+                        </span>
+                      </div>
+                    )}
+                    <div className="absolute bottom-0 right-0 h-2 w-2 rounded-full bg-green-500 ring-2 ring-sidebar-background" />
+                  </div>
+                  <div className="flex flex-col min-w-0">
+                    <span className="truncate font-medium text-sidebar-foreground">{user?.name}</span>
+                    <span className="truncate text-xs text-sidebar-foreground/70">{user?.role}</span>
+                  </div>
                 </>
               )}
               {state === "collapsed" && (
-                <div className="mx-auto h-2 w-2 rounded-full bg-green-500" />
+                <div className="relative mx-auto">
+                  {user?.avatar_url ? (
+                    <img
+                      src={user.avatar_url}
+                      alt={user.name}
+                      className="h-8 w-8 rounded-full object-cover border border-sidebar-border"
+                    />
+                  ) : (
+                    <div className="h-8 w-8 rounded-full bg-sidebar-accent flex items-center justify-center border border-sidebar-border">
+                      <span className="text-xs font-semibold text-sidebar-accent-foreground">
+                        {user?.name?.substring(0, 2).toUpperCase()}
+                      </span>
+                    </div>
+                  )}
+                  <div className="absolute bottom-0 right-0 h-2 w-2 rounded-full bg-green-500 ring-2 ring-sidebar-background" />
+                </div>
               )}
             </div>
           </SidebarMenuItem>

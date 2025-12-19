@@ -63,6 +63,7 @@ import { REGIONAL_OPTIONS } from "../lib/regionals";
 import { uploadFile, getPublicUrl } from "../lib/supabase";
 import { useAuth } from "../contexts/AuthContext";
 import posthog from "posthog-js";
+import { motion } from "framer-motion";
 
 const getStatusBadge = (status: string) => {
   const badges = {
@@ -463,6 +464,29 @@ export function ProjectManager({
 
   const stats = getStats();
 
+  const containerVariants: any = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1
+      }
+    }
+  };
+
+  const itemVariants: any = {
+    hidden: { y: 20, opacity: 0 },
+    visible: {
+      y: 0,
+      opacity: 1,
+      transition: {
+        type: "spring",
+        stiffness: 100,
+        damping: 15
+      }
+    }
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -512,56 +536,77 @@ export function ProjectManager({
       )}
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 w-full">
-        <Card className="bg-card/50 backdrop-blur-sm border-border/50">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Visíveis</CardTitle>
-            <Building className="h-4 w-4 text-green-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-foreground">
-              {stats.totalProjects}
-            </div>
-            <p className="text-xs text-muted-foreground">Com imagem</p>
-          </CardContent>
-        </Card>
+      <motion.div
+        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 w-full"
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+      >
+        <motion.div variants={itemVariants}>
+          <Card className="h-full bg-card border-border hover:border-emerald-500/50 hover:shadow-[0_0_30px_-10px_rgba(16,185,129,0.3)] transition-all duration-500 group">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground group-hover:text-foreground transition-colors">Visíveis</CardTitle>
+              <div className="p-2 rounded-full bg-emerald-500/10 group-hover:bg-emerald-500/20 transition-colors">
+                <Building className="h-4 w-4 text-emerald-500" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-foreground">
+                {stats.totalProjects}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">Com imagem</p>
+            </CardContent>
+          </Card>
+        </motion.div>
 
-        <Card className="bg-card/50 backdrop-blur-sm border-border/50">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Vem Aí</CardTitle>
-            <Construction className="h-4 w-4 text-blue-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-foreground">
-              {stats.awaiting}
-            </div>
-          </CardContent>
-        </Card>
+        <motion.div variants={itemVariants}>
+          <Card className="h-full bg-card border-border hover:border-blue-500/50 hover:shadow-[0_0_30px_-10px_rgba(59,130,246,0.3)] transition-all duration-500 group">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground group-hover:text-foreground transition-colors">Vem Aí</CardTitle>
+              <div className="p-2 rounded-full bg-blue-500/10 group-hover:bg-blue-500/20 transition-colors">
+                <Construction className="h-4 w-4 text-blue-500" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-foreground">
+                {stats.awaiting}
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
 
-        <Card className="bg-card/50 backdrop-blur-sm border-border/50">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Breve Lançamento</CardTitle>
-            <Clock className="h-4 w-4 text-yellow-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-foreground">
-              {stats.comingSoon}
-            </div>
-          </CardContent>
-        </Card>
+        <motion.div variants={itemVariants}>
+          <Card className="h-full bg-card border-border hover:border-yellow-500/50 hover:shadow-[0_0_30px_-10px_rgba(234,179,8,0.3)] transition-all duration-500 group">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground group-hover:text-foreground transition-colors">Breve Lançamento</CardTitle>
+              <div className="p-2 rounded-full bg-yellow-500/10 group-hover:bg-yellow-500/20 transition-colors">
+                <Clock className="h-4 w-4 text-yellow-500" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-foreground">
+                {stats.comingSoon}
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
 
-        <Card className="bg-card/50 backdrop-blur-sm border-border/50">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Lançamento</CardTitle>
-            <Building className="h-4 w-4 text-green-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-foreground">
-              {stats.launching}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+        <motion.div variants={itemVariants}>
+          <Card className="h-full bg-card border-border hover:border-primary/50 hover:shadow-[0_0_30px_-10px_rgba(220,38,38,0.3)] transition-all duration-500 group">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground group-hover:text-foreground transition-colors">Lançamento</CardTitle>
+              <div className="p-2 rounded-full bg-primary/10 group-hover:bg-primary/20 transition-colors">
+                <Building className="h-4 w-4 text-primary" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-foreground">
+                {stats.launching}
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      </motion.div>
       {/* Filters */}
       <div className="flex flex-col lg:flex-row gap-4">
         <div className="relative flex-1">

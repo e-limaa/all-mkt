@@ -39,6 +39,7 @@ import { Campaign } from '../types';
 import { REGIONAL_OPTIONS } from '../lib/regionals';
 import { formatDate } from '../utils/format';
 import posthog from 'posthog-js';
+import { motion } from 'framer-motion';
 import { useAssets } from '../contexts/AssetContext';
 import { usePermissions } from '../contexts/hooks/usePermissions';
 import { Permission } from '../types/enums';
@@ -223,6 +224,29 @@ export function CampaignManager({ onNavigateToMaterials }: CampaignManagerProps)
 
   const stats = getStats();
 
+  const containerVariants: any = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1
+      }
+    }
+  };
+
+  const itemVariants: any = {
+    hidden: { y: 20, opacity: 0 },
+    visible: {
+      y: 0,
+      opacity: 1,
+      transition: {
+        type: "spring",
+        stiffness: 100,
+        damping: 15
+      }
+    }
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -251,60 +275,85 @@ export function CampaignManager({ onNavigateToMaterials }: CampaignManagerProps)
       />
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-5 gap-4">
-        <Card className="bg-card/50 backdrop-blur-sm border-border/50">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total de Campanhas</CardTitle>
-            <Megaphone className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-foreground">{stats.totalCampaigns}</div>
-          </CardContent>
-        </Card>
+      <motion.div
+        className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-5 gap-4"
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+      >
+        <motion.div variants={itemVariants}>
+          <Card className="h-full bg-card border-border hover:border-primary/50 hover:shadow-[0_0_30px_-10px_rgba(220,38,38,0.3)] transition-all duration-500 group">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground group-hover:text-foreground transition-colors">Total de Campanhas</CardTitle>
+              <div className="p-2 rounded-full bg-primary/10 group-hover:bg-primary/20 transition-colors">
+                <Megaphone className="h-4 w-4 text-primary" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-foreground">{stats.totalCampaigns}</div>
+            </CardContent>
+          </Card>
+        </motion.div>
 
-        <Card className="bg-card/50 backdrop-blur-sm border-border/50">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Campanhas Ativas</CardTitle>
-            <PlayCircle className="h-4 w-4 text-green-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-foreground">{stats.activeCampaigns}</div>
-            <p className="text-xs text-muted-foreground">
-              {((stats.activeCampaigns / stats.totalCampaigns) * 100).toFixed(0)}% do total
-            </p>
-          </CardContent>
-        </Card>
+        <motion.div variants={itemVariants}>
+          <Card className="h-full bg-card border-border hover:border-emerald-500/50 hover:shadow-[0_0_30px_-10px_rgba(16,185,129,0.3)] transition-all duration-500 group">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground group-hover:text-foreground transition-colors">Campanhas Ativas</CardTitle>
+              <div className="p-2 rounded-full bg-emerald-500/10 group-hover:bg-emerald-500/20 transition-colors">
+                <PlayCircle className="h-4 w-4 text-emerald-500" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-foreground">{stats.activeCampaigns}</div>
+              <p className="text-xs text-muted-foreground mt-1">
+                {stats.totalCampaigns > 0 ? ((stats.activeCampaigns / stats.totalCampaigns) * 100).toFixed(0) : 0}% do total
+              </p>
+            </CardContent>
+          </Card>
+        </motion.div>
 
-        <Card className="bg-card/50 backdrop-blur-sm border-border/50">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Expirando</CardTitle>
-            <AlertTriangle className="h-4 w-4 text-yellow-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-foreground">{stats.expiringCampaigns}</div>
-          </CardContent>
-        </Card>
+        <motion.div variants={itemVariants}>
+          <Card className="h-full bg-card border-border hover:border-orange-500/50 hover:shadow-[0_0_30px_-10px_rgba(249,115,22,0.3)] transition-all duration-500 group">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground group-hover:text-foreground transition-colors">Expirando</CardTitle>
+              <div className="p-2 rounded-full bg-orange-500/10 group-hover:bg-orange-500/20 transition-colors">
+                <AlertTriangle className="h-4 w-4 text-orange-500" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-foreground">{stats.expiringCampaigns}</div>
+            </CardContent>
+          </Card>
+        </motion.div>
 
-        <Card className="bg-card/50 backdrop-blur-sm border-border/50">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Agendadas</CardTitle>
-            <Clock className="h-4 w-4 text-blue-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-foreground">{stats.scheduledCampaigns}</div>
-          </CardContent>
-        </Card>
+        <motion.div variants={itemVariants}>
+          <Card className="h-full bg-card border-border hover:border-blue-500/50 hover:shadow-[0_0_30px_-10px_rgba(59,130,246,0.3)] transition-all duration-500 group">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground group-hover:text-foreground transition-colors">Agendadas</CardTitle>
+              <div className="p-2 rounded-full bg-blue-500/10 group-hover:bg-blue-500/20 transition-colors">
+                <Clock className="h-4 w-4 text-blue-500" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-foreground">{stats.scheduledCampaigns}</div>
+            </CardContent>
+          </Card>
+        </motion.div>
 
-        <Card className="bg-card/50 backdrop-blur-sm border-border/50">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Encerradas</CardTitle>
-            <StopCircle className="h-4 w-4 text-gray-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-foreground">{stats.archivedCampaigns}</div>
-          </CardContent>
-        </Card>
-      </div>
+        <motion.div variants={itemVariants}>
+          <Card className="h-full bg-card border-border hover:border-slate-500/50 hover:shadow-[0_0_30px_-10px_rgba(100,116,139,0.3)] transition-all duration-500 group">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground group-hover:text-foreground transition-colors">Encerradas</CardTitle>
+              <div className="p-2 rounded-full bg-slate-500/10 group-hover:bg-slate-500/20 transition-colors">
+                <StopCircle className="h-4 w-4 text-slate-500" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-foreground">{stats.archivedCampaigns}</div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      </motion.div>
 
       {/* Filters */}
       <div className="flex flex-col lg:flex-row gap-4">

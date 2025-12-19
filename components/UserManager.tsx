@@ -487,8 +487,19 @@ export function UserManager() {
         <TabsContent value="users" className="space-y-4">
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle>Membros da Equipe</CardTitle>
+              <div className="flex items-end justify-between gap-4">
+                <div className="w-full max-w-sm space-y-2">
+                  <Label>Busque usuários</Label>
+                  <div className="relative">
+                    <Users className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Buscar por nome ou email..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-8"
+                    />
+                  </div>
+                </div>
                 <div className="flex items-center gap-2">
                   {canManageUsers && (
                     <Button onClick={() => { resetForm(); setIsUserOpen(true); }} className="bg-[#E4002B] hover:bg-[#E4002B]/90 h-10 rounded-lg shadow-sm font-medium">
@@ -497,15 +508,6 @@ export function UserManager() {
                     </Button>
                   )}
                 </div>
-              </div>
-              <div className="mt-4 relative max-w-sm">
-                <Users className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Buscar por nome ou email..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-8"
-                />
               </div>
             </CardHeader>
             <CardContent>
@@ -575,7 +577,7 @@ export function UserManager() {
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
-                <div>
+                <div className="space-y-1.5">
                   <CardTitle>Gerenciar Convites</CardTitle>
                   <CardDescription>Envie convites por email para novos membros</CardDescription>
                 </div>
