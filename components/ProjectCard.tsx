@@ -444,16 +444,16 @@ function EmpreendimentoManager1({
             launchDate={launchDate}
           />
           <PrimitiveDiv />
+          <Container4
+            materialsCount={materialsCount}
+            onViewMaterials={onViewMaterials}
+            actions={actions}
+          />
           <Frame1
             createdByLabel={createdByLabel}
             createdBy={createdBy}
             creationLabel={creationLabel}
             creationDate={creationDate}
-          />
-          <Container4
-            materialsCount={materialsCount}
-            onViewMaterials={onViewMaterials}
-            actions={actions}
           />
         </div>
       </div>

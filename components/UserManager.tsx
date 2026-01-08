@@ -44,7 +44,7 @@ interface DisplayUser {
   role: UserRole;
   avatarUrl: string | null;
   regional: string | null;
-  originScope: 'house' | 'ev' | null;
+  originScope: 'house' | 'ev' | 'tenda_vendas' | null;
   viewerAccessToAll: boolean;
   createdBy: string | null;
   createdAt: string;
@@ -80,6 +80,7 @@ const ROLE_OPTIONS_MARKETING = [
 const ORIGIN_OPTIONS = [
   { value: "house", label: "House (Tenda)" },
   { value: "ev", label: "EV" },
+  { value: "tenda_vendas", label: "Tenda Vendas" },
 ] as const;
 
 function getRoleIcon(role: UserRole) {
@@ -115,7 +116,7 @@ const mapRowToUser = (row: UserRow): DisplayUser => ({
   avatarUrl: row.avatar_url,
   regional: row.regional ? row.regional.toUpperCase() : null,
   originScope: row.material_origin_scope
-    ? (row.material_origin_scope.toLowerCase() as 'house' | 'ev')
+    ? (row.material_origin_scope.toLowerCase() as 'house' | 'ev' | 'tenda_vendas')
     : null,
   viewerAccessToAll: Boolean(row.viewer_access_to_all),
   createdBy: row.created_by ?? null,
@@ -151,7 +152,7 @@ export function UserManager() {
     password: "", // Only for creation
     role: UserRole.VIEWER,
     regional: "",
-    originScope: null as 'house' | 'ev' | null,
+    originScope: null as 'house' | 'ev' | 'tenda_vendas' | null,
     viewerAccessToAll: false,
   });
 
@@ -777,6 +778,28 @@ export function UserManager() {
                     {REGIONAL_OPTIONS.map((reg) => (
                       <SelectItem key={reg.value} value={reg.value}>
                         {reg.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {(formData.role === UserRole.EDITOR_TRADE || formData.role === UserRole.VIEWER) && (
+              <div className="space-y-2">
+                <Label>Escopo de Origem (Opcional)</Label>
+                <Select
+                  value={formData.originScope || "all"}
+                  onValueChange={(v) => setFormData({ ...formData, originScope: v === "all" ? null : v as any })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione um escopo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos</SelectItem>
+                    {ORIGIN_OPTIONS.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
                       </SelectItem>
                     ))}
                   </SelectContent>

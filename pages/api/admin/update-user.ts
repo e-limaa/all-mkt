@@ -39,10 +39,10 @@ const normalizeRegional = (value: unknown): string | null => {
   return trimmed.toUpperCase();
 };
 
-const normalizeOriginScope = (value: unknown): "house" | "ev" | null => {
+const normalizeOriginScope = (value: unknown): "house" | "ev" | "tenda_vendas" | null => {
   if (typeof value !== "string") return null;
   const trimmed = value.trim().toLowerCase();
-  return trimmed === "house" || trimmed === "ev" ? (trimmed as "house" | "ev") : null;
+  return trimmed === "house" || trimmed === "ev" || trimmed === "tenda_vendas" ? (trimmed as "house" | "ev" | "tenda_vendas") : null;
 };
 
 const extractAvatarUrl = (metadata: Record<string, unknown> | null | undefined): string | null => {
@@ -158,7 +158,7 @@ export default async function handler(
     password?: string;
     regional?: string | null;
     viewerAccessToAll?: boolean;
-    originScope?: "house" | "ev" | null;
+    originScope?: "house" | "ev" | "tenda_vendas" | null;
   };
 
   if (!id || !email || !name) {
@@ -295,7 +295,7 @@ export default async function handler(
       }
       if (!normalizedOriginScope) {
         return res.status(400).json({
-          error: "Viewer restrito precisa da origem (House ou EV)",
+          error: "Viewer restrito precisa da origem (House, EV ou Tenda Vendas)",
         });
       }
     }

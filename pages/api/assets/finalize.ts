@@ -37,7 +37,7 @@ interface FinalizeRequest {
   categoryType: 'project' | 'campaign';
   categoryId: string;
   projectPhase?: string | null;
-  origin: 'house' | 'ev';
+  origin: 'house' | 'ev' | 'tenda_vendas';
   items: FinalizeItem[];
 }
 
@@ -70,7 +70,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
 
-  if (origin !== 'house' && origin !== 'ev') {
+  if (origin !== 'house' && origin !== 'ev' && origin !== 'tenda_vendas') {
     return res.status(400).json({ message: 'Origem invalida' });
   }
 

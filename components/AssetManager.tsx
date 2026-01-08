@@ -1465,6 +1465,7 @@ export function AssetManager({
             <SelectContent>
               <SelectItem value="house">House (Tenda)</SelectItem>
               <SelectItem value="ev">EV (Imobiliaria Parceira)</SelectItem>
+              <SelectItem value="tenda_vendas">Tenda Vendas</SelectItem>
             </SelectContent>
           </Select>
           {errors.origin && <p className="text-xs text-red-500 mt-1">{errors.origin}</p>}
@@ -1609,6 +1610,7 @@ export function AssetManager({
                 <SelectItem value="all">Todas as origens</SelectItem>
                 <SelectItem value="house">House (Tenda)</SelectItem>
                 <SelectItem value="ev">EV</SelectItem>
+                <SelectItem value="tenda_vendas">Tenda Vendas</SelectItem>
               </SelectContent>
             </Select>
 
@@ -1786,7 +1788,7 @@ export function AssetManager({
                           </Badge>
                         )}
                         <Badge variant="secondary" className="max-w-full text-[0.65rem] sm:text-xs">
-                          {asset.origin === 'house' ? 'House' : 'EV'}
+                          {asset.origin === 'house' ? 'House' : asset.origin === 'tenda_vendas' ? 'Tenda Vendas' : 'EV'}
                         </Badge>
                         {asset.regional && (
                           <Badge variant="outline" className="max-w-full text-[0.65rem] sm:text-xs">
@@ -1924,7 +1926,7 @@ export function AssetManager({
                                 </Badge>
                               )}
                               <Badge variant="secondary" className="max-w-full text-[0.65rem] sm:text-xs">
-                                {asset.origin === 'house' ? 'House' : 'EV'}
+                                {asset.origin === 'house' ? 'House' : asset.origin === 'tenda_vendas' ? 'Tenda Vendas' : 'EV'}
                               </Badge>
                               {asset.regional && (
                                 <Badge variant="outline" className="max-w-full text-[0.65rem] sm:text-xs">

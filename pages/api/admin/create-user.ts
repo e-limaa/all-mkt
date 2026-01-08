@@ -28,10 +28,10 @@ const ALLOWED_ROLES = [
 ] as const;
 type AllowedRole = (typeof ALLOWED_ROLES)[number];
 
-const normalizeOriginScope = (value: unknown): 'house' | 'ev' | null => {
+const normalizeOriginScope = (value: unknown): 'house' | 'ev' | 'tenda_vendas' | null => {
   if (typeof value !== "string") return null;
   const trimmed = value.trim().toLowerCase();
-  return trimmed === "house" || trimmed === "ev" ? (trimmed as 'house' | 'ev') : null;
+  return trimmed === "house" || trimmed === "ev" || trimmed === "tenda_vendas" ? (trimmed as 'house' | 'ev' | 'tenda_vendas') : null;
 };
 
 const extractAvatarUrl = (metadata: Record<string, unknown> | null | undefined): string | null => {
@@ -53,7 +53,7 @@ interface CreateUserPayload {
   role?: AllowedRole;
   regional?: string | null;
   viewerAccessToAll?: boolean;
-  originScope?: 'house' | 'ev' | null;
+  originScope?: 'house' | 'ev' | 'tenda_vendas' | null;
 }
 
 export default async function handler(
@@ -206,7 +206,7 @@ export default async function handler(
     } else if (!normalizedOriginScope) {
       return res
         .status(400)
-        .json({ error: "Viewer restrito precisa da origem (House ou EV)" });
+        .json({ error: "Viewer restrito precisa da origem (House, EV ou Tenda Vendas)" });
     }
   } else {
     normalizedViewerGlobal = false;

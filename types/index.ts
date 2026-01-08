@@ -9,8 +9,8 @@ export interface User {
   email: string;
   role: UserRole;
   regional?: string | null;
-  materialOriginScope?: 'house' | 'ev' | null;
-  material_origin_scope?: 'house' | 'ev' | null;
+  materialOriginScope?: 'house' | 'ev' | 'tenda_vendas' | null;
+  material_origin_scope?: 'house' | 'ev' | 'tenda_vendas' | null;
   viewerAccessToAll?: boolean | null;
   createdBy?: string | null;
   createdAt: string;
@@ -90,7 +90,7 @@ export interface Asset {
   thumbnailUrl?: string;
   thumbnail?: string;
   tags: string[];
-  origin: 'house' | 'ev';
+  origin: 'house' | 'ev' | 'tenda_vendas';
   categoryType: 'campaign' | 'project' | 'general';
   categoryId?: string;
   categoryName?: string;

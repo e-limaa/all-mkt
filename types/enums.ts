@@ -89,8 +89,6 @@ const MARKETING_EDITOR_PERMISSIONS: Permission[] = [
 
 const TRADE_EDITOR_PERMISSIONS: Permission[] = [
   Permission.VIEW_MATERIALS,
-  Permission.UPLOAD_MATERIALS,
-  Permission.EDIT_MATERIALS,
   Permission.DOWNLOAD_MATERIALS,
   Permission.SHARE_MATERIALS,
   Permission.VIEW_CAMPAIGNS,
