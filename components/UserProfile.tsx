@@ -410,9 +410,23 @@ export function UserProfile() {
                     <span className="text-xs text-muted-foreground uppercase tracking-wide">Nome</span>
                     <p className="mt-1 text-sm font-medium">{user.name || '-'}</p>
                   </div>
+
                   <div>
                     <span className="text-xs text-muted-foreground uppercase tracking-wide">Email</span>
                     <p className="mt-1 text-sm font-medium">{user.email || '-'}</p>
+                  </div>
+                  <div>
+                    <span className="text-xs text-muted-foreground uppercase tracking-wide">Regional</span>
+                    <p className="mt-1 text-sm font-medium">{user.regional || 'Todas'}</p>
+                  </div>
+                  <div>
+                    <span className="text-xs text-muted-foreground uppercase tracking-wide">Escopo de Origem</span>
+                    <p className="mt-1 text-sm font-medium">
+                      {user.material_origin_scope === 'house' ? 'House (Tenda)' :
+                        user.material_origin_scope === 'ev' ? 'EV' :
+                          user.material_origin_scope === 'tenda_vendas' ? 'Tenda Vendas' :
+                            'Todos'}
+                    </p>
                   </div>
                 </div>
 
@@ -497,7 +511,7 @@ export function UserProfile() {
             </div>
           </div>
         </DialogContent>
-      </Dialog>
+      </Dialog >
     </>
   );
 }

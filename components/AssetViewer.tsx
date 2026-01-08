@@ -8,6 +8,12 @@ import { Separator } from './ui/separator';
 import { ScrollArea } from './ui/scroll-area';
 import { toast } from 'sonner';
 import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from './ui/accordion';
+import {
   Download,
   Share2,
   Edit,
@@ -29,11 +35,12 @@ import {
   Info
 } from 'lucide-react';
 import { Asset } from '../types';
+import { Permission } from '../types/enums';
 import { formatFileSize, formatDate } from '../utils/format';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { useAssets } from '../contexts/AssetContext';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { usePermissions } from '../contexts/hooks/usePermissions';
+import { usePermissions, PermissionGuard } from '../contexts/hooks/usePermissions';
 
 interface AssetViewerProps {
   asset: Asset | null;
@@ -64,7 +71,7 @@ export function AssetViewer({
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState({
     name: '',
-    origin: 'house' as 'house' | 'ev',
+    origin: 'house' as 'house' | 'ev' | 'tenda_vendas',
   });
   const [isVideoMuted, setIsVideoMuted] = useState(false);
   const [imageZoom, setImageZoom] = useState(1);
@@ -151,7 +158,7 @@ export function AssetViewer({
 
   const handleKeyDown = (e: KeyboardEvent) => {
     if (!isOpen) return;
-    
+
     switch (e.key) {
       case 'ArrowLeft':
         e.preventDefault();
@@ -232,7 +239,7 @@ export function AssetViewer({
                 }}
               />
             </div>
-            
+
             {/* Controles de zoom */}
             <div className="absolute bottom-4 right-4 flex gap-2">
               <Button
@@ -277,7 +284,7 @@ export function AssetViewer({
             >
               Seu navegador não suporta reprodução de vídeo.
             </video>
-            
+
             {/* Controles customizados */}
             <div className="absolute bottom-4 right-4 flex gap-2">
               <Button
@@ -352,7 +359,7 @@ export function AssetViewer({
 
   // Renderizar o modal usando createPortal
   return createPortal(
-    <div 
+    <div
       className="fixed inset-0 z-[9999] bg-black/85 flex items-center justify-center overflow-y-auto"
       onClick={handleOverlayClick}
       role="dialog"
@@ -366,7 +373,7 @@ export function AssetViewer({
           Visualizar Material: {asset.name}
         </h1>
         <p id="asset-viewer-description">
-          {isEditing 
+          {isEditing
             ? `Editando informações do material ${asset.name} (${typeBadge.label})`
             : `Visualização ampliada do material ${asset.name} (${typeBadge.label}). Use as setas para navegar entre materiais.`
           }
@@ -374,7 +381,7 @@ export function AssetViewer({
       </div>
 
       {/* Modal Content */}
-      <div 
+      <div
         className="modal-container w-[95vw] h-[95vh] bg-background rounded-lg shadow-2xl border border-border flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
@@ -391,7 +398,7 @@ export function AssetViewer({
               {currentIndex + 1} de {assets.length}
             </span>
           </div>
-          
+
           <div className="flex items-center gap-2 flex-shrink-0">
             {/* Navegação */}
             <Button
@@ -412,9 +419,9 @@ export function AssetViewer({
             >
               <ChevronRight className="w-4 h-4" />
             </Button>
-            
+
             <Separator orientation="vertical" className="h-6 mx-2" />
-            
+
             {/* Ações */}
             <Button variant="ghost" size="sm" onClick={handleDownload} aria-label="Baixar material">
               <Download className="w-4 h-4" />
@@ -422,23 +429,15 @@ export function AssetViewer({
             <Button variant="ghost" size="sm" onClick={handleShare} aria-label="Compartilhar material">
               <Share2 className="w-4 h-4" />
             </Button>
-            <Button variant="ghost" size="sm" onClick={handleCopyLink} aria-label="Copiar link">
-              <Copy className="w-4 h-4" />
-            </Button>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={() => setIsEditing(!isEditing)}
-              aria-label={isEditing ? "Cancelar edição" : "Editar material"}
-            >
-              <Edit className="w-4 h-4" />
-            </Button>
-            <Button variant="ghost" size="sm" onClick={handleDelete} aria-label="Excluir material">
-              <Trash2 className="w-4 h-4" />
-            </Button>
-            
+
+            <PermissionGuard permissions={[Permission.DELETE_MATERIALS]}>
+              <Button variant="ghost" size="sm" onClick={handleDelete} aria-label="Excluir material">
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            </PermissionGuard>
+
             <Separator orientation="vertical" className="h-6 mx-2" />
-            
+
             <Button variant="ghost" size="sm" onClick={onClose} aria-label="Fechar visualização">
               <X className="w-4 h-4" />
             </Button>
@@ -448,18 +447,18 @@ export function AssetViewer({
         {/* Layout de duas colunas: Preview à esquerda, Informações à direita */}
         <div className="flex flex-1 overflow-hidden">
           {/* Área de preview da imagem - 70% da largura */}
-          <div 
+          <div
             className="flex-shrink-0 p-6 flex items-center justify-center border-r border-border"
             style={{ width: '70%' }}
-            role="main" 
+            role="main"
             aria-label="Área de visualização do material"
           >
             {renderPreview()}
           </div>
 
           {/* Informações do Material - 30% da largura */}
-          <div 
-            className="flex-shrink-0 overflow-hidden" 
+          <div
+            className="flex-shrink-0 overflow-hidden"
             style={{ width: '30%' }}
           >
             <ScrollArea className="h-full">
@@ -547,12 +546,12 @@ export function AssetViewer({
                             <span className="text-xs text-muted-foreground">Formato</span>
                             <p className="font-medium text-sm">{asset.format || 'N/A'}</p>
                           </div>
-                          
+
                           <div className="space-y-1">
                             <span className="text-xs text-muted-foreground">Tamanho</span>
                             <p className="font-medium text-sm">{formatFileSize(asset.size)}</p>
                           </div>
-                          
+
                           {asset.metadata && asset.metadata.width && asset.metadata.height && (
                             <div className="space-y-1">
                               <span className="text-xs text-muted-foreground">Dimensões</span>
@@ -561,7 +560,7 @@ export function AssetViewer({
                               </p>
                             </div>
                           )}
-                          
+
                           {asset.metadata && asset.metadata.duration && (
                             <div className="space-y-1">
                               <span className="text-xs text-muted-foreground">Duração</span>
@@ -571,7 +570,7 @@ export function AssetViewer({
                               </p>
                             </div>
                           )}
-                          
+
                           <div className="space-y-1">
                             <span className="text-xs text-muted-foreground">Downloads</span>
                             <p className="font-medium text-sm">{asset.downloadCount || 0}</p>
@@ -581,50 +580,58 @@ export function AssetViewer({
 
                       <Separator />
 
-                      {/* Metadados */}
+                      {/* Metadados Accordion */}
                       <div>
-                        <Label className="text-base font-semibold">Metadados</Label>
-                        <div className="space-y-3 mt-3">
-                          <div className="flex items-center gap-2">
-                            <User className="w-4 h-4 text-muted-foreground" />
-                            <div>
-                              <span className="text-xs text-muted-foreground">Enviado por</span>
-                              <p className="font-medium text-sm">{asset.uploadedBy || 'Desconhecido'}</p>
-                            </div>
-                          </div>
-                          
-                          <div className="flex items-center gap-2">
-                            <Calendar className="w-4 h-4 text-muted-foreground" />
-                            <div>
-                              <span className="text-xs text-muted-foreground">Data de envio</span>
-                              <p className="font-medium text-sm">{formatDate(asset.uploadedAt)}</p>
-                            </div>
-                          </div>
-                          
-                          <div className="flex items-center gap-2">
-                            <Eye className="w-4 h-4 text-muted-foreground" />
-                            <div>
-                              <span className="text-xs text-muted-foreground">Visibilidade</span>
-                              <div className="mt-1">
-                                <Badge variant={asset.isPublic ? "default" : "secondary"} className="text-xs">
-                                  {asset.isPublic ? 'Público' : 'Privado'}
-                                </Badge>
+                        <Accordion type="single" collapsible className="w-full">
+                          <AccordionItem value="metadata" className="border-none">
+                            <AccordionTrigger className="text-base font-semibold py-2 hover:no-underline">
+                              Metadados
+                            </AccordionTrigger>
+                            <AccordionContent>
+                              <div className="space-y-3 pt-1">
+                                <div className="flex items-center gap-2">
+                                  <User className="w-4 h-4 text-muted-foreground" />
+                                  <div>
+                                    <span className="text-xs text-muted-foreground">Enviado por</span>
+                                    <p className="font-medium text-sm">{asset.uploadedBy || 'Desconhecido'}</p>
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center gap-2">
+                                  <Calendar className="w-4 h-4 text-muted-foreground" />
+                                  <div>
+                                    <span className="text-xs text-muted-foreground">Data de envio</span>
+                                    <p className="font-medium text-sm">{formatDate(asset.uploadedAt)}</p>
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center gap-2">
+                                  <Eye className="w-4 h-4 text-muted-foreground" />
+                                  <div>
+                                    <span className="text-xs text-muted-foreground">Visibilidade</span>
+                                    <div className="mt-1">
+                                      <Badge variant={asset.isPublic ? "default" : "secondary"} className="text-xs">
+                                        {asset.isPublic ? 'Público' : 'Privado'}
+                                      </Badge>
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="space-y-1">
+                                  <span className="text-xs text-muted-foreground">Origem</span>
+                                  <Badge variant="secondary" className="text-xs">
+                                    {asset.origin === 'house' ? 'House' : 'EV'}
+                                  </Badge>
+                                </div>
+                                <div className="space-y-1">
+                                  <span className="text-xs text-muted-foreground">Regional</span>
+                                  <Badge variant="outline" className="text-xs">
+                                    {asset.regional || 'Nao informado'}
+                                  </Badge>
+                                </div>
                               </div>
-                            </div>
-                          </div>
-                          <div className="space-y-1">
-                            <span className="text-xs text-muted-foreground">Origem</span>
-                            <Badge variant="secondary" className="text-xs">
-                              {asset.origin === 'house' ? 'House' : 'EV'}
-                            </Badge>
-                          </div>
-                          <div className="space-y-1">
-                            <span className="text-xs text-muted-foreground">Regional</span>
-                            <Badge variant="outline" className="text-xs">
-                              {asset.regional || 'Nao informado'}
-                            </Badge>
-                          </div>
-                        </div>
+                            </AccordionContent>
+                          </AccordionItem>
+                        </Accordion>
                       </div>
 
                       <Separator />
@@ -641,10 +648,7 @@ export function AssetViewer({
                             <Share2 className="w-4 h-4 mr-2" />
                             Compartilhar
                           </Button>
-                          <Button onClick={handleCopyLink} variant="outline" size="sm" className="w-full">
-                            <Copy className="w-4 h-4 mr-2" />
-                            Copiar Link
-                          </Button>
+
                         </div>
                       </div>
                     </div>

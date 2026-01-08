@@ -59,6 +59,7 @@ interface InviteRow {
   created_at: string;
   used_at: string | null;
   created_by: string;
+  material_origin_scope: 'house' | 'ev' | 'tenda_vendas' | null;
 }
 
 const ROLE_OPTIONS_ADMIN = [
@@ -143,6 +144,7 @@ export function UserManager() {
   const [isInviteOpen, setIsInviteOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<UserRole>(UserRole.VIEWER);
+  const [inviteOriginScope, setInviteOriginScope] = useState<'house' | 'ev' | 'tenda_vendas' | null>(null);
   const [inviteLoading, setInviteLoading] = useState(false);
 
   // Form states
@@ -230,7 +232,8 @@ export function UserManager() {
         .insert({
           email: inviteEmail,
           role: inviteRole,
-          created_by: currentUser?.id
+          created_by: currentUser?.id,
+          material_origin_scope: inviteOriginScope
         })
         .select()
         .single();
@@ -270,7 +273,8 @@ export function UserManager() {
             .insert({
               email: inviteEmail,
               role: inviteRole,
-              created_by: currentUser?.id
+              created_by: currentUser?.id,
+              material_origin_scope: inviteOriginScope
             })
             .select()
             .single();
@@ -279,6 +283,7 @@ export function UserManager() {
 
           toast.success("Convite antigo substituído e enviado com sucesso!");
           setInviteEmail("");
+          setInviteOriginScope(null);
           setIsInviteOpen(false);
           fetchInvites();
           return; // Exit function on success
@@ -288,6 +293,7 @@ export function UserManager() {
 
       toast.success("Convite criado com sucesso!");
       setInviteEmail("");
+      setInviteOriginScope(null);
       setIsInviteOpen(false);
       fetchInvites();
     } catch (err: any) {
@@ -374,18 +380,32 @@ export function UserManager() {
     setActionLoading(true);
 
     try {
-      const { error } = await supabase
-        .from("users")
-        .update({
+      if (!session?.access_token) {
+        throw new Error("Sessão inválida. Tente fazer login novamente.");
+      }
+
+      const response = await fetch("/api/admin/update-user", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          id: editingUser.id,
+          email: editingUser.email,
           name: formData.name,
           role: formData.role,
           regional: formData.regional || null,
-          material_origin_scope: formData.originScope,
-          viewer_access_to_all: formData.viewerAccessToAll
-        })
-        .eq("id", editingUser.id);
+          originScope: formData.originScope,
+          viewerAccessToAll: formData.viewerAccessToAll
+        }),
+      });
 
-      if (error) throw error;
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Erro ao atualizar usuário.");
+      }
 
       toast.success("Usuário atualizado com sucesso!");
       setEditingUser(null);
@@ -545,6 +565,11 @@ export function UserManager() {
                               {user.regional}
                             </Badge>
                           )}
+                          {user.originScope && (
+                            <Badge variant="outline" className="text-xs border-blue-500/30 text-blue-600 dark:text-blue-400 bg-blue-500/10">
+                              {ORIGIN_OPTIONS.find(opt => opt.value === user.originScope)?.label || user.originScope}
+                            </Badge>
+                          )}
                         </div>
                         {canManageUsers && (
                           <div className="flex items-center gap-1">
@@ -678,6 +703,29 @@ export function UserManager() {
                 </SelectContent>
               </Select>
             </div>
+
+            {(inviteRole === UserRole.EDITOR_TRADE || inviteRole === UserRole.VIEWER) && (
+              <div className="space-y-2">
+                <Label>Escopo de Origem (Opcional)</Label>
+                <Select
+                  value={inviteOriginScope || "all"}
+                  onValueChange={(v) => setInviteOriginScope(v === "all" ? null : v as any)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione um escopo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos</SelectItem>
+                    {ORIGIN_OPTIONS.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setIsInviteOpen(false)}>
                 Cancelar

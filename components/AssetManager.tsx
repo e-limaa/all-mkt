@@ -103,13 +103,17 @@ export function AssetManager({
   const isRegionalRestricted = user?.role === 'editor_trade' || (user?.role === 'viewer' && !viewerHasGlobalAccess);
   const initialRegionalFilter = isRegionalRestricted && userRegional ? userRegional : 'all';
 
+  const userOriginScope = (user?.material_origin_scope || '').toLowerCase() as 'house' | 'ev' | 'tenda_vendas' | '';
+  const isOriginRestricted = (user?.role === 'editor_trade' || user?.role === 'viewer') && !!userOriginScope;
+  const initialOriginFilter = isOriginRestricted ? userOriginScope : 'all';
+
   // Local state for filters
   const [searchFilters, setSearchFilters] = useState({
     query: '',
     type: 'all',
     categoryType: 'all',
     categoryId: '',
-    origin: 'all',
+    origin: initialOriginFilter,
     regional: initialRegionalFilter
   });
 
@@ -122,12 +126,18 @@ export function AssetManager({
   const [viewingAsset, setViewingAsset] = useState<Asset | null>(null);
 
   useEffect(() => {
+    // Reset or Enforce Regional
     if (isRegionalRestricted && userRegional) {
       setSearchFilters(prev => (prev.regional === userRegional ? prev : { ...prev, regional: userRegional }));
     } else if (!isRegionalRestricted) {
-      setSearchFilters(prev => (prev.regional === 'all' ? prev : { ...prev, regional: 'all' }));
+      // Only reset to all if currently restricted to previous user's regional (optimization)
     }
-  }, [isRegionalRestricted, userRegional]);
+
+    // Reset or Enforce Origin
+    if (isOriginRestricted && userOriginScope) {
+      setSearchFilters(prev => (prev.origin === userOriginScope ? prev : { ...prev, origin: userOriginScope }));
+    }
+  }, [isRegionalRestricted, userRegional, isOriginRestricted, userOriginScope]);
 
   const availableRegionals = useMemo(() => {
     const unique = new Set<string>();
@@ -185,7 +195,10 @@ export function AssetManager({
     }
 
     // Filtro por origem
-    if (newFilters.origin && newFilters.origin !== 'all') {
+    // Se restrito, aplica forçosamente. Caso contrário usa o do filtro.
+    if (isOriginRestricted && userOriginScope) {
+      filtered = filtered.filter(asset => (asset.origin || '').toLowerCase() === userOriginScope);
+    } else if (newFilters.origin && newFilters.origin !== 'all') {
       filtered = filtered.filter(asset => asset.origin === newFilters.origin);
     }
 
@@ -623,10 +636,7 @@ export function AssetManager({
   };
 
   const handleShare = (asset: Asset) => {
-    if (!hasPermission(Permission.SHARE_MATERIALS)) {
-      toast.error('Voc no tem permisso para compartilhar materiais');
-      return;
-    }
+
 
     try {
       const baseUrl =
@@ -755,15 +765,7 @@ export function AssetManager({
   const isAllSelected = filteredAssets.length > 0 && selectedAssets.length === filteredAssets.length;
   const isPartiallySelected = selectedAssets.length > 0 && selectedAssets.length < filteredAssets.length;
 
-  // Viewer restriction alert
-  const ViewerRestrictionAlert = () => (
-    <Alert className="border-yellow-500/50 bg-yellow-500/10">
-      <ShieldX className="h-4 w-4 text-yellow-500" />
-      <AlertDescription className="text-yellow-200">
-        <strong>Modo somente leitura:</strong> Voc pode visualizar e baixar materiais, mas no pode fazer upload, editar ou excluir.
-      </AlertDescription>
-    </Alert>
-  );
+
 
   // Enhanced upload form component with mandatory category selection
 
@@ -1019,10 +1021,21 @@ export function AssetManager({
     };
 
     const addFiles = (fileList: FileList | File[]) => {
+      const MAX_FILE_SIZE = 200 * 1024 * 1024; // 200MB
       const files = Array.from(fileList);
       if (!files.length) return;
 
-      const freshItems: UploadItem[] = files.map(file => ({
+      const validFiles = files.filter(file => {
+        if (file.size > MAX_FILE_SIZE) {
+          toast.error(`Arquivo "${file.name}" excede o limite de 200MB.`);
+          return false;
+        }
+        return true;
+      });
+
+      if (validFiles.length === 0) return;
+
+      const freshItems: UploadItem[] = validFiles.map(file => ({
         id: generateId(),
         file,
         status: 'pending',
@@ -1521,7 +1534,7 @@ export function AssetManager({
                     <DialogTitle>Enviar Novo Material</DialogTitle>
                     <DialogDescription>
                       Selecione um ou mais arquivos e associe todos  mesma campanha ou empreendimento. Os uploads
-                      acontecem em lotes de at trs materiais simultneos.
+                      acontecem em lotes de at trs materiais simultneos. Limite de 200MB por arquivo.
                     </DialogDescription>
                   </DialogHeader>
                   <UploadForm onClose={() => setIsUploadOpen(false)} preSelectedCategory={initialFilters} />
@@ -1531,8 +1544,7 @@ export function AssetManager({
           }
         />
 
-        {/* Viewer Alert */}
-        {isViewer() && <ViewerRestrictionAlert />}
+
 
         {/* Active filters alert */}
         {isFiltered && (
@@ -1582,37 +1594,38 @@ export function AssetManager({
               </SelectContent>
             </Select>
 
-            <Select
-              value={searchFilters.regional}
-              onValueChange={handleRegionalFilter}
-              disabled={isRegionalRestricted}
-            >
-              <SelectTrigger className="w-[180px] bg-input-background border-border">
-                <SelectValue placeholder="Regional" />
-              </SelectTrigger>
-              <SelectContent>
-                {!isRegionalRestricted && (
+            {!isRegionalRestricted && (
+              <Select
+                value={searchFilters.regional}
+                onValueChange={handleRegionalFilter}
+              >
+                <SelectTrigger className="w-[180px] bg-input-background border-border">
+                  <SelectValue placeholder="Regional" />
+                </SelectTrigger>
+                <SelectContent>
                   <SelectItem value="all">Todas as regionais</SelectItem>
-                )}
-                {availableRegionals.map(regional => (
-                  <SelectItem key={regional} value={regional}>
-                    {regional.toLowerCase().split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+                  {availableRegionals.map(regional => (
+                    <SelectItem key={regional} value={regional}>
+                      {regional.toLowerCase().split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
 
-            <Select value={searchFilters.origin} onValueChange={handleOriginFilter}>
-              <SelectTrigger className="w-[180px] bg-input-background border-border">
-                <SelectValue placeholder="Origem" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas as origens</SelectItem>
-                <SelectItem value="house">House (Tenda)</SelectItem>
-                <SelectItem value="ev">EV</SelectItem>
-                <SelectItem value="tenda_vendas">Tenda Vendas</SelectItem>
-              </SelectContent>
-            </Select>
+            {!isOriginRestricted && (
+              <Select value={searchFilters.origin} onValueChange={handleOriginFilter}>
+                <SelectTrigger className="w-[180px] bg-input-background border-border">
+                  <SelectValue placeholder="Origem" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas as origens</SelectItem>
+                  <SelectItem value="house">House (Tenda)</SelectItem>
+                  <SelectItem value="ev">EV</SelectItem>
+                  <SelectItem value="tenda_vendas">Tenda Vendas</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
 
             <div className="flex items-center gap-1 h-9 border border-border rounded-md px-1 bg-input-background">
               <Button
@@ -1821,19 +1834,18 @@ export function AssetManager({
                         >
                           <Download className="h-3 w-3" />
                         </Button>
-                        <PermissionGuard permissions={[Permission.SHARE_MATERIALS]}>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="hidden h-8 w-8 rounded-xl sm:flex sm:w-auto"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleShare(asset);
-                            }}
-                          >
-                            <Share2 className="h-3 w-3" />
-                          </Button>
-                        </PermissionGuard>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="hidden h-8 w-8 rounded-xl sm:flex sm:w-auto"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleShare(asset);
+                          }}
+                        >
+                          <Share2 className="h-3 w-3" />
+                        </Button>
+
 
                         <PermissionGuard permissions={[Permission.DELETE_MATERIALS]}>
                           <Button
@@ -1966,19 +1978,19 @@ export function AssetManager({
                               <Download className="w-4 h-4" />
                             </Button>
 
-                            <PermissionGuard permissions={[Permission.SHARE_MATERIALS]}>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleShare(asset);
-                                }}
-                                title="Compartilhar"
-                              >
-                                <Share2 className="w-4 h-4" />
-                              </Button>
-                            </PermissionGuard>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleShare(asset);
+                              }}
+                              title="Compartilhar"
+                            >
+                              <Share2 className="w-4 h-4" />
+                            </Button>
+
+
 
                             <PermissionGuard permissions={[Permission.DELETE_MATERIALS]}>
                               <Button

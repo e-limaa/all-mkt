@@ -108,6 +108,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             avatar_url: finalAvatarUrl,
             role: invite.role,
             regional: regional || null,
+            material_origin_scope: invite.material_origin_scope,
             viewer_access_to_all: ['admin', 'editor_marketing'].includes(invite.role),
             created_at: new Date().toISOString()
         };

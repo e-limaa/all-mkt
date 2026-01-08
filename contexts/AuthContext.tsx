@@ -32,11 +32,11 @@ const PROFILE_TIMEOUT_MS = 8000;
 
 const normalizeMaterialOriginScope = (
   value: unknown,
-): "house" | "ev" | null => {
+): "house" | "ev" | "tenda_vendas" | null => {
   if (typeof value !== "string") return null;
   const normalized = value.trim().toLowerCase();
-  return normalized === "house" || normalized === "ev"
-    ? (normalized as "house" | "ev")
+  return normalized === "house" || normalized === "ev" || normalized === "tenda_vendas"
+    ? (normalized as "house" | "ev" | "tenda_vendas")
     : null;
 };
 
@@ -50,7 +50,6 @@ const sanitizeUserRecord = (record: User): User => ({
     record.material_origin_scope,
   ),
 });
-
 const buildFallbackUser = (sessionUser: SupabaseUser): User => {
   const regionalMeta = sessionUser.user_metadata?.regional as string | undefined;
   const viewerAccessMeta = sessionUser.user_metadata?.viewer_access_to_all as
@@ -80,8 +79,8 @@ const buildFallbackUser = (sessionUser: SupabaseUser): User => {
       viewerAccessMeta === undefined
         ? false
         : viewerAccessMeta === null
-        ? null
-        : Boolean(viewerAccessMeta),
+          ? null
+          : Boolean(viewerAccessMeta),
     created_by: createdByMeta ?? null,
     created_at:
       (sessionUser.user_metadata?.created_at as string | undefined) ??
@@ -143,20 +142,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         clearTimeout(fetchTimeoutId);
       }
 
-        if (!response.ok) {
-          const body = await response.json().catch(() => null);
-          const message = body?.message || 'Nao foi possivel carregar o perfil do usuario';
-          toast.error(message);
-          setUser(null);
-          return null;
-        }
+      if (!response.ok) {
+        const body = await response.json().catch(() => null);
+        const message = body?.message || 'Nao foi possivel carregar o perfil do usuario';
+        toast.error(message);
+        setUser(null);
+        return null;
+      }
 
-        const rows = await response.json();
-        const record = Array.isArray(rows) ? rows[0] : rows;
+      const rows = await response.json();
+      const record = Array.isArray(rows) ? rows[0] : rows;
 
-        if (!record) {
-          const fallback = buildFallbackUser(currentSession.user);
-          setUser(fallback);
+      if (!record) {
+        const fallback = buildFallbackUser(currentSession.user);
+        setUser(fallback);
         return fallback;
       }
 

@@ -281,7 +281,6 @@ export default async function handler(
   if (normalizedRole === "viewer") {
     if (normalizedViewerGlobal) {
       normalizedRegional = null;
-      normalizedOriginScope = null;
     } else {
       normalizedRegional =
         normalizedRegional ?? normalizeRegional(finalTargetProfile.regional);
@@ -308,7 +307,6 @@ export default async function handler(
         error: "Editor Trade precisa de uma regional vinculada",
       });
     }
-    normalizedOriginScope = null;
   } else {
     normalizedViewerGlobal = false;
     normalizedOriginScope = null;
@@ -336,6 +334,7 @@ export default async function handler(
       material_origin_scope: normalizedOriginScope,
     },
   };
+
 
   if (password && password.length > 0) {
     updatePayload.password = password;
