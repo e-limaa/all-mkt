@@ -233,7 +233,7 @@ export function LoginScreen() {
           </form>
 
           <div className="space-y-2 pt-4 text-center text-[0.75rem] text-white/40 sm:text-xs">
-            <p>Sistema de gestao digital de ativos imobiliarios</p>
+            <p>Sistema de gestão digital de materias Tenda</p>
 
             {adminEmail ? (
               <p className="text-white/55">

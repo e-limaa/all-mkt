@@ -19,7 +19,7 @@ export const defaultLoginHeroLayout: LoginHeroLayout = {
   padding: "px-8 py-12 lg:px-16 lg:py-14",
   align: "center",
   offsetY: 0,
-  maxWidth: "max-w-xl",
+  maxWidth: "max-w-2xl",
   gap: "space-y-6 lg:space-y-16",
   logoWidth: 220,
 };
@@ -94,9 +94,8 @@ export function LoginHero({
               <div
                 className="inline-flex origin-left"
                 style={{
-                  transform: `scale(${
-                    resolvedLayout.logoWidth / BASE_LOGO_WIDTH
-                  })`,
+                  transform: `scale(${resolvedLayout.logoWidth / BASE_LOGO_WIDTH
+                    })`,
                   transformOrigin: "left center",
                 }}
               >
